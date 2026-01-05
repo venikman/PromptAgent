@@ -153,7 +153,13 @@ export async function evalPromptDistribution(
           try {
             const scoreResult = await scorer.run({
               input: epic,
-              output: { storyPack: gen.storyPack, rawText: gen.rawText },
+              output: {
+                storyPack: gen.storyPack,
+                rawText: gen.rawText,
+                trace: gen.trace ?? undefined,
+                gammaTime: gen.gammaTime,
+                instructions: gen.instructions,
+              },
             });
             score = scoreResult.score;
           } catch {
