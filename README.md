@@ -1,15 +1,162 @@
-# promptagent
+# PromptAgent
 
-To install dependencies:
+A prompt optimization system that evolves prompts using a champion/challenger approach. Uses Mastra AI framework with local LLMs (via LM Studio) to automatically improve prompts through iterative evaluation.
+
+## How It Works
+
+### Overview
+
+PromptAgent optimizes prompts by treating them as candidates in an evolutionary process:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     OPTIMIZATION LOOP                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   ┌──────────┐      ┌──────────┐      ┌──────────┐             │
+│   │ Champion │ ──►  │  Mutate  │ ──►  │Challenger│             │
+│   │  Prompt  │      │          │      │  Prompt  │             │
+│   └──────────┘      └──────────┘      └──────────┘             │
+│        │                                    │                   │
+│        │                                    │                   │
+│        ▼                                    ▼                   │
+│   ┌──────────┐                        ┌──────────┐             │
+│   │ Generate │                        │ Generate │             │
+│   │ Stories  │                        │ Stories  │             │
+│   └──────────┘                        └──────────┘             │
+│        │                                    │                   │
+│        │         ┌──────────┐               │                   │
+│        └────────►│  Score   │◄──────────────┘                   │
+│                  │ & Compare│                                   │
+│                  └────┬─────┘                                   │
+│                       │                                         │
+│                       ▼                                         │
+│              ┌─────────────────┐                                │
+│              │ Better score?   │                                │
+│              │ Promote to      │                                │
+│              │ Champion        │                                │
+│              └─────────────────┘                                │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### The Three Phases
+
+**1. Generate** - Use a prompt to transform Epics into User Stories
+
+```
+Epic (input)              Prompt                    Stories (output)
+┌────────────────┐       ┌────────────────┐       ┌────────────────┐
+│ "As a platform │  ──►  │ System prompt  │  ──►  │ Story 1: ...   │
+│  admin, I need │       │ with rules for │       │ Story 2: ...   │
+│  user mgmt..." │       │ decomposition  │       │ Story 3: ...   │
+└────────────────┘       └────────────────┘       └────────────────┘
+```
+
+**2. Score** - Evaluate output quality using multiple metrics
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SCORING PIPELINE                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────┐                                        │
+│  │ Schema Valid?   │──── No ────► Score = 0 (hard fail)     │
+│  └────────┬────────┘                                        │
+│           │ Yes                                             │
+│           ▼                                                 │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              WEIGHTED COMPOSITE SCORE               │    │
+│  ├─────────────────────────────────────────────────────┤    │
+│  │  25% ── Epic keyword coverage                       │    │
+│  │  30% ── INVEST principles (LLM-as-judge)            │    │
+│  │  30% ── Acceptance criteria testability (GWT)       │    │
+│  │  10% ── Duplication penalty                         │    │
+│  │   5% ── Story count sanity (4-8 optimal)            │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**3. Evolve** - Mutate prompts and promote winners
+
+```
+Generation N                              Generation N+1
+┌────────────┐                           ┌────────────┐
+│  Champion  │ ── mutate ──► Challenger  │  Champion  │
+│  Score: 72 │               Score: 78   │  Score: 78 │ ◄── promoted!
+└────────────┘                           └────────────┘
+```
+
+### Separate Judge Model
+
+To avoid "grading your own homework" bias, the system uses two models:
+
+```
+┌─────────────────┐         ┌─────────────────┐
+│  Generator LLM  │         │   Judge LLM     │
+│  (creates)      │         │   (evaluates)   │
+├─────────────────┤         ├─────────────────┤
+│ Writes stories  │         │ Scores INVEST   │
+│ from prompts    │         │ compliance      │
+└─────────────────┘         └─────────────────┘
+        │                           │
+        │                           │
+        └───────────────────────────┘
+              Can be different models
+```
+
+## Project Structure
+
+```
+src/
+  mastra/
+    models.ts           # LM Studio client (generator + judge)
+    schema.ts           # Zod schemas: Epic → StoryPack
+    agents/
+      storyGenerator.ts # Mastra Agent with structured output
+    scorers/
+      storyDecompositionScorer.ts  # Multi-metric scorer
+  cli/
+    optimize.ts         # Evolution loop: mutate → evaluate → promote
+    generate.ts         # Single-shot generation for testing
+prompts/
+  champion.md           # Current best prompt (versioned artifact)
+data/
+  epics.eval.json       # Fixed evaluation dataset
+```
+
+## Quick Start
 
 ```bash
+# Install dependencies
 bun install
+
+# Configure LM Studio connection
+cp .env.example .env
+# Edit .env with your LM Studio settings
+
+# Run the optimizer
+bun run src/cli/optimize.ts
+
+# Generate stories for a single epic
+bun run src/cli/generate.ts <EPIC_ID>
 ```
 
-To run:
+## Environment Setup
+
+Create `.env` with LM Studio configuration:
 
 ```bash
-bun run index.ts
+LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1
+LMSTUDIO_API_KEY=lm-studio
+LMSTUDIO_MODEL=openai/gpt-oss-20b
+LMSTUDIO_JUDGE_MODEL=openai/gpt-oss-20b  # Can differ from generator
 ```
 
-This project was created using `bun init` in bun v1.2.21. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+## Dependencies
+
+- `@mastra/core` - Agent framework with structured output
+- `@mastra/evals` - Scorer primitives, keyword coverage
+- `zod` - Schema validation
+- `p-limit` - Concurrency control

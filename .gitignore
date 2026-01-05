@@ -40,5 +40,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # MCP/Playwright screenshots (development artifacts)
 .playwright-mcp/
 
+# Local development apps
+explain/
+docs/
+
 # optimizer run logs (can be large)
 runs/
