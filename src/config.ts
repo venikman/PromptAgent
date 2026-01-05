@@ -12,7 +12,7 @@ const EnvSchema = z.object({
   // ─────────────────────────────────────────────────
   LMSTUDIO_BASE_URL: z.string().url().default("http://127.0.0.1:1234/v1"),
   LMSTUDIO_API_KEY: z.string().default("lm-studio"),
-  LMSTUDIO_MODEL: z.string().default("openai/gpt-oss-20b"),
+  LMSTUDIO_MODEL: z.string().default("openai/gpt-oss-120b"),
   LMSTUDIO_JUDGE_MODEL: z.string().optional(),
 
   // ─────────────────────────────────────────────────

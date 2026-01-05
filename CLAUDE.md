@@ -32,8 +32,8 @@ Create `.env` with LM Studio configuration:
 ```bash
 LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1
 LMSTUDIO_API_KEY=lm-studio
-LMSTUDIO_MODEL=openai/gpt-oss-20b
-LMSTUDIO_JUDGE_MODEL=openai/gpt-oss-20b  # Can differ from generator
+LMSTUDIO_MODEL=openai/gpt-oss-120b
+LMSTUDIO_JUDGE_MODEL=openai/gpt-oss-120b  # Can differ from generator
 ```
 
 ## Architecture

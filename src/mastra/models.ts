@@ -20,7 +20,7 @@ function getEnv(key: string, defaultValue: string): string {
 }
 
 export function makeGeneratorModel(): ModelConfig {
-  const modelId = getEnv("LMSTUDIO_MODEL", "openai/gpt-oss-20b");
+  const modelId = getEnv("LMSTUDIO_MODEL", "openai/gpt-oss-120b");
   return {
     url: getEnv("LMSTUDIO_BASE_URL", "http://127.0.0.1:1234/v1"),
     id: `lmstudio/${modelId}` as const,
@@ -30,7 +30,7 @@ export function makeGeneratorModel(): ModelConfig {
 
 export function makeJudgeModel(): ModelConfig {
   const judgeModel = process.env.LMSTUDIO_JUDGE_MODEL;
-  const generatorModel = getEnv("LMSTUDIO_MODEL", "openai/gpt-oss-20b");
+  const generatorModel = getEnv("LMSTUDIO_MODEL", "openai/gpt-oss-120b");
   const modelId = judgeModel ?? generatorModel;
 
   return {

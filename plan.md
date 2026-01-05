@@ -43,9 +43,9 @@ Put this in your `.env`:
 ```bash
 LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1
 LMSTUDIO_API_KEY=lm-studio
-LMSTUDIO_MODEL=openai/gpt-oss-20b
+LMSTUDIO_MODEL=openai/gpt-oss-120b
 
-LMSTUDIO_JUDGE_MODEL=openai/gpt-oss-20b
+LMSTUDIO_JUDGE_MODEL=openai/gpt-oss-120b
 ```
 
 > Note: LM Studio often doesn’t require a real API key, but some client libraries want something present.
@@ -99,13 +99,13 @@ function makeLmStudioClient() {
 
 export function makeGeneratorModel() {
   const client = makeLmStudioClient();
-  const modelId = process.env.LMSTUDIO_MODEL ?? "openai/gpt-oss-20b";
+  const modelId = process.env.LMSTUDIO_MODEL ?? "openai/gpt-oss-120b";
   return lmstudio(modelId, { client });
 }
 
 export function makeJudgeModel() {
   const client = makeLmStudioClient();
-  const modelId = process.env.LMSTUDIO_JUDGE_MODEL ?? process.env.LMSTUDIO_MODEL ?? "openai/gpt-oss-20b";
+  const modelId = process.env.LMSTUDIO_JUDGE_MODEL ?? process.env.LMSTUDIO_MODEL ?? "openai/gpt-oss-120b";
   return lmstudio(modelId, { client });
 }
 ```
