@@ -4,8 +4,7 @@
  * Usage: bun run src/cli/generate.ts <EPIC_ID> [--seed <N>]
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
+import { join } from "path";
 import { epicSchema } from "../mastra/schema.ts";
 import { generateStoryPack } from "../mastra/agents/storyGenerator.ts";
 
@@ -36,12 +35,12 @@ async function main() {
     process.exit(1);
   }
 
-  const dataPath = path.join(process.cwd(), "data", "epics.eval.json");
-  const promptPath = path.join(process.cwd(), "prompts", "champion.md");
+  const dataPath = join(process.cwd(), "data", "epics.eval.json");
+  const promptPath = join(process.cwd(), "prompts", "champion.md");
 
   console.log(`Loading epics from ${dataPath}...`);
-  const raw = await fs.readFile(dataPath, "utf8");
-  const epics = (JSON.parse(raw) as unknown[]).map((e) => epicSchema.parse(e));
+  const raw = await Bun.file(dataPath).json() as unknown[];
+  const epics = raw.map((e) => epicSchema.parse(e));
 
   const epic = epics.find((e) => e.id === epicId);
   if (!epic) {
@@ -51,7 +50,7 @@ async function main() {
   }
 
   console.log(`Loading champion prompt from ${promptPath}...`);
-  const prompt = await fs.readFile(promptPath, "utf8");
+  const prompt = await Bun.file(promptPath).text();
 
   console.log(`\nGenerating stories for epic: ${epic.title}...`);
   if (seed !== undefined) {

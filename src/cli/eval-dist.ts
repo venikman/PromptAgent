@@ -7,8 +7,8 @@
  * Usage: bun run src/cli/eval-dist.ts [--replicates <N>] [--output <path>]
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
+import { join, dirname } from "path";
+import { mkdir } from "fs/promises";
 import { epicSchema } from "../mastra/schema.ts";
 import { env } from "../config.ts";
 import { evalPromptDistribution, type PromptDistReport } from "../eval/evalPromptDistribution.ts";
@@ -33,11 +33,11 @@ function parseArgs(args: string[]): { replicates?: number; output?: string } {
 }
 
 async function readFile(relativePath: string): Promise<string> {
-  try {
-    return await fs.readFile(path.join(process.cwd(), relativePath), "utf8");
-  } catch {
-    return "";
+  const file = Bun.file(join(process.cwd(), relativePath));
+  if (await file.exists()) {
+    return file.text();
   }
+  return "";
 }
 
 async function main() {
@@ -51,10 +51,10 @@ async function main() {
   console.log();
 
   // Load epics
-  const dataPath = path.join(process.cwd(), "data", "epics.eval.json");
+  const dataPath = join(process.cwd(), "data", "epics.eval.json");
   console.log(`Loading epics from ${dataPath}...`);
-  const raw = await fs.readFile(dataPath, "utf8");
-  const epics = (JSON.parse(raw) as unknown[]).map((e) => epicSchema.parse(e));
+  const raw = await Bun.file(dataPath).json() as unknown[];
+  const epics = raw.map((e) => epicSchema.parse(e));
   console.log(`Loaded ${epics.length} epics\n`);
 
   // Load prompt
@@ -131,9 +131,9 @@ async function main() {
   console.log();
 
   // Save output
-  const fullOutputPath = path.join(process.cwd(), outputPath);
-  await fs.mkdir(path.dirname(fullOutputPath), { recursive: true });
-  await fs.writeFile(fullOutputPath, JSON.stringify(report, null, 2), "utf8");
+  const fullOutputPath = join(process.cwd(), outputPath);
+  await mkdir(dirname(fullOutputPath), { recursive: true });
+  await Bun.write(fullOutputPath, JSON.stringify(report, null, 2));
   console.log(`Results saved to: ${outputPath}`);
 }
 

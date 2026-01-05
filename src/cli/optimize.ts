@@ -14,8 +14,8 @@
  * 5. Promote if objective improves beyond threshold
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
+import { join, dirname } from "path";
+import { mkdir } from "fs/promises";
 import { epicSchema, type Epic } from "../mastra/schema.ts";
 import { env } from "../config.ts";
 import {
@@ -34,25 +34,21 @@ import {
 // ─────────────────────────────────────────────────
 
 async function readFile(relativePath: string): Promise<string> {
-  try {
-    return await fs.readFile(path.join(process.cwd(), relativePath), "utf8");
-  } catch {
-    return "";
+  const file = Bun.file(join(process.cwd(), relativePath));
+  if (await file.exists()) {
+    return file.text();
   }
+  return "";
 }
 
 async function writeFile(relativePath: string, content: string): Promise<void> {
-  const fullPath = path.join(process.cwd(), relativePath);
-  await fs.mkdir(path.dirname(fullPath), { recursive: true });
-  await fs.writeFile(fullPath, content, "utf8");
+  const fullPath = join(process.cwd(), relativePath);
+  await mkdir(dirname(fullPath), { recursive: true });
+  await Bun.write(fullPath, content);
 }
 
 async function loadEpics(): Promise<Epic[]> {
-  const raw = await fs.readFile(
-    path.join(process.cwd(), "data", "epics.eval.json"),
-    "utf8"
-  );
-  const parsed = JSON.parse(raw) as unknown[];
+  const parsed = await Bun.file(join(process.cwd(), "data", "epics.eval.json")).json() as unknown[];
   return parsed.map((e) => epicSchema.parse(e));
 }
 
