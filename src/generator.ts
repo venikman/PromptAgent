@@ -1,7 +1,9 @@
+import crypto from "node:crypto";
 import { Agent } from "@mastra/core/agent";
 import { storyPackSchema, type Epic, type StoryPack } from "./schema.ts";
 import { makeGeneratorModel } from "./models.ts";
 import { env } from "./config.ts";
+import type { ExecutionTrace } from "./judge/promptagent-fpf-judge.ts";
 
 export const baseStoryAgent = new Agent({
   id: "story-generator",
@@ -13,6 +15,9 @@ export const baseStoryAgent = new Agent({
 export type GenerateResult = {
   storyPack: StoryPack | null;
   rawText: string;
+  instructions: string;
+  trace: ExecutionTrace | null;
+  gammaTime?: string;
   seed?: number;
   error?: string;
 };
@@ -45,6 +50,8 @@ export async function generateStoryPack(
   options: GenerateOptions = {}
 ): Promise<GenerateResult> {
   const { seed, temperature = env.GEN_TEMPERATURE, maxTokens = env.GEN_MAX_TOKENS } = options;
+  const runId = crypto.randomUUID();
+  const startedAt = new Date().toISOString();
 
   const messages = [
     {
@@ -73,16 +80,69 @@ export async function generateStoryPack(
       providerOptions: buildProviderOptions(seed),
     });
 
+    const endedAt = new Date().toISOString();
+    const usage =
+      (response as { metadata?: { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } } }).metadata
+        ?.usage;
+
+    const trace: ExecutionTrace = {
+      runId,
+      startedAt,
+      endedAt,
+      steps: [
+        {
+          id: `${runId}-llm`,
+          kind: "llm_call",
+          name: "story-generator",
+          input: { epicId: epic.id, seed, temperature, maxTokens },
+          output: response.text,
+          tokenUsage: usage
+            ? {
+                prompt: usage.prompt_tokens,
+                completion: usage.completion_tokens,
+                total: usage.total_tokens,
+              }
+            : undefined,
+          startedAt,
+          endedAt,
+        },
+      ],
+    };
+
     return {
       storyPack: response.object as StoryPack,
       rawText: response.text,
+      instructions: candidatePrompt,
+      trace,
+      gammaTime: startedAt,
       seed,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const endedAt = new Date().toISOString();
+    const trace: ExecutionTrace = {
+      runId,
+      startedAt,
+      endedAt,
+      steps: [
+        {
+          id: `${runId}-error`,
+          kind: "note",
+          name: "generation-error",
+          input: { epicId: epic.id, seed, temperature, maxTokens },
+          output: { error: message },
+          startedAt,
+          endedAt,
+        },
+      ],
+    };
+
     return {
       storyPack: null,
       rawText: "",
+      instructions: candidatePrompt,
+      trace,
+      gammaTime: startedAt,
       seed,
       error: message,
     };
