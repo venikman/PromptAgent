@@ -1,0 +1,35 @@
+[
+  {
+    "id": "E-101",
+    "title": "SSO + MFA for Internal Admin Portal",
+    "description": "Implement Azure AD SSO for the admin portal. Require MFA. Users must be able to log in, log out, and handle expired sessions. Provide audit logging for sign-in events. Out of scope: redesigning UI.",
+    "constraints": [
+      "Must work with existing React app",
+      "No breaking changes to current local login until rollout is complete"
+    ],
+    "nonFunctional": [
+      "Audit log retained for 90 days",
+      "Login flow must be resilient to IdP outages"
+    ],
+    "outOfScope": ["Full UI redesign"]
+  },
+  {
+    "id": "E-202",
+    "title": "Search in Product Catalog",
+    "description": "Add search to product catalog by name, SKU, and tags. Support filtering by category and price range. Must return results within 500ms for typical queries. Must include analytics events for search usage.",
+    "nonFunctional": [
+      "p95 latency <= 500ms",
+      "Track search events in analytics"
+    ],
+    "constraints": ["Backend is Node + Postgres, no Elasticsearch in this phase"]
+  },
+  {
+    "id": "E-303",
+    "title": "Invoice Export for Finance",
+    "description": "Finance needs CSV export of invoices for a date range, including customer, line items totals, tax, and status. Export must be accessible only to Finance role. Provide an audit record when export happens.",
+    "constraints": [
+      "Role model already exists",
+      "CSV format must match existing finance template"
+    ]
+  }
+]
