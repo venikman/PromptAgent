@@ -14,10 +14,10 @@
  */
 
 import pLimit from "p-limit";
-import { env } from "../config.ts";
-import type { Epic, StoryPack } from "../mastra/schema.ts";
-import { generateStoryPack, type GenerateResult } from "../mastra/agents/storyGenerator.ts";
-import { createStoryDecompositionScorer } from "../mastra/scorers/storyDecompositionScorer.ts";
+import { env } from "./config.ts";
+import type { Epic, StoryPack } from "./schema.ts";
+import { generateStoryPack, type GenerateResult } from "./generator.ts";
+import { createStoryDecompositionScorer } from "./scorer.ts";
 
 // ─────────────────────────────────────────────────
 // Statistical Helpers

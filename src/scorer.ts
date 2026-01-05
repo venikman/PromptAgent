@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { createScorer } from "@mastra/core/scores";
 import { KeywordCoverageMetric } from "@mastra/evals/nlp";
-import type { Epic, StoryPack } from "../schema.ts";
-import { storyPackSchema } from "../schema.ts";
-import { makeJudgeModel } from "../models.ts";
+import type { Epic, StoryPack } from "./schema.ts";
+import { storyPackSchema } from "./schema.ts";
+import { makeJudgeModel } from "./models.ts";
 
 type ScorerInput = Epic;
 type ScorerOutput = {

@@ -16,18 +16,18 @@
 
 import { join, dirname } from "path";
 import { mkdir } from "fs/promises";
-import { epicSchema, type Epic } from "../mastra/schema.ts";
+import { epicSchema, type Epic } from "../schema.ts";
 import { env } from "../config.ts";
 import {
   evalPromptDistribution,
   flattenDistReport,
   type PromptDistReport,
-} from "../eval/evalPromptDistribution.ts";
-import { mineContrastivePairs, formatPairsForPrompt } from "../optimizer/pairMining.ts";
+} from "../eval.ts";
+import { mineContrastivePairs, formatPairsForPrompt } from "../pairMining.ts";
 import {
   generatePatchCandidates,
   composePrompt,
-} from "../optimizer/promptPatchEngineerAgent.ts";
+} from "../patchEngineer.ts";
 
 // ─────────────────────────────────────────────────
 // File I/O

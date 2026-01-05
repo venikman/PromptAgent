@@ -1,7 +1,7 @@
 import { Agent } from "@mastra/core/agent";
-import { storyPackSchema, type Epic, type StoryPack } from "../schema.ts";
-import { makeGeneratorModel } from "../models.ts";
-import { env } from "../../config.ts";
+import { storyPackSchema, type Epic, type StoryPack } from "./schema.ts";
+import { makeGeneratorModel } from "./models.ts";
+import { env } from "./config.ts";
 
 export const baseStoryAgent = new Agent({
   id: "story-generator",

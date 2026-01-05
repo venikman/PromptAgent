@@ -11,8 +11,8 @@
  */
 
 import { Agent } from "@mastra/core/agent";
-import { makeJudgeModel } from "../mastra/models.ts";
-import { env } from "../config.ts";
+import { makeJudgeModel } from "./models.ts";
+import { env } from "./config.ts";
 
 // ─────────────────────────────────────────────────
 // Agent Definition

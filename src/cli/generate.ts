@@ -5,8 +5,8 @@
  */
 
 import { join } from "path";
-import { epicSchema } from "../mastra/schema.ts";
-import { generateStoryPack } from "../mastra/agents/storyGenerator.ts";
+import { epicSchema } from "../schema.ts";
+import { generateStoryPack } from "../generator.ts";
 
 function parseArgs(args: string[]): { epicId?: string; seed?: number } {
   let epicId: string | undefined;

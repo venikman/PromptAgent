@@ -9,9 +9,9 @@
  * pairs to the patch engineer helps it identify targeted improvements.
  */
 
-import type { StoryPack } from "../mastra/schema.ts";
+import type { StoryPack } from "./schema.ts";
 import { cosine, hashVector } from "./similarity.ts";
-import { env } from "../config.ts";
+import { env } from "./config.ts";
 
 // ─────────────────────────────────────────────────
 // Types

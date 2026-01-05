@@ -9,10 +9,10 @@
 
 import { join, dirname } from "path";
 import { mkdir } from "fs/promises";
-import { epicSchema } from "../mastra/schema.ts";
+import { epicSchema } from "../schema.ts";
 import { env } from "../config.ts";
-import { evalPromptDistribution, type PromptDistReport } from "../eval/evalPromptDistribution.ts";
-import { composePrompt } from "../optimizer/promptPatchEngineerAgent.ts";
+import { evalPromptDistribution, type PromptDistReport } from "../eval.ts";
+import { composePrompt } from "../patchEngineer.ts";
 
 function parseArgs(args: string[]): { replicates?: number; output?: string } {
   let replicates: number | undefined;
