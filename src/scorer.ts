@@ -4,6 +4,7 @@ import { KeywordCoverageMetric } from "@mastra/evals/nlp";
 import type { Epic, StoryPack } from "./schema.ts";
 import { storyPackSchema } from "./schema.ts";
 import { makeJudgeModel } from "./models.ts";
+import { PromptAgentFPFMetric } from "./judge/promptagent-fpf-judge.ts";
 
 type ScorerInput = Epic;
 type ScorerOutput = {
@@ -18,6 +19,7 @@ function clamp01(x: number): number {
 export function createStoryDecompositionScorer() {
   const judgeModel = makeJudgeModel();
   const keywordMetric = new KeywordCoverageMetric();
+  const fpfMetric = new PromptAgentFPFMetric(judgeModel);
 
   return createScorer<ScorerInput, ScorerOutput>({
     name: "EpicToUserStoriesQuality",
@@ -40,12 +42,35 @@ export function createStoryDecompositionScorer() {
       // Calculate keyword coverage
       const coverageResult = await keywordMetric.measure(epicText, rawText);
 
+      const fpfResult = await fpfMetric
+        .measure({
+          clauseId: "PA-story-acceptance",
+          gamma_time: new Date().toISOString(),
+          query: epicText,
+          instructions: [
+            "Judge the WORK (response) against the epic and rubric.",
+            "Prefer evidence that acceptance criteria are testable and specific.",
+            "Map correctness to fidelity to epic intent and absence of hallucinations.",
+            "Map completeness to coverage of personas/constraints and story structure.",
+            "Map processQuality to duplication avoidance and coherent story sizing.",
+            "Map safety to avoiding unsafe content or violating constraints.",
+          ].join(" \n"),
+          response: rawText,
+          trace: undefined,
+          workflowGraph: undefined,
+          bridges: [],
+          gateProfile: "Core",
+        })
+        .catch(() => ({ score: 0, info: null }));
+
       return {
         epicText,
         rawText,
         isValid,
         storyCount,
         coverageScore: coverageResult.score,
+        fpfScore: fpfResult.score,
+        fpfInfo: fpfResult.info,
       };
     })
     .analyze({
@@ -83,6 +108,8 @@ export function createStoryDecompositionScorer() {
 
       const a = results.analyzeStepResult;
 
+      const reliability = typeof p.fpfScore === "number" ? p.fpfScore : 0;
+
       // Story count scoring: 4-8 is optimal
       const countScore =
         p.storyCount >= 4 && p.storyCount <= 8
@@ -92,14 +119,16 @@ export function createStoryDecompositionScorer() {
             : 0.4;
 
       // Weighted composite score
-      const score =
-        0.25 * p.coverageScore +
-        0.3 * a.invest +
-        0.3 * a.acceptanceCriteria +
-        0.1 * a.duplication +
-        0.05 * countScore;
+      const baseScore =
+        0.23 * p.coverageScore +
+        0.27 * a.invest +
+        0.27 * a.acceptanceCriteria +
+        0.13 * a.duplication +
+        0.05 * countScore +
+        0.05 * reliability;
 
-      return clamp01(score);
+      // Reliability gates reward based on trace-aware judge
+      return clamp01(baseScore * (0.5 + 0.5 * reliability));
     })
     .generateReason(({ score, results }) => {
       const p = results.preprocessStepResult;
@@ -113,6 +142,8 @@ export function createStoryDecompositionScorer() {
         `criteria=${a.acceptanceCriteria.toFixed(3)}`,
         `dup=${a.duplication.toFixed(3)}`,
         `stories=${p.storyCount}`,
+        `fpf=${(p.fpfScore ?? 0).toFixed(3)}`,
+        `gate=${p.fpfInfo?.gateDecision ?? "n/a"}`,
         `notes=${a.notes}`,
       ].join(" | ");
     });
