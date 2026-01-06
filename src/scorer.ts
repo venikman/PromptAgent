@@ -1,7 +1,7 @@
-import type { MetricResult } from "@mastra/core";
-import { createScorer } from "@mastra/core/scores";
-import { KeywordCoverageMetric } from "@mastra/evals/nlp";
-import { z } from "zod";
+import type { MetricResult } from "npm:@mastra/core@0.24.9";
+import { createScorer } from "npm:@mastra/core@0.24.9/scores";
+import { KeywordCoverageMetric } from "npm:@mastra/evals@0.14.4/nlp";
+import { z } from "npm:zod@4.3.5";
 import { env } from "./config.ts";
 import type { Epic, StoryPack } from "./schema.ts";
 import { storyPackSchema } from "./schema.ts";

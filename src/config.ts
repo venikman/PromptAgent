@@ -1,4 +1,5 @@
-import { z } from "zod";
+import "jsr:@std/dotenv/load";
+import { z } from "npm:zod@4.3.5";
 
 /**
  * Centralized configuration with Zod validation.
@@ -77,7 +78,7 @@ const EnvSchema = z.object({
 });
 
 // Parse and export validated config
-export const env = EnvSchema.parse(process.env);
+export const env = EnvSchema.parse(Deno.env.toObject());
 
 // Re-export the schema for testing/documentation
 export { EnvSchema };

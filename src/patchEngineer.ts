@@ -10,7 +10,7 @@
  * 3. Focus on patterns that distinguish GOOD from BAD outputs
  */
 
-import { Agent } from "@mastra/core/agent";
+import { Agent } from "npm:@mastra/core@0.24.9/agent";
 import { makeJudgeModel } from "./models.ts";
 import { env } from "./config.ts";
 

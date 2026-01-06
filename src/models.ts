@@ -16,7 +16,7 @@ export type ModelConfig = {
 };
 
 function getEnv(key: string, defaultValue: string): string {
-  return process.env[key] ?? defaultValue;
+  return Deno.env.get(key) ?? defaultValue;
 }
 
 export function makeGeneratorModel(): ModelConfig {
@@ -29,7 +29,7 @@ export function makeGeneratorModel(): ModelConfig {
 }
 
 export function makeJudgeModel(): ModelConfig {
-  const judgeModel = process.env.LMSTUDIO_JUDGE_MODEL;
+  const judgeModel = Deno.env.get("LMSTUDIO_JUDGE_MODEL");
   const generatorModel = getEnv("LMSTUDIO_MODEL", "openai/gpt-oss-120b");
   const modelId = judgeModel ?? generatorModel;
 

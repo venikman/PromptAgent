@@ -129,18 +129,15 @@ data/
 ## Quick Start
 
 ```bash
-# Install dependencies
-bun install
-
 # Configure LM Studio connection
 cp .env.example .env
 # Edit .env with your LM Studio settings
 
 # Run the optimizer
-bun run src/cli/optimize.ts
+deno task optimize
 
 # Generate stories for a single epic
-bun run src/cli/generate.ts <EPIC_ID>
+deno task generate -- <EPIC_ID>
 ```
 
 ## Environment Setup
@@ -156,11 +153,22 @@ LMSTUDIO_JUDGE_MODEL=openai/gpt-oss-120b  # Can differ from generator
 
 ## Deno Deploy (Ollama Cloud)
 
-This repo keeps Bun + LM Studio for local optimization, but also includes a lightweight
+This repo uses Deno for local optimization (with LM Studio) and also includes a lightweight
 Deno Deploy API that proxies to Ollama Cloud. It lives at `deploy/main.ts` and exposes:
 
 - `GET /health` for a basic health check
-- `POST /generate` to proxy a `prompt` to Ollama Cloud (non‑streaming)
+- `POST /generate` to proxy a `prompt` to Ollama Cloud (non-streaming)
+- `GET /ui` for the shadcn UI demo (browsers also get HTML at `/`)
+
+### UI Demo (shadcn/ui)
+
+The UI lives in `ui/` and is built with Vite + React using shadcn components (no custom
+component styling). Build it before deploying (Deno-only):
+
+```bash
+deno task ui:deps
+deno task ui:build
+```
 
 ### Required Deno Deploy Environment Variables
 

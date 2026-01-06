@@ -4,11 +4,10 @@
  * Evaluates the champion prompt across multiple replicates per epic
  * and outputs detailed distribution statistics.
  *
- * Usage: bun run src/cli/eval-dist.ts [--replicates <N>] [--output <path>]
+ * Usage: deno task eval:dist -- [--replicates <N>] [--output <path>]
  */
 
-import { join, dirname } from "path";
-import { mkdir } from "fs/promises";
+import { join, dirname } from "jsr:@std/path";
 import { epicSchema } from "../schema.ts";
 import { env } from "../config.ts";
 import { evalPromptDistribution, type PromptDistReport } from "../eval.ts";
@@ -33,15 +32,17 @@ function parseArgs(args: string[]): { replicates?: number; output?: string } {
 }
 
 async function readFile(relativePath: string): Promise<string> {
-  const file = Bun.file(join(process.cwd(), relativePath));
-  if (await file.exists()) {
-    return file.text();
+  const fullPath = join(Deno.cwd(), relativePath);
+  try {
+    return await Deno.readTextFile(fullPath);
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) return "";
+    throw err;
   }
-  return "";
 }
 
 async function main() {
-  const { replicates, output } = parseArgs(process.argv.slice(2));
+  const { replicates, output } = parseArgs(Deno.args);
   const numReplicates = replicates ?? env.EVAL_REPLICATES;
   const outputPath = output ?? "out/eval.dist.json";
 
@@ -51,9 +52,9 @@ async function main() {
   console.log();
 
   // Load epics
-  const dataPath = join(process.cwd(), "data", "epics.eval.json");
+  const dataPath = join(Deno.cwd(), "data", "epics.eval.json");
   console.log(`Loading epics from ${dataPath}...`);
-  const raw = await Bun.file(dataPath).json() as unknown[];
+  const raw = JSON.parse(await Deno.readTextFile(dataPath)) as unknown[];
   const epics = raw.map((e) => epicSchema.parse(e));
   console.log(`Loaded ${epics.length} epics\n`);
 
@@ -65,7 +66,7 @@ async function main() {
     base = await readFile("prompts/champion.md");
     if (!base) {
       console.error("No prompt found in prompts/champion.base.md or prompts/champion.md");
-      process.exit(1);
+      Deno.exit(1);
     }
   }
 
@@ -85,7 +86,7 @@ async function main() {
     epics,
     replicates: numReplicates,
     onProgress: (done, total) => {
-      process.stdout.write(`\rProgress: ${done}/${total} runs completed`);
+      Deno.stdout.writeSync(new TextEncoder().encode(`\rProgress: ${done}/${total} runs completed`));
     },
   });
 
@@ -131,13 +132,13 @@ async function main() {
   console.log();
 
   // Save output
-  const fullOutputPath = join(process.cwd(), outputPath);
-  await mkdir(dirname(fullOutputPath), { recursive: true });
-  await Bun.write(fullOutputPath, JSON.stringify(report, null, 2));
+  const fullOutputPath = join(Deno.cwd(), outputPath);
+  await Deno.mkdir(dirname(fullOutputPath), { recursive: true });
+  await Deno.writeTextFile(fullOutputPath, JSON.stringify(report, null, 2));
   console.log(`Results saved to: ${outputPath}`);
 }
 
 main().catch((e) => {
   console.error("Error:", e);
-  process.exit(1);
+  Deno.exit(1);
 });

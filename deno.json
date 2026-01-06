@@ -1,0 +1,22 @@
+{
+  "tasks": {
+    "dev": "deno run -A scripts/dev.ts",
+    "test-server": "deno run -A scripts/test-server.ts",
+    "typecheck": "deno check deploy/main.ts src/**/*.ts",
+    "optimize": "deno run -A src/cli/optimize.ts",
+    "generate": "deno run -A src/cli/generate.ts",
+    "eval:dist": "deno run -A src/cli/eval-dist.ts",
+    "lint": "deno lint",
+    "fmt": "deno fmt",
+    "fmt:check": "deno fmt --check",
+    "ui:deps": "cd ui && deno run -A --node-modules-dir deno-deps.ts",
+    "ui:dev": "cd ui && deno run -A --node-modules-dir npm:vite",
+    "ui:build": "cd ui && deno run -A --node-modules-dir npm:vite build",
+    "ui:preview": "cd ui && deno run -A --node-modules-dir npm:vite preview"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": true
+  }
+}

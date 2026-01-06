@@ -14,8 +14,7 @@
  * 5. Promote if objective improves beyond threshold
  */
 
-import { join, dirname } from "path";
-import { mkdir } from "fs/promises";
+import { join, dirname } from "jsr:@std/path";
 import { epicSchema, type Epic } from "../schema.ts";
 import { env } from "../config.ts";
 import {
@@ -34,21 +33,25 @@ import {
 // ─────────────────────────────────────────────────
 
 async function readFile(relativePath: string): Promise<string> {
-  const file = Bun.file(join(process.cwd(), relativePath));
-  if (await file.exists()) {
-    return file.text();
+  const fullPath = join(Deno.cwd(), relativePath);
+  try {
+    return await Deno.readTextFile(fullPath);
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) return "";
+    throw err;
   }
-  return "";
 }
 
 async function writeFile(relativePath: string, content: string): Promise<void> {
-  const fullPath = join(process.cwd(), relativePath);
-  await mkdir(dirname(fullPath), { recursive: true });
-  await Bun.write(fullPath, content);
+  const fullPath = join(Deno.cwd(), relativePath);
+  await Deno.mkdir(dirname(fullPath), { recursive: true });
+  await Deno.writeTextFile(fullPath, content);
 }
 
 async function loadEpics(): Promise<Epic[]> {
-  const parsed = await Bun.file(join(process.cwd(), "data", "epics.eval.json")).json() as unknown[];
+  const parsed = JSON.parse(
+    await Deno.readTextFile(join(Deno.cwd(), "data", "epics.eval.json"))
+  ) as unknown[];
   return parsed.map((e) => epicSchema.parse(e));
 }
 
@@ -141,7 +144,9 @@ export async function main(): Promise<void> {
     promptText: composePrompt(base, patch),
     epics,
     onProgress: (done, total) => {
-      process.stdout.write(`\r  Progress: ${done}/${total} runs completed`);
+      Deno.stdout.writeSync(
+        new TextEncoder().encode(`\r  Progress: ${done}/${total} runs completed`)
+      );
     },
   });
   console.log("\n");
@@ -215,7 +220,9 @@ export async function main(): Promise<void> {
         promptText: candidatePrompt,
         epics,
         onProgress: (done, total) => {
-          process.stdout.write(`\r    Evaluating: ${done}/${total} runs`);
+          Deno.stdout.writeSync(
+            new TextEncoder().encode(`\r    Evaluating: ${done}/${total} runs`)
+          );
         },
       });
       console.log();
@@ -286,5 +293,5 @@ export async function main(): Promise<void> {
 
 main().catch((e) => {
   console.error("Error:", e);
-  process.exit(1);
+  Deno.exit(1);
 });

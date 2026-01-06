@@ -20,6 +20,11 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Build UI
+        run: |
+          deno task ui:deps
+          deno task ui:build
+
       - name: Deploy to Deno Deploy
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}

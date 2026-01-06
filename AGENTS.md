@@ -13,10 +13,14 @@ PromptAgent is a prompt optimization system that evolves prompts using a champio
 ## Commands
 
 ```bash
-bun install                          # Install dependencies
-bun run --bun tsc --noEmit           # Type check
-bun run src/cli/optimize.ts          # Run optimizer (main evolution loop)
-bun run src/cli/generate.ts <EPIC_ID> # Generate stories for a single epic
+deno task typecheck                  # Type check
+deno task optimize                   # Run optimizer (main evolution loop)
+deno task generate -- <EPIC_ID>      # Generate stories for a single epic
+deno task lint                       # Lint
+deno task fmt                        # Format
+deno task ui:deps                    # Populate UI dependencies (Deno npm cache)
+deno task ui:build                   # Build UI (Vite via Deno)
+deno task ui:dev                     # Run UI dev server (Vite via Deno)
 ```
 
 ## Architecture
