@@ -154,6 +154,39 @@ LMSTUDIO_MODEL=openai/gpt-oss-120b
 LMSTUDIO_JUDGE_MODEL=openai/gpt-oss-120b  # Can differ from generator
 ```
 
+## Deno Deploy (Ollama Cloud)
+
+This repo keeps Bun + LM Studio for local optimization, but also includes a lightweight
+Deno Deploy API that proxies to Ollama Cloud. It lives at `deploy/main.ts` and exposes:
+
+- `GET /health` for a basic health check
+- `POST /generate` to proxy a `prompt` to Ollama Cloud (non‑streaming)
+
+### Required Deno Deploy Environment Variables
+
+Set these in the Deno Deploy project settings:
+
+- `OLLAMA_API_KEY` (Ollama Cloud API key)
+- `OLLAMA_MODEL` (default model name for requests)
+- `OLLAMA_API_BASE_URL` (optional; defaults to `https://ollama.com/api`)
+
+### Example Request
+
+```bash
+curl -X POST https://<your-deploy-domain>/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"Summarize this epic into 5 user stories.","model":"<your-model>"}'
+```
+
+### GitHub Actions Deployment
+
+The workflow `.github/workflows/deploy-deno.yml` deploys on `main` pushes using
+`denoland/deployctl`. Set a GitHub repository variable:
+
+- `DENO_DEPLOY_PROJECT` (your Deno Deploy project name)
+
+If not set, it defaults to `promptagent`.
+
 ## Dependencies
 
 - `@mastra/core` - Agent framework with structured output

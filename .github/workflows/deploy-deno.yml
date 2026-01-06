@@ -1,0 +1,23 @@
+name: Deploy (Deno Deploy)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Deno Deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: ${{ vars.DENO_DEPLOY_PROJECT || 'promptagent' }}
+          entrypoint: deploy/main.ts
