@@ -10,6 +10,7 @@ import {
   PromptAgentFPFMetric,
   type Bridge,
   type PromptAgentJudgeInput,
+  isPromptAgentJudgeInfo,
 } from "./judge/promptagent-fpf-judge.ts";
 
 type ScorerInput = Epic;
@@ -26,6 +27,17 @@ type ScorerOutput = {
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
 }
+
+const DEGRADE_GATE_PENALTY = 0.85;
+const HEURISTIC_SCORE_WEIGHT = 0.6;
+const FPF_SCORE_WEIGHT = 0.4;
+const HEURISTIC_WEIGHTS = {
+  coverage: 0.25,
+  invest: 0.25,
+  acceptanceCriteria: 0.25,
+  duplication: 0.15, // Intentional reweight to emphasize deduplication vs prior scoring
+  count: 0.1,
+};
 
 export function createStoryDecompositionScorer() {
   const judgeModel = makeJudgeModel();
@@ -66,7 +78,7 @@ export function createStoryDecompositionScorer() {
         trace: run.output.trace ?? undefined,
         workflowGraph: run.output.workflowGraph,
         bridges: run.output.bridges ?? [],
-        gamma_time: run.output.gammaTime ?? run.output.trace?.startedAt,
+        gamma_time: run.output.gammaTime,
         tokenBudget: env.GEN_MAX_TOKENS,
         gateProfile: "Core",
       };
@@ -134,20 +146,21 @@ export function createStoryDecompositionScorer() {
 
       // Weighted composite score
       const heuristicScore =
-        0.25 * p.coverageScore +
-        0.25 * a.invest +
-        0.25 * a.acceptanceCriteria +
-        0.15 * a.duplication +
-        0.1 * countScore;
+        HEURISTIC_WEIGHTS.coverage * p.coverageScore +
+        HEURISTIC_WEIGHTS.invest * a.invest +
+        HEURISTIC_WEIGHTS.acceptanceCriteria * a.acceptanceCriteria +
+        HEURISTIC_WEIGHTS.duplication * a.duplication +
+        HEURISTIC_WEIGHTS.count * countScore;
 
       const fpfScore = p.fpfJudgeResult?.score ?? 0;
-      const gatePenalty = gateDecision === "degrade" ? 0.85 : 1;
+      const gatePenalty = gateDecision === "degrade" ? DEGRADE_GATE_PENALTY : 1;
 
-      const blendedScore = 0.6 * heuristicScore + 0.4 * fpfScore;
+      const blendedScore =
+        HEURISTIC_SCORE_WEIGHT * heuristicScore + FPF_SCORE_WEIGHT * fpfScore;
 
       const score = clamp01(blendedScore * gatePenalty);
 
-      return clamp01(score);
+      return score;
     })
     .generateReason(({ score, results }) => {
       const p = results.preprocessStepResult;
@@ -155,19 +168,8 @@ export function createStoryDecompositionScorer() {
 
       const a = results.analyzeStepResult;
       const gateDecision = p.fpfJudgeResult?.info?.gateDecision ?? "abstain";
-      const fpfInfo = p.fpfJudgeResult?.info as
-        | {
-            gateDecision?: string;
-            status?: string;
-            rEff?: number;
-            subscores?: {
-              correctness?: number;
-              completeness?: number;
-              processQuality?: number;
-              safety?: number;
-            };
-          }
-        | undefined;
+      const maybeFpfInfo = p.fpfJudgeResult?.info;
+      const fpfInfo = isPromptAgentJudgeInfo(maybeFpfInfo) ? maybeFpfInfo : undefined;
       const fpfSubscores = fpfInfo?.subscores;
       return [
         `Score=${score.toFixed(3)}`,

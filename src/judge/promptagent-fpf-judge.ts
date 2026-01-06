@@ -20,6 +20,8 @@ const joinGateDecision = (a: GateDecision, b: GateDecision): GateDecision =>
 const sha256 = (value: string): string =>
   crypto.createHash("sha256").update(value).digest("hex");
 
+const MAX_TRACE_DIGEST_STEPS = 30;
+
 const ExecutionTraceSchema = z.object({
   runId: z.string(),
   startedAt: z.string(), // ISO-8601 string; keep lenient for upstream callers
@@ -88,7 +90,7 @@ type EvidencePin = {
   kind: "trace_step" | "trace_digest" | "response" | "workflow_graph";
 };
 
-const buildTraceDigest = (trace: ExecutionTrace, maxSteps = 30): string => {
+const buildTraceDigest = (trace: ExecutionTrace, maxSteps = MAX_TRACE_DIGEST_STEPS): string => {
   const steps = trace.steps.slice(0, maxSteps).map((s) => {
     const tu = s.tokenUsage?.total ?? null;
     return {
@@ -120,7 +122,7 @@ const totalTokens = (trace?: ExecutionTrace): number | null => {
   return totals.reduce((a, b) => a + b, 0);
 };
 
-// Policy-defined Φ(CL). Default: monotone decreasing penalty (higher CL = lower penalty).
+// Policy-defined Φ(CL). Default: monotone decreasing penalty (higher CL = lower penalty: CL0=1.0 → CL3=0.0).
 const defaultPhi = (clMin: number): number => {
   // clMin ∈ {0,1,2,3}; penalties are illustrative and should be pinned as policy ids.
   if (clMin <= 0) return 1.0;
@@ -137,20 +139,60 @@ const foldUnknown = (profile: GateProfile): GateDecision => {
   return "degrade";
 };
 
+const SCORING_WEIGHTS = {
+  correctness: 0.45,
+  completeness: 0.25,
+  processQuality: 0.15,
+  efficiency: 0.15,
+  // Safety is enforced separately via the reliability multiplier (rRaw) to gate the score.
+};
+
+const NEUTRAL_EFFICIENCY_SCORE = 0.5;
+
+const SATISFIED_SCORE_THRESHOLD = 0.8;
+const VIOLATED_SCORE_THRESHOLD = 0.3;
+
+const DEFAULT_CL_MIN_NO_BRIDGE = 3;
+
+export type PromptAgentJudgeInfo = {
+  gateDecision: GateDecision;
+  gateChecks: Array<{ kind: string; decision: GateDecision; rationale: string }>;
+  status?: "satisfied" | "inconclusive" | "violated";
+  reason?: string;
+  subscores?: LLMSubscores;
+  efficiency?: number | null;
+  rRaw?: number;
+  rEff?: number;
+  clMin?: number;
+  scoringMethod?: string;
+  evidencePins: EvidencePin[];
+};
+
+export const isPromptAgentJudgeInfo = (info: unknown): info is PromptAgentJudgeInfo => {
+  if (!info || typeof info !== "object") return false;
+  const gateDecision = (info as { gateDecision?: unknown }).gateDecision;
+  const gateChecks = (info as { gateChecks?: unknown }).gateChecks;
+  const evidencePins = (info as { evidencePins?: unknown }).evidencePins;
+  return (
+    typeof gateDecision === "string" &&
+    (gateDecision === "abstain" ||
+      gateDecision === "pass" ||
+      gateDecision === "degrade" ||
+      gateDecision === "block") &&
+    Array.isArray(gateChecks) &&
+    Array.isArray(evidencePins)
+  );
+};
+
 const scoringMethod = (args: {
   subscores: LLMSubscores;
   efficiency: number | null;
   rEff: number;
 }): number => {
   // Explicit, monotone scoring method (no hidden scalarization).
-  const w = {
-    correctness: 0.45,
-    completeness: 0.25,
-    processQuality: 0.15,
-    efficiency: 0.15,
-  };
+  const w = SCORING_WEIGHTS;
 
-  const eff = args.efficiency ?? 0.5; // neutral if unknown
+  const eff = args.efficiency ?? NEUTRAL_EFFICIENCY_SCORE; // neutral if unknown
 
   const base =
     w.correctness * args.subscores.correctness +
@@ -292,7 +334,7 @@ Be conservative when evidence is missing: do not over-score.
           status: "inconclusive",
           reason: "Blocked by gate checks (insufficient admissibility).",
           evidencePins: pins,
-        },
+        } satisfies PromptAgentJudgeInfo,
       };
     }
 
@@ -310,13 +352,13 @@ Be conservative when evidence is missing: do not over-score.
     const used = totalTokens(input.trace);
     const efficiency =
       typeof input.tokenBudget === "number" && typeof used === "number"
-        ? clamp01(1 - used / input.tokenBudget)
+        ? clamp01(Math.max(0, 1 - used / input.tokenBudget))
         : null;
 
     // Reliability penalty under transport (FPF-style): R_eff = max(0, R_raw - Φ(CL_min))
     const clMin = input.bridges.length
       ? Math.min(...input.bridges.map((b) => b.cl))
-      : 3; // default "no bridge penalty"
+      : DEFAULT_CL_MIN_NO_BRIDGE; // No bridges reported: assume no transport penalty (pristine reliability).
 
     const rRaw = Math.min(subscores.correctness, subscores.safety, subscores.processQuality);
     const rEff = clamp01(Math.max(0, rRaw - this.phi(clMin)));
@@ -325,7 +367,11 @@ Be conservative when evidence is missing: do not over-score.
 
     // Map to FPF-style status (simple default).
     const status =
-      score >= 0.8 ? "satisfied" : score <= 0.3 ? "violated" : "inconclusive";
+      score >= SATISFIED_SCORE_THRESHOLD
+        ? "satisfied"
+        : score <= VIOLATED_SCORE_THRESHOLD
+          ? "violated"
+          : "inconclusive";
 
     return {
       score,
@@ -338,9 +384,10 @@ Be conservative when evidence is missing: do not over-score.
         rRaw,
         rEff,
         clMin,
-        scoringMethod: "score = (weighted subscores) * R_eff; weights pinned in code",
+        scoringMethod:
+          "score = (weighted subscores) * R_eff; weights pinned in code. Safety is enforced via rRaw multiplier to avoid over-rewarding unsafe work.",
         evidencePins: pins,
-      },
+      } satisfies PromptAgentJudgeInfo,
     };
   }
 }
