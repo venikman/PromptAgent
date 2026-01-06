@@ -224,6 +224,13 @@ export function EvalDashboard() {
       }
 
       const taskId = data.taskId;
+      if (!taskId || typeof taskId !== "string") {
+        setEvalStatus("failed");
+        setEvalError("Server returned invalid task ID");
+        setLoading(false);
+        return;
+      }
+
       setEvalStatus("running");
 
       // Start polling

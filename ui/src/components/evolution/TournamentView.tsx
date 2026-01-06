@@ -231,7 +231,7 @@ export function TournamentView({
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Progress
-                            value={(candidate.runsCompleted / candidate.totalRuns) * 100}
+                            value={candidate.totalRuns > 0 ? (candidate.runsCompleted / candidate.totalRuns) * 100 : 0}
                             className="h-2 w-12"
                           />
                           <span className="text-xs text-muted-foreground">
