@@ -30,14 +30,14 @@ export function useApi<T>() {
           ...options,
         });
 
-        const json = await res.json();
-
         if (!res.ok) {
-          const errorMsg = json.error || `HTTP ${res.status}`;
+          const errorData = await res.json().catch(() => ({}));
+          const errorMsg = errorData.error || `HTTP ${res.status}`;
           setState({ data: null, loading: false, error: errorMsg });
           return { error: errorMsg };
         }
 
+        const json = await res.json();
         setState({ data: json, loading: false, error: null });
         return { data: json };
       } catch (err) {
