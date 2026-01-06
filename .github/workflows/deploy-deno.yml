@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,3 +20,5 @@ jobs:
         with:
           project: ${{ vars.DENO_DEPLOY_PROJECT || 'promptagent' }}
           entrypoint: deploy/main.ts
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
