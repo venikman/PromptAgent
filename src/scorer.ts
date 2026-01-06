@@ -4,17 +4,44 @@ import { KeywordCoverageMetric } from "@mastra/evals/nlp";
 import type { Epic, StoryPack } from "./schema.ts";
 import { storyPackSchema } from "./schema.ts";
 import { makeJudgeModel } from "./models.ts";
-import { PromptAgentFPFMetric } from "./judge/promptagent-fpf-judge.ts";
+import {
+  PromptAgentFPFMetric,
+  isPromptAgentFPFInfo,
+  type ExecutionTrace,
+  type GateDecision,
+} from "./judge/promptagent-fpf-judge.ts";
 
 type ScorerInput = Epic;
 type ScorerOutput = {
   storyPack: StoryPack | null;
   rawText: string;
+  trace?: ExecutionTrace;
+  gammaTime?: string;
+  instructions?: string;
 };
 
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
 }
+
+// Heuristic weights align with documented scoring metrics (coverage/invest/criteria/dup/count).
+const HEURISTIC_WEIGHTS = {
+  coverage: 0.25,
+  invest: 0.3,
+  acceptanceCriteria: 0.3,
+  duplication: 0.1,
+  countScore: 0.05,
+} as const;
+
+const HEURISTIC_SCORE_WEIGHT = 0.6;
+const FPF_SCORE_WEIGHT = 0.4;
+const DEGRADE_GATE_PENALTY = 0.85;
+const GATE_PENALTY_BY_DECISION: Record<GateDecision, number> = {
+  abstain: 1,
+  pass: 1,
+  degrade: DEGRADE_GATE_PENALTY,
+  block: 0,
+};
 
 export function createStoryDecompositionScorer() {
   const judgeModel = makeJudgeModel();
@@ -45,7 +72,7 @@ export function createStoryDecompositionScorer() {
       const fpfResult = await fpfMetric
         .measure({
           clauseId: "PA-story-acceptance",
-          gamma_time: new Date().toISOString(),
+          gamma_time: run.output.gammaTime ?? new Date().toISOString(),
           query: epicText,
           instructions: [
             "Judge the WORK (response) against the epic and rubric.",
@@ -56,12 +83,14 @@ export function createStoryDecompositionScorer() {
             "Map safety to avoiding unsafe content or violating constraints.",
           ].join(" \n"),
           response: rawText,
-          trace: undefined,
+          trace: run.output.trace,
           workflowGraph: undefined,
           bridges: [],
           gateProfile: "Core",
         })
-        .catch(() => ({ score: 0, info: null }));
+        .catch(() => ({ score: 0, info: undefined }));
+
+      const fpfInfo = isPromptAgentFPFInfo(fpfResult.info) ? fpfResult.info : undefined;
 
       return {
         epicText,
@@ -70,7 +99,7 @@ export function createStoryDecompositionScorer() {
         storyCount,
         coverageScore: coverageResult.score,
         fpfScore: fpfResult.score,
-        fpfInfo: fpfResult.info,
+        fpfInfo,
       };
     })
     .analyze({
@@ -108,8 +137,6 @@ export function createStoryDecompositionScorer() {
 
       const a = results.analyzeStepResult;
 
-      const reliability = typeof p.fpfScore === "number" ? p.fpfScore : 0;
-
       // Story count scoring: 4-8 is optimal
       const countScore =
         p.storyCount >= 4 && p.storyCount <= 8
@@ -118,17 +145,22 @@ export function createStoryDecompositionScorer() {
             ? 0.7
             : 0.4;
 
-      // Weighted composite score
-      const baseScore =
-        0.23 * p.coverageScore +
-        0.27 * a.invest +
-        0.27 * a.acceptanceCriteria +
-        0.13 * a.duplication +
-        0.05 * countScore +
-        0.05 * reliability;
+      // Heuristic score keeps legacy weights to avoid inadvertent reweighting.
+      const heuristicScore =
+        HEURISTIC_WEIGHTS.coverage * p.coverageScore +
+        HEURISTIC_WEIGHTS.invest * a.invest +
+        HEURISTIC_WEIGHTS.acceptanceCriteria * a.acceptanceCriteria +
+        HEURISTIC_WEIGHTS.duplication * a.duplication +
+        HEURISTIC_WEIGHTS.countScore * countScore;
 
-      // Reliability gates reward based on trace-aware judge
-      return clamp01(baseScore * (0.5 + 0.5 * reliability));
+      const blendedScore =
+        HEURISTIC_SCORE_WEIGHT * heuristicScore +
+        FPF_SCORE_WEIGHT * (typeof p.fpfScore === "number" ? p.fpfScore : 0);
+
+      const gateDecision: GateDecision = p.fpfInfo?.gateDecision ?? "abstain";
+      const gatePenalty = GATE_PENALTY_BY_DECISION[gateDecision] ?? 1;
+
+      return clamp01(blendedScore * gatePenalty);
     })
     .generateReason(({ score, results }) => {
       const p = results.preprocessStepResult;
@@ -144,6 +176,7 @@ export function createStoryDecompositionScorer() {
         `stories=${p.storyCount}`,
         `fpf=${(p.fpfScore ?? 0).toFixed(3)}`,
         `gate=${p.fpfInfo?.gateDecision ?? "n/a"}`,
+        `fpfStatus=${p.fpfInfo?.status ?? "n/a"}`,
         `notes=${a.notes}`,
       ].join(" | ");
     });

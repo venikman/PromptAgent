@@ -16,9 +16,9 @@ export const GateDecisionOrder: Record<GateDecision, number> = {
 export const joinGateDecision = (a: GateDecision, b: GateDecision): GateDecision =>
   GateDecisionOrder[a] >= GateDecisionOrder[b] ? a : b;
 
-export type MetricResult = {
+export type MetricResult<TInfo = Record<string, unknown>> = {
   score: number;
-  info?: Record<string, any>;
+  info?: TInfo;
 };
 
 const sha256 = (value: string): string =>
@@ -92,7 +92,53 @@ export type EvidencePin = {
   kind: "trace_step" | "trace_digest" | "response" | "workflow_graph";
 };
 
-const buildTraceDigest = (trace: ExecutionTrace, maxSteps = 30): string => {
+const MAX_TRACE_DIGEST_STEPS = 30;
+const DEFAULT_CL_MIN_NO_BRIDGE = 3;
+const SATISFIED_SCORE_THRESHOLD = 0.8;
+const VIOLATED_SCORE_THRESHOLD = 0.3;
+const NEUTRAL_EFFICIENCY_SCORE = 0.5;
+const SCORING_WEIGHTS = {
+  correctness: 0.45,
+  completeness: 0.25,
+  processQuality: 0.15,
+  efficiency: 0.15,
+} as const;
+
+const EvidencePinSchema = z.object({
+  id: z.string(),
+  sha256: z.string(),
+  kind: z.enum(["trace_step", "trace_digest", "response", "workflow_graph"]),
+});
+
+const GateCheckSchema = z.object({
+  kind: z.string(),
+  decision: z.enum(["abstain", "pass", "degrade", "block"]),
+  rationale: z.string(),
+});
+
+const PromptAgentFPFInfoSchema = z.object({
+  gateDecision: z.enum(["abstain", "pass", "degrade", "block"]),
+  gateChecks: z.array(GateCheckSchema),
+  status: z.enum(["satisfied", "violated", "inconclusive"]),
+  subscores: LLMSubscoresSchema.optional(),
+  efficiency: z.number().nullable().optional(),
+  rRaw: z.number().optional(),
+  rEff: z.number().optional(),
+  clMin: z.number().int().min(0).max(3).optional(),
+  scoringMethod: z.string().optional(),
+  evidencePins: z.array(EvidencePinSchema),
+  reason: z.string().optional(),
+});
+
+export type PromptAgentFPFInfo = z.infer<typeof PromptAgentFPFInfoSchema>;
+
+export const isPromptAgentFPFInfo = (value: unknown): value is PromptAgentFPFInfo =>
+  PromptAgentFPFInfoSchema.safeParse(value).success;
+
+const buildTraceDigest = (
+  trace: ExecutionTrace,
+  maxSteps = MAX_TRACE_DIGEST_STEPS
+): string => {
   const steps = trace.steps.slice(0, maxSteps).map((s) => {
     const tu = s.tokenUsage?.total ?? null;
     return {
@@ -124,7 +170,7 @@ const totalTokens = (trace?: ExecutionTrace): number | null => {
   return totals.reduce((a, b) => a + b, 0);
 };
 
-// Policy-defined Φ(CL). Default: monotone decreasing penalty (higher CL = lower penalty).
+// Policy-defined Φ(CL). Higher CL => lower penalty (e.g., CL0=1.0, CL3=0.0).
 const defaultPhi = (clMin: number): number => {
   // clMin ∈ {0,1,2,3}; penalties are illustrative and should be pinned as policy ids.
   if (clMin <= 0) return 1.0;
@@ -147,14 +193,8 @@ const scoringMethod = (args: {
   rEff: number;
 }): number => {
   // Explicit, monotone scoring method (no hidden scalarization).
-  const w = {
-    correctness: 0.45,
-    completeness: 0.25,
-    processQuality: 0.15,
-    efficiency: 0.15,
-  };
-
-  const eff = args.efficiency ?? 0.5; // neutral if unknown
+  const w = SCORING_WEIGHTS;
+  const eff = args.efficiency ?? NEUTRAL_EFFICIENCY_SCORE; // neutral if unknown
 
   const base =
     w.correctness * args.subscores.correctness +
@@ -254,7 +294,7 @@ Be conservative when evidence is missing: do not over-score.
     return { decision, checks };
   }
 
-  async evaluate(inputRaw: unknown): Promise<MetricResult> {
+  async evaluate(inputRaw: unknown): Promise<MetricResult<PromptAgentFPFInfo>> {
     const input = PromptAgentJudgeInputSchema.parse(inputRaw);
 
     const gate = this.computeGateDecision(input);
@@ -297,7 +337,7 @@ Be conservative when evidence is missing: do not over-score.
           reason: "Blocked by gate checks (insufficient admissibility).",
           evidencePins: pins,
         },
-      } satisfies MetricResult;
+      } satisfies MetricResult<PromptAgentFPFInfo>;
     }
 
     const traceDigest = input.trace ? buildTraceDigest(input.trace) : null;
@@ -310,26 +350,31 @@ Be conservative when evidence is missing: do not over-score.
 
     const subscores = llm.object;
 
-    // Additional deterministic efficiency score (token usage).
-    const used = totalTokens(input.trace);
-    const efficiency =
-      typeof input.tokenBudget === "number" && typeof used === "number"
-        ? clamp01(1 - used / input.tokenBudget)
-        : null;
+  // Additional deterministic efficiency score (token usage).
+  const used = totalTokens(input.trace);
+  const efficiency =
+    typeof input.tokenBudget === "number" && typeof used === "number"
+      ? clamp01(Math.max(0, 1 - used / input.tokenBudget))
+      : null;
 
-    // Reliability penalty under transport (FPF-style): R_eff = max(0, R_raw - Φ(CL_min))
-    const clMin = input.bridges.length
-      ? Math.min(...input.bridges.map((b) => b.cl))
-      : 3; // default "no bridge penalty"
+  // Reliability penalty under transport (FPF-style): R_eff = max(0, R_raw - Φ(CL_min))
+  const clMin = input.bridges.length
+    ? Math.min(...input.bridges.map((b) => b.cl))
+    : DEFAULT_CL_MIN_NO_BRIDGE; // No bridges reported: assume no transport penalty (Φ=0).
 
-    const rRaw = Math.min(subscores.correctness, subscores.safety, subscores.processQuality);
-    const rEff = clamp01(Math.max(0, rRaw - this.phi(clMin)));
+  // Safety is folded into reliability (R_raw) to avoid double-counting in weighted subscores.
+  const rRaw = Math.min(subscores.correctness, subscores.safety, subscores.processQuality);
+  const rEff = clamp01(Math.max(0, rRaw - this.phi(clMin)));
 
     const score = scoringMethod({ subscores, efficiency, rEff });
 
     // Map to FPF-style status (simple default).
-    const status =
-      score >= 0.8 ? "satisfied" : score <= 0.3 ? "violated" : "inconclusive";
+  const status =
+    score >= SATISFIED_SCORE_THRESHOLD
+      ? "satisfied"
+      : score <= VIOLATED_SCORE_THRESHOLD
+        ? "violated"
+        : "inconclusive";
 
     return {
       score,
@@ -345,7 +390,7 @@ Be conservative when evidence is missing: do not over-score.
         scoringMethod: "score = (weighted subscores) * R_eff; weights pinned in code",
         evidencePins: pins,
       },
-    } satisfies MetricResult;
+    } satisfies MetricResult<PromptAgentFPFInfo>;
   }
 }
 
@@ -356,7 +401,7 @@ export class PromptAgentFPFMetric {
     this.judge = new PromptAgentFPFJudge(model, opts);
   }
 
-  async measure(input: PromptAgentJudgeInput): Promise<MetricResult> {
+  async measure(input: PromptAgentJudgeInput): Promise<MetricResult<PromptAgentFPFInfo>> {
     return this.judge.evaluate(input);
   }
 }

@@ -2,6 +2,8 @@ import { Agent } from "@mastra/core/agent";
 import { storyPackSchema, type Epic, type StoryPack } from "./schema.ts";
 import { makeGeneratorModel } from "./models.ts";
 import { env } from "./config.ts";
+import crypto from "node:crypto";
+import type { ExecutionTrace } from "./judge/promptagent-fpf-judge.ts";
 
 export const baseStoryAgent = new Agent({
   id: "story-generator",
@@ -15,6 +17,9 @@ export type GenerateResult = {
   rawText: string;
   seed?: number;
   error?: string;
+  trace?: ExecutionTrace;
+  instructions?: string;
+  gammaTime?: string;
 };
 
 export type GenerateOptions = {
@@ -39,6 +44,49 @@ function buildProviderOptions(seed?: number): any {
   return { openai: { seed } };
 }
 
+type MinimalUsage = {
+  inputTokens?: unknown;
+  outputTokens?: unknown;
+  totalTokens?: unknown;
+};
+
+type MinimalStep = {
+  usage?: MinimalUsage;
+  response?: { modelId?: string };
+  finishReason?: string;
+};
+
+function coerceTokenCount(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  const rounded = Math.floor(value);
+  return rounded >= 0 ? rounded : undefined;
+}
+
+function normalizeTokenUsage(usage?: MinimalUsage) {
+  const prompt = coerceTokenCount(usage?.inputTokens);
+  const completion = coerceTokenCount(usage?.outputTokens);
+  const total = coerceTokenCount(usage?.totalTokens);
+  if (prompt === undefined && completion === undefined && total === undefined) return undefined;
+  return { prompt, completion, total };
+}
+
+function buildExecutionTrace(
+  response: { traceId?: string; steps?: MinimalStep[] },
+  startedAt: string,
+  endedAt: string
+): ExecutionTrace {
+  const runId = response.traceId ?? crypto.randomUUID();
+  const steps =
+    response.steps?.map((step, index) => ({
+      id: `${runId}-step-${index + 1}`,
+      kind: "llm_call" as const,
+      name: step.response?.modelId ?? step.finishReason ?? undefined,
+      tokenUsage: normalizeTokenUsage(step.usage),
+    })) ?? [];
+
+  return { runId, startedAt, endedAt, steps };
+}
+
 export async function generateStoryPack(
   epic: Epic,
   candidatePrompt: string,
@@ -58,8 +106,16 @@ export async function generateStoryPack(
     },
   ];
 
+  const startedAt = new Date().toISOString();
+  const gammaTime = startedAt;
+  let storyPack: StoryPack | null = null;
+  let rawText = "";
+  let error: string | undefined;
+  let trace: ExecutionTrace | undefined;
+  let response: Awaited<ReturnType<typeof baseStoryAgent.generate>> | undefined;
+
   try {
-    const response = await baseStoryAgent.generate(messages, {
+    response = await baseStoryAgent.generate(messages, {
       instructions: candidatePrompt,
       structuredOutput: {
         schema: storyPackSchema,
@@ -72,19 +128,32 @@ export async function generateStoryPack(
       },
       providerOptions: buildProviderOptions(seed),
     });
-
-    return {
-      storyPack: response.object as StoryPack,
-      rawText: response.text,
-      seed,
-    };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return {
-      storyPack: null,
-      rawText: "",
-      seed,
-      error: message,
-    };
+    error = message;
   }
+
+  const endedAt = new Date().toISOString();
+
+  if (response) {
+    rawText = response.text;
+    const parsed = storyPackSchema.safeParse(response.object);
+    if (parsed.success) {
+      storyPack = parsed.data;
+    } else {
+      storyPack = null;
+      error = error ?? "Structured output validation failed.";
+    }
+    trace = buildExecutionTrace(response, startedAt, endedAt);
+  }
+
+  return {
+    storyPack,
+    rawText,
+    seed,
+    error,
+    trace,
+    instructions: candidatePrompt,
+    gammaTime,
+  };
 }
