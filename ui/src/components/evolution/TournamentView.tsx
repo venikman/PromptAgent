@@ -68,7 +68,7 @@ function DeltaBadge({ delta }: { delta: number }) {
 export function TournamentView({
   candidates,
   loading,
-  onRunTournament,
+  onRunTournament: _onRunTournament,
   onPromoteChampion,
 }: TournamentViewProps) {
   if (loading) {

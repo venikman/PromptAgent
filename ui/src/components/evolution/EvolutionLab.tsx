@@ -181,7 +181,6 @@ export function EvolutionLab() {
   const [error, setError] = useState<string | null>(null);
   const [miningPairs, setMiningPairs] = useState(false);
   const [generatingPatches, setGeneratingPatches] = useState(false);
-  const [evalReport, setEvalReport] = useState<PromptDistReport | null>(null);
 
   // Load champion prompt on mount
   useEffect(() => {
@@ -208,7 +207,6 @@ export function EvolutionLab() {
   const handleClear = () => {
     setPairs([]);
     setPatchCandidates([]);
-    setEvalReport(null);
     setError(null);
     setDataMode("empty");
     setActiveStep("pairs");
@@ -226,6 +224,9 @@ export function EvolutionLab() {
         body: JSON.stringify({ report }),
       });
 
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json();
 
       if (data.error) {
@@ -240,14 +241,14 @@ export function EvolutionLab() {
         bad: {
           seed: p.bad.seed,
           score: p.bad.score,
-          pass: true,
+          pass: p.bad.pass ?? true,
           storyPack: p.bad.storyPack,
           rawText: p.bad.rawText || "",
         },
         good: {
           seed: p.good.seed,
           score: p.good.score,
-          pass: true,
+          pass: p.good.pass ?? true,
           storyPack: p.good.storyPack,
           rawText: p.good.rawText || "",
         },
@@ -290,6 +291,9 @@ export function EvolutionLab() {
         body: JSON.stringify({ pairs: backendPairs, count: 3 }),
       });
 
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json();
 
       if (data.error) {
@@ -317,18 +321,12 @@ export function EvolutionLab() {
 
     try {
       const report = JSON.parse(stored) as PromptDistReport;
-      setEvalReport(report);
       setError(null);
       // Automatically mine pairs from the loaded report
       handleMinePairs(report);
     } catch {
       setError("Failed to parse stored evaluation report.");
     }
-  };
-
-  // Check if we have a stored report on mount
-  const hasStoredReport = () => {
-    return localStorage.getItem("lastEvalReport") !== null;
   };
 
   return (

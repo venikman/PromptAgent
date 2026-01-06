@@ -115,7 +115,7 @@ export async function generateStoryPack(
       storyPack = parsed.data;
     } else {
       storyPack = null;
-      error = error ?? "Structured output validation failed.";
+      error = "Structured output validation failed.";
     }
     rawText = response.text;
     steps.push({

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -18,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { EpicDistResult, PromptDistReport } from "@/types";
-import { IconCheck, IconX, IconChevronDown } from "@tabler/icons-react";
+import { IconCheck, IconX } from "@tabler/icons-react";
 
 type RunsTableProps = {
   report: PromptDistReport | null;

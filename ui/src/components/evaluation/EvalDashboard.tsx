@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -136,6 +135,9 @@ export function EvalDashboard() {
   const pollTaskStatus = async (taskId: string) => {
     try {
       const res = await fetch(`/evaluate/${taskId}`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json();
 
       if (data.error) {
@@ -165,7 +167,7 @@ export function EvalDashboard() {
           setFpfSubscores({
             correctness: data.report.agg.meanOfMeans,
             completeness: data.report.agg.meanPassRate,
-            processQuality: 1 - data.report.agg.meanStd, // Lower std = better
+            processQuality: Math.max(0, 1 - data.report.agg.meanStd), // Clamp to [0,1]
             safety: 0.95, // Placeholder
           });
           setGateDecision(data.report.agg.meanPassRate >= 0.8 ? "pass" : "degrade");
@@ -209,6 +211,9 @@ export function EvalDashboard() {
         body: JSON.stringify({ replicates: 3 }), // 3 replicates for faster demo
       });
 
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json();
 
       if (data.error) {

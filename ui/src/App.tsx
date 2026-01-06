@@ -28,9 +28,13 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const check = async () => {
       try {
-        const res = await fetch("/health");
+        const res = await fetch("/health", { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (cancelled) return;
         setHealthStatus(res.ok ? "ok" : "error");
         if (!res.ok) {
@@ -38,15 +42,22 @@ export default function App() {
           setHealthError(data.error || `HTTP ${res.status}`);
         }
       } catch (err) {
+        clearTimeout(timeoutId);
         if (cancelled) return;
         setHealthStatus("error");
-        setHealthError(err instanceof Error ? err.message : String(err));
+        if (err instanceof Error && err.name === "AbortError") {
+          setHealthError("Health check timed out");
+        } else {
+          setHealthError(err instanceof Error ? err.message : String(err));
+        }
       }
     };
 
     check();
     return () => {
       cancelled = true;
+      controller.abort();
+      clearTimeout(timeoutId);
     };
   }, []);
 
@@ -164,22 +175,18 @@ export default function App() {
             </div>
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" asChild>
-                <a href="https://github.com" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/venikman/PromptAgent" target="_blank" rel="noopener noreferrer">
                   <IconBrandGithub className="h-4 w-4" />
                   <span className="hidden sm:inline">GitHub</span>
                 </a>
               </Button>
-              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" asChild>
-                <a href="#" target="_blank" rel="noopener noreferrer">
-                  <IconBook className="h-4 w-4" />
-                  <span className="hidden sm:inline">Docs</span>
-                </a>
+              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" disabled>
+                <IconBook className="h-4 w-4" />
+                <span className="hidden sm:inline">Docs</span>
               </Button>
-              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" asChild>
-                <a href="#" target="_blank" rel="noopener noreferrer">
-                  <IconExternalLink className="h-4 w-4" />
-                  <span className="hidden sm:inline">API</span>
-                </a>
+              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" disabled>
+                <IconExternalLink className="h-4 w-4" />
+                <span className="hidden sm:inline">API</span>
               </Button>
             </div>
           </div>

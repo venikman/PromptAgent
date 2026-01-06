@@ -413,8 +413,13 @@ Deno.serve(async (req) => {
 
   // Poll evaluation status
   if (url.pathname.startsWith("/evaluate/") && req.method === "GET") {
-    const taskId = url.pathname.split("/")[2];
-    const task = evalTasks.get(taskId!);
+    const taskId = url.pathname.split("/")[2]?.trim();
+
+    if (!taskId) {
+      return jsonResponse({ error: "Invalid task ID" }, 400);
+    }
+
+    const task = evalTasks.get(taskId);
 
     if (!task) {
       return jsonResponse({ error: "Task not found" }, 404);
