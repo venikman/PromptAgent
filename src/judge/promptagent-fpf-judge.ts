@@ -1,7 +1,6 @@
-import crypto from "node:crypto";
-import { Metric, type MetricResult } from "@mastra/core";
-import { MastraAgentJudge } from "@mastra/evals/judge";
-import { z } from "zod";
+import { Metric, type MetricResult } from "npm:@mastra/core@0.24.9";
+import { MastraAgentJudge } from "npm:@mastra/evals@0.14.4/judge";
+import { z } from "npm:zod@4.3.5";
 
 export type GateDecision = "abstain" | "pass" | "degrade" | "block";
 type GateProfile = "Lite" | "Core" | "SafetyCritical";
@@ -17,8 +16,13 @@ const GateDecisionOrder: Record<GateDecision, number> = {
 const joinGateDecision = (a: GateDecision, b: GateDecision): GateDecision =>
   GateDecisionOrder[a] >= GateDecisionOrder[b] ? a : b;
 
-const sha256 = (value: string): string =>
-  crypto.createHash("sha256").update(value).digest("hex");
+const sha256 = async (value: string): Promise<string> => {
+  const data = new TextEncoder().encode(value);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+};
 
 const MAX_TRACE_DIGEST_STEPS = 30;
 
@@ -90,6 +94,38 @@ type EvidencePin = {
   kind: "trace_step" | "trace_digest" | "response" | "workflow_graph";
 };
 
+const EvidencePinSchema = z.object({
+  id: z.string(),
+  sha256: z.string(),
+  kind: z.enum(["trace_step", "trace_digest", "response", "workflow_graph"]),
+});
+
+const GateCheckSchema = z.object({
+  kind: z.string(),
+  decision: z.enum(["abstain", "pass", "degrade", "block"]),
+  rationale: z.string(),
+});
+
+const PromptAgentJudgeInfoSchema = z.object({
+  gateDecision: z.enum(["abstain", "pass", "degrade", "block"]),
+  gateChecks: z.array(GateCheckSchema),
+  status: z.enum(["satisfied", "violated", "inconclusive"]),
+  subscores: LLMSubscoresSchema.optional(),
+  efficiency: z.number().nullable().optional(),
+  rRaw: z.number().optional(),
+  rEff: z.number().optional(),
+  clMin: z.number().int().min(0).max(3).optional(),
+  scoringMethod: z.string().optional(),
+  evidencePins: z.array(EvidencePinSchema),
+  reason: z.string().optional(),
+});
+
+export type PromptAgentJudgeInfo = z.infer<typeof PromptAgentJudgeInfoSchema>;
+
+export const isPromptAgentJudgeInfo = (
+  value: unknown
+): value is PromptAgentJudgeInfo => PromptAgentJudgeInfoSchema.safeParse(value).success;
+
 const buildTraceDigest = (trace: ExecutionTrace, maxSteps = MAX_TRACE_DIGEST_STEPS): string => {
   const steps = trace.steps.slice(0, maxSteps).map((s) => {
     const tu = s.tokenUsage?.total ?? null;
@@ -154,36 +190,6 @@ const SATISFIED_SCORE_THRESHOLD = 0.8;
 const VIOLATED_SCORE_THRESHOLD = 0.3;
 
 const DEFAULT_CL_MIN_NO_BRIDGE = 3;
-
-export type PromptAgentJudgeInfo = {
-  gateDecision: GateDecision;
-  gateChecks: Array<{ kind: string; decision: GateDecision; rationale: string }>;
-  status?: "satisfied" | "inconclusive" | "violated";
-  reason?: string;
-  subscores?: LLMSubscores;
-  efficiency?: number | null;
-  rRaw?: number;
-  rEff?: number;
-  clMin?: number;
-  scoringMethod?: string;
-  evidencePins: EvidencePin[];
-};
-
-export const isPromptAgentJudgeInfo = (info: unknown): info is PromptAgentJudgeInfo => {
-  if (!info || typeof info !== "object") return false;
-  const gateDecision = (info as { gateDecision?: unknown }).gateDecision;
-  const gateChecks = (info as { gateChecks?: unknown }).gateChecks;
-  const evidencePins = (info as { evidencePins?: unknown }).evidencePins;
-  return (
-    typeof gateDecision === "string" &&
-    (gateDecision === "abstain" ||
-      gateDecision === "pass" ||
-      gateDecision === "degrade" ||
-      gateDecision === "block") &&
-    Array.isArray(gateChecks) &&
-    Array.isArray(evidencePins)
-  );
-};
 
 const scoringMethod = (args: {
   subscores: LLMSubscores;
@@ -304,7 +310,7 @@ Be conservative when evidence is missing: do not over-score.
     pins.push({
       id: "response",
       kind: "response",
-      sha256: sha256(input.response),
+      sha256: await sha256(input.response),
     });
 
     if (input.trace) {
@@ -312,7 +318,7 @@ Be conservative when evidence is missing: do not over-score.
       pins.push({
         id: "trace_digest",
         kind: "trace_digest",
-        sha256: sha256(digest),
+        sha256: await sha256(digest),
       });
     }
 
@@ -321,7 +327,7 @@ Be conservative when evidence is missing: do not over-score.
       pins.push({
         id: "workflow_graph",
         kind: "workflow_graph",
-        sha256: sha256(g),
+        sha256: await sha256(g),
       });
     }
 
@@ -347,7 +353,21 @@ Be conservative when evidence is missing: do not over-score.
       structuredOutput: { schema: LLMSubscoresSchema },
     });
 
-    const subscores = llm.object;
+    const parsed = LLMSubscoresSchema.safeParse(llm.object);
+    if (!parsed.success) {
+      return {
+        score: 0,
+        info: {
+          gateDecision: gate.decision,
+          gateChecks: gate.checks,
+          status: "inconclusive",
+          reason: "LLM response did not match expected schema.",
+          evidencePins: pins,
+        } satisfies PromptAgentJudgeInfo,
+      } satisfies MetricResult;
+    }
+
+    const subscores = parsed.data;
 
     // Additional deterministic efficiency score (token usage).
     const used = totalTokens(input.trace);

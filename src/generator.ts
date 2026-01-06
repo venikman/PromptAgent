@@ -1,5 +1,4 @@
-import crypto from "node:crypto";
-import { Agent } from "@mastra/core/agent";
+import { Agent } from "npm:@mastra/core@0.24.9/agent";
 import { storyPackSchema, type Epic, type StoryPack } from "./schema.ts";
 import { makeGeneratorModel } from "./models.ts";
 import { env } from "./config.ts";
@@ -111,7 +110,13 @@ export async function generateStoryPack(
         : undefined;
     const usage = normalizeTokenUsage(rawUsage as ProviderUsage | undefined);
 
-    storyPack = response.object as StoryPack;
+    const parsed = storyPackSchema.safeParse(response.object);
+    if (parsed.success) {
+      storyPack = parsed.data;
+    } else {
+      storyPack = null;
+      error = "Structured output validation failed.";
+    }
     rawText = response.text;
     steps.push({
       id: `${runId}-llm`,

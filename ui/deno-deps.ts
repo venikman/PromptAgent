@@ -1,0 +1,31 @@
+import "npm:react@18.3.1";
+import "npm:react-dom@18.3.1";
+// Radix UI primitives
+import "npm:@radix-ui/react-label@2.1.0";
+import "npm:@radix-ui/react-separator@1.1.0";
+import "npm:@radix-ui/react-slot@1.1.0";
+import "npm:@radix-ui/react-tabs@1.1.0";
+import "npm:@radix-ui/react-accordion@1.2.0";
+import "npm:@radix-ui/react-progress@1.1.0";
+import "npm:@radix-ui/react-tooltip@1.1.2";
+import "npm:@radix-ui/react-select@2.1.1";
+import "npm:@radix-ui/react-slider@1.2.0";
+import "npm:@radix-ui/react-dialog@1.1.1";
+import "npm:@radix-ui/react-scroll-area@1.1.0";
+// Icons
+import "npm:@tabler/icons-react@3.30.0";
+import "npm:lucide-react@0.460.0";
+// Charts
+import "npm:recharts@2.15.4";
+// Utilities
+import "npm:class-variance-authority@0.7.0";
+import "npm:clsx@2.1.1";
+import "npm:tailwind-merge@2.5.3";
+// Build tools
+import "npm:@vitejs/plugin-react@4.3.1";
+import "npm:tailwindcss@3.4.10";
+import "npm:postcss@8.4.41";
+import "npm:autoprefixer@10.4.20";
+import "npm:tailwindcss-animate@1.0.7";
+import "npm:typescript@5.6.2";
+import "npm:vite@5.4.8";

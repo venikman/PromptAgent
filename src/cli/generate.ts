@@ -1,10 +1,10 @@
 /**
  * Single-shot Story Generation CLI
  *
- * Usage: bun run src/cli/generate.ts <EPIC_ID> [--seed <N>]
+ * Usage: deno task generate -- <EPIC_ID> [--seed <N>]
  */
 
-import { join } from "path";
+import { join } from "jsr:@std/path";
 import { epicSchema } from "../schema.ts";
 import { generateStoryPack } from "../generator.ts";
 
@@ -26,31 +26,31 @@ function parseArgs(args: string[]): { epicId?: string; seed?: number } {
 }
 
 async function main() {
-  const { epicId, seed } = parseArgs(process.argv.slice(2));
+  const { epicId, seed } = parseArgs(Deno.args);
 
   if (!epicId) {
-    console.error("Usage: bun run src/cli/generate.ts <EPIC_ID> [--seed <N>]");
-    console.error("Example: bun run src/cli/generate.ts E-101");
-    console.error("Example: bun run src/cli/generate.ts E-101 --seed 42");
-    process.exit(1);
+    console.error("Usage: deno task generate -- <EPIC_ID> [--seed <N>]");
+    console.error("Example: deno task generate -- E-101");
+    console.error("Example: deno task generate -- E-101 --seed 42");
+    Deno.exit(1);
   }
 
-  const dataPath = join(process.cwd(), "data", "epics.eval.json");
-  const promptPath = join(process.cwd(), "prompts", "champion.md");
+  const dataPath = join(Deno.cwd(), "data", "epics.eval.json");
+  const promptPath = join(Deno.cwd(), "prompts", "champion.md");
 
   console.log(`Loading epics from ${dataPath}...`);
-  const raw = await Bun.file(dataPath).json() as unknown[];
+  const raw = JSON.parse(await Deno.readTextFile(dataPath)) as unknown[];
   const epics = raw.map((e) => epicSchema.parse(e));
 
   const epic = epics.find((e) => e.id === epicId);
   if (!epic) {
     console.error(`Epic not found: ${epicId}`);
     console.error(`Available epics: ${epics.map((e) => e.id).join(", ")}`);
-    process.exit(1);
+    Deno.exit(1);
   }
 
   console.log(`Loading champion prompt from ${promptPath}...`);
-  const prompt = await Bun.file(promptPath).text();
+  const prompt = await Deno.readTextFile(promptPath);
 
   console.log(`\nGenerating stories for epic: ${epic.title}...`);
   if (seed !== undefined) {
@@ -62,7 +62,7 @@ async function main() {
 
   if (result.error) {
     console.error("Generation failed:", result.error);
-    process.exit(1);
+    Deno.exit(1);
   }
 
   console.log("Generated Story Pack:");
@@ -75,5 +75,5 @@ async function main() {
 
 main().catch((e) => {
   console.error("Error:", e);
-  process.exit(1);
+  Deno.exit(1);
 });

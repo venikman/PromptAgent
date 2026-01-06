@@ -13,7 +13,7 @@
  * and helps identify prompts that are reliably good vs "lucky once".
  */
 
-import pLimit from "p-limit";
+import pLimit from "npm:p-limit@7.2.0";
 import { env } from "./config.ts";
 import type { Epic, StoryPack } from "./schema.ts";
 import { generateStoryPack, type GenerateResult } from "./generator.ts";
