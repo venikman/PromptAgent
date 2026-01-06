@@ -122,7 +122,8 @@ const totalTokens = (trace?: ExecutionTrace): number | null => {
   return totals.reduce((a, b) => a + b, 0);
 };
 
-// Policy-defined Φ(CL). Default: monotone decreasing penalty (higher CL = lower penalty: CL0=1.0 → CL3=0.0).
+// Policy-defined Φ(CL). Default: monotone decreasing Φ values (higher CL = smaller Φ = smaller penalty deducted from rRaw).
+// CL0 → Φ=1.0 (max penalty), CL3 → Φ=0.0 (no penalty).
 const defaultPhi = (clMin: number): number => {
   // clMin ∈ {0,1,2,3}; penalties are illustrative and should be pinned as policy ids.
   if (clMin <= 0) return 1.0;

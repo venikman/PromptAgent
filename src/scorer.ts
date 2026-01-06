@@ -133,7 +133,10 @@ export function createStoryDecompositionScorer() {
       if (!p.isValid) return 0;
 
       const a = results.analyzeStepResult;
-      const gateDecision = p.fpfJudgeResult?.info?.gateDecision;
+      const fpfInfo = isPromptAgentJudgeInfo(p.fpfJudgeResult?.info)
+        ? p.fpfJudgeResult!.info
+        : undefined;
+      const gateDecision = fpfInfo?.gateDecision;
       if (gateDecision === "block") return 0;
 
       // Story count scoring: 4-8 is optimal
@@ -152,11 +155,13 @@ export function createStoryDecompositionScorer() {
         HEURISTIC_WEIGHTS.duplication * a.duplication +
         HEURISTIC_WEIGHTS.count * countScore;
 
-      const fpfScore = p.fpfJudgeResult?.score ?? 0;
+      const fpfScore = typeof p.fpfJudgeResult?.score === "number" ? p.fpfJudgeResult.score : null;
       const gatePenalty = gateDecision === "degrade" ? DEGRADE_GATE_PENALTY : 1;
 
       const blendedScore =
-        HEURISTIC_SCORE_WEIGHT * heuristicScore + FPF_SCORE_WEIGHT * fpfScore;
+        fpfScore === null
+          ? heuristicScore // FPF judge failed: fall back to heuristics without downweighting
+          : HEURISTIC_SCORE_WEIGHT * heuristicScore + FPF_SCORE_WEIGHT * fpfScore;
 
       const score = clamp01(blendedScore * gatePenalty);
 
@@ -167,9 +172,9 @@ export function createStoryDecompositionScorer() {
       if (!p.isValid) return `Score=${score}. Schema validation failed.`;
 
       const a = results.analyzeStepResult;
-      const gateDecision = p.fpfJudgeResult?.info?.gateDecision ?? "abstain";
       const maybeFpfInfo = p.fpfJudgeResult?.info;
       const fpfInfo = isPromptAgentJudgeInfo(maybeFpfInfo) ? maybeFpfInfo : undefined;
+      const gateDecision = fpfInfo?.gateDecision ?? "abstain";
       const fpfSubscores = fpfInfo?.subscores;
       return [
         `Score=${score.toFixed(3)}`,

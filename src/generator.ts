@@ -104,9 +104,12 @@ export async function generateStoryPack(
     });
 
     endedAt = new Date().toISOString();
-    const usage = normalizeTokenUsage(
-      (response as { metadata?: { usage?: ProviderUsage } }).metadata?.usage
-    );
+    const responseMetadata = (response as Record<string, unknown>).metadata;
+    const rawUsage =
+      responseMetadata && typeof responseMetadata === "object"
+        ? (responseMetadata as { usage?: unknown }).usage
+        : undefined;
+    const usage = normalizeTokenUsage(rawUsage as ProviderUsage | undefined);
 
     storyPack = response.object as StoryPack;
     rawText = response.text;
