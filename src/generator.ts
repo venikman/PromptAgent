@@ -44,6 +44,23 @@ function buildProviderOptions(seed?: number): any {
   return { openai: { seed } };
 }
 
+type ProviderUsage = {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+};
+
+const normalizeTokenUsage = (usage?: ProviderUsage) => {
+  if (!usage) return undefined;
+  const prompt = typeof usage.prompt_tokens === "number" ? usage.prompt_tokens : undefined;
+  const completion =
+    typeof usage.completion_tokens === "number" ? usage.completion_tokens : undefined;
+  const total = typeof usage.total_tokens === "number" ? usage.total_tokens : undefined;
+
+  if (prompt === undefined && completion === undefined && total === undefined) return undefined;
+  return { prompt, completion, total };
+};
+
 export async function generateStoryPack(
   epic: Epic,
   candidatePrompt: string,
@@ -65,6 +82,12 @@ export async function generateStoryPack(
     },
   ];
 
+  let storyPack: StoryPack | null = null;
+  let rawText = "";
+  let error: string | undefined;
+  let endedAt = startedAt;
+  const steps: ExecutionTrace["steps"] = [];
+
   try {
     const response = await baseStoryAgent.generate(messages, {
       instructions: candidatePrompt,
@@ -80,71 +103,51 @@ export async function generateStoryPack(
       providerOptions: buildProviderOptions(seed),
     });
 
-    const endedAt = new Date().toISOString();
-    const usage =
-      (response as { metadata?: { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } } }).metadata
-        ?.usage;
+    endedAt = new Date().toISOString();
+    const usage = normalizeTokenUsage(
+      (response as { metadata?: { usage?: ProviderUsage } }).metadata?.usage
+    );
 
-    const trace: ExecutionTrace = {
-      runId,
+    storyPack = response.object as StoryPack;
+    rawText = response.text;
+    steps.push({
+      id: `${runId}-llm`,
+      kind: "llm_call",
+      name: "story-generator",
+      input: { epicId: epic.id, seed, temperature, maxTokens },
+      output: response.text,
+      tokenUsage: usage,
       startedAt,
       endedAt,
-      steps: [
-        {
-          id: `${runId}-llm`,
-          kind: "llm_call",
-          name: "story-generator",
-          input: { epicId: epic.id, seed, temperature, maxTokens },
-          output: response.text,
-          tokenUsage: usage
-            ? {
-                prompt: usage.prompt_tokens,
-                completion: usage.completion_tokens,
-                total: usage.total_tokens,
-              }
-            : undefined,
-          startedAt,
-          endedAt,
-        },
-      ],
-    };
-
-    return {
-      storyPack: response.object as StoryPack,
-      rawText: response.text,
-      instructions: candidatePrompt,
-      trace,
-      gammaTime: startedAt,
-      seed,
-    };
+    });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const endedAt = new Date().toISOString();
-    const trace: ExecutionTrace = {
-      runId,
+    error = err instanceof Error ? err.message : String(err);
+    endedAt = new Date().toISOString();
+    steps.push({
+      id: `${runId}-error`,
+      kind: "note",
+      name: "generation-error",
+      input: { epicId: epic.id, seed, temperature, maxTokens },
+      output: { error },
       startedAt,
       endedAt,
-      steps: [
-        {
-          id: `${runId}-error`,
-          kind: "note",
-          name: "generation-error",
-          input: { epicId: epic.id, seed, temperature, maxTokens },
-          output: { error: message },
-          startedAt,
-          endedAt,
-        },
-      ],
-    };
-
-    return {
-      storyPack: null,
-      rawText: "",
-      instructions: candidatePrompt,
-      trace,
-      gammaTime: startedAt,
-      seed,
-      error: message,
-    };
+    });
   }
+
+  const trace: ExecutionTrace = {
+    runId,
+    startedAt,
+    endedAt,
+    steps,
+  };
+
+  return {
+    storyPack,
+    rawText,
+    instructions: candidatePrompt,
+    trace,
+    gammaTime: startedAt,
+    seed,
+    error,
+  };
 }
