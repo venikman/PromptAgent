@@ -15,10 +15,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@v1
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
         with:
-          project: ${{ vars.DENO_DEPLOY_PROJECT || 'promptagent' }}
-          entrypoint: deploy/main.ts
+          deno-version: v2.x
+
+      - name: Deploy to Deno Deploy
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          deno run -A jsr:@deno/deployctl deploy \
+            --project="${{ vars.DENO_DEPLOY_PROJECT || 'promptagent' }}" \
+            --prod \
+            deploy/main.ts

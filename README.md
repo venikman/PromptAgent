@@ -181,11 +181,15 @@ curl -X POST https://<your-deploy-domain>/generate \
 ### GitHub Actions Deployment
 
 The workflow `.github/workflows/deploy-deno.yml` deploys on `main` pushes using
-`denoland/deployctl`. Set a GitHub repository variable:
+`deployctl`. Set a GitHub repository variable:
 
 - `DENO_DEPLOY_PROJECT` (your Deno Deploy project name)
 
 If not set, it defaults to `promptagent`.
+
+Add a GitHub repository **secret** for authentication:
+
+- `DENO_DEPLOY_TOKEN` (Deno Deploy access token)
 
 ## Dependencies
 
