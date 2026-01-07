@@ -8,6 +8,18 @@ import { generatePatchCandidates, composePrompt } from "../src/patchEngineer.ts"
 import { createStoryDecompositionScorer } from "../src/scorer.ts";
 import type { Epic, StoryPack } from "../src/schema.ts";
 
+// Import orchestrator for v2 endpoints
+import {
+  Orchestrator,
+  kvStore,
+  createTask,
+  getTask,
+  updateTaskProgress,
+  completeTask,
+  failTask,
+  type TaskRecord,
+} from "../src/orchestrator/index.ts";
+
 // Create scorer instance (reused across requests)
 const scorer = createStoryDecompositionScorer();
 
@@ -98,6 +110,9 @@ const PROMPTS_ROOT = fromFileUrl(new URL("../prompts", import.meta.url));
 let cachedEpics: unknown[] | null = null;
 let cachedChampion: { base: string; patch: string; composed: string } | null = null;
 
+// Cached orchestrator (lazy initialized)
+let cachedOrchestrator: Orchestrator | null = null;
+
 async function loadEpics(): Promise<unknown[]> {
   if (cachedEpics) return cachedEpics;
   try {
@@ -122,6 +137,22 @@ async function loadChampionPrompt(): Promise<{ base: string; patch: string; comp
   } catch {
     return { base: "", patch: "", composed: "" };
   }
+}
+
+/**
+ * Get or create the orchestrator instance.
+ * Uses lazy initialization to avoid startup delays.
+ */
+async function getOrchestrator(): Promise<Orchestrator> {
+  if (!cachedOrchestrator) {
+    const epics = await loadEpics() as Epic[];
+    const champion = await loadChampionPrompt();
+    cachedOrchestrator = new Orchestrator({
+      epics,
+      champion: { base: champion.base, patch: champion.patch },
+    });
+  }
+  return cachedOrchestrator;
 }
 
 const corsHeaders = {
@@ -991,6 +1022,170 @@ Deno.serve(async (req) => {
     });
   }
 
+  // ─────────────────────────────────────────────────
+  // V2 API: Orchestrator-based endpoints with Deno KV
+  // ─────────────────────────────────────────────────
+
+  // V2 Playground: Single epic generation with scoring
+  if (url.pathname === "/v2/playground" && req.method === "POST") {
+    let payload: { epicId: string; promptOverride?: string; seed?: number } | null = null;
+    try {
+      payload = await req.json();
+    } catch {
+      return jsonResponse({ error: "Invalid JSON body" }, 400);
+    }
+
+    const epicId = payload?.epicId;
+    if (!epicId) {
+      return jsonResponse({ error: "epicId is required" }, 400);
+    }
+
+    try {
+      const orchestrator = await getOrchestrator();
+      const result = await orchestrator.runPlayground(epicId, {
+        promptOverride: payload?.promptOverride,
+        seed: payload?.seed,
+      });
+
+      return jsonResponse({
+        result: {
+          storyPack: result.generation.storyPack,
+          rawText: result.generation.rawText,
+          error: result.generation.error,
+        },
+        scorerResult: result.score,
+      });
+    } catch (err) {
+      return jsonResponse(
+        { error: err instanceof Error ? err.message : String(err) },
+        500
+      );
+    }
+  }
+
+  // V2 Evaluate: Start async evaluation with Deno KV persistence
+  if (url.pathname === "/v2/evaluate" && req.method === "POST") {
+    let payload: { replicates?: number; promptOverride?: string } | null = null;
+    try {
+      payload = await req.json();
+    } catch {
+      payload = {};
+    }
+
+    const epics = await loadEpics() as Epic[];
+    if (epics.length === 0) {
+      return jsonResponse({ error: "No epics available" }, 400);
+    }
+
+    const replicates = payload?.replicates ?? 3;
+    const totalRuns = epics.length * replicates;
+
+    // Create task in Deno KV
+    const task = await createTask("evaluation", { totalProgress: totalRuns });
+
+    // Run evaluation in background using orchestrator
+    (async () => {
+      try {
+        await kvStore.updateTaskStatus(task.id, "running");
+
+        const orchestrator = await getOrchestrator();
+        const champion = await loadChampionPrompt();
+        const promptText = payload?.promptOverride || champion.composed;
+
+        const result = await orchestrator.runEvaluation({
+          promptText,
+          epics,
+          replicates,
+          onProgress: (completed, total) => {
+            updateTaskProgress(task.id, { completed, total });
+          },
+        });
+
+        await completeTask(task.id, result);
+      } catch (err) {
+        await failTask(task.id, err instanceof Error ? err.message : String(err));
+      }
+    })();
+
+    return jsonResponse({ taskId: task.id, status: "pending" });
+  }
+
+  // V2 Task status: Get task from Deno KV
+  if (url.pathname.startsWith("/v2/tasks/") && req.method === "GET") {
+    const taskId = url.pathname.split("/")[3]?.trim();
+
+    if (!taskId) {
+      return jsonResponse({ error: "Invalid task ID" }, 400);
+    }
+
+    const task = await getTask(taskId);
+
+    if (!task) {
+      return jsonResponse({ error: "Task not found" }, 404);
+    }
+
+    return jsonResponse({
+      taskId: task.id,
+      type: task.type,
+      status: task.status,
+      progress: task.progress,
+      result: task.result,
+      error: task.error,
+      startedAt: task.startedAt,
+      completedAt: task.completedAt,
+    });
+  }
+
+  // V2 Optimization: Start async optimization loop with Deno KV persistence
+  if (url.pathname === "/v2/optimize" && req.method === "POST") {
+    let payload: {
+      maxIterations?: number;
+      replicates?: number;
+      patchCandidates?: number;
+    } | null = null;
+
+    try {
+      payload = await req.json();
+    } catch {
+      payload = {};
+    }
+
+    const epics = await loadEpics() as Epic[];
+    if (epics.length === 0) {
+      return jsonResponse({ error: "No epics available" }, 400);
+    }
+
+    // Create task in Deno KV
+    const task = await createTask("optimization");
+
+    // Run optimization in background using orchestrator
+    (async () => {
+      try {
+        await kvStore.updateTaskStatus(task.id, "running");
+
+        const orchestrator = await getOrchestrator();
+        const finalState = await orchestrator.runOptimization(
+          {
+            maxIterations: payload?.maxIterations,
+            replicates: payload?.replicates,
+            patchCandidates: payload?.patchCandidates,
+          },
+          {
+            onProgress: (completed, total) => {
+              updateTaskProgress(task.id, { completed, total });
+            },
+          }
+        );
+
+        await completeTask(task.id, finalState);
+      } catch (err) {
+        await failTask(task.id, err instanceof Error ? err.message : String(err));
+      }
+    })();
+
+    return jsonResponse({ taskId: task.id, status: "pending" });
+  }
+
   if (url.pathname === "/") {
     if (wantsHtml(req)) {
       try {
@@ -1003,7 +1198,19 @@ Deno.serve(async (req) => {
       service: "PromptAgent Deno Deploy API",
       routes: {
         "GET /health": "Service health check",
-        "POST /generate": "Proxy to Ollama Cloud generate endpoint",
+        "POST /generate": "Proxy to LLM generate endpoint",
+        "GET /epics": "List available epics",
+        "GET /champion": "Get current champion prompt",
+        "POST /generate-story": "Generate stories for an epic",
+        "POST /evaluate": "Start distributional evaluation (v1)",
+        "POST /mine-pairs": "Mine contrastive pairs",
+        "POST /generate-patches": "Generate prompt patches",
+        "POST /run-tournament": "Run tournament evaluation",
+        // V2 endpoints with Deno KV persistence
+        "POST /v2/playground": "Generate + score single epic (orchestrator)",
+        "POST /v2/evaluate": "Start async evaluation with Deno KV",
+        "POST /v2/optimize": "Start async optimization loop with Deno KV",
+        "GET /v2/tasks/:id": "Get task status from Deno KV",
         "GET /ui": "HTML demo interface",
       },
     });
