@@ -339,8 +339,23 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Save new champion
-      await Deno.writeTextFile(`${PROMPTS_ROOT}/champion.md`, newComposed);
+      const patchMarker = "## PATCH SECTION (auto-generated)";
+      const markerIndex = newComposed.indexOf(patchMarker);
+      let nextBase = newComposed;
+      let nextPatch = "";
+
+      if (markerIndex !== -1) {
+        nextBase = newComposed.slice(0, markerIndex).trim();
+        nextPatch = newComposed.slice(markerIndex + patchMarker.length).trim();
+      }
+
+      // Save new champion prompt and keep base/patch in sync
+      const normalizedComposed = composePrompt(nextBase, nextPatch);
+      await Promise.all([
+        Deno.writeTextFile(`${PROMPTS_ROOT}/champion.md`, normalizedComposed),
+        Deno.writeTextFile(`${PROMPTS_ROOT}/champion.base.md`, nextBase),
+        Deno.writeTextFile(`${PROMPTS_ROOT}/champion.patch.md`, nextPatch),
+      ]);
 
       // Clear cache so next load gets fresh data
       cachedChampion = null;
@@ -370,10 +385,11 @@ Deno.serve(async (req) => {
         if (entry.isFile && entry.name.startsWith("champion.") && entry.name.endsWith(".md")) {
           // Extract timestamp from filename: champion.2024-01-15T10-30-00-000Z.md
           const match = entry.name.match(/champion\.(.+)\.md$/);
-          if (match?.[1]) {
+          const timestamp = match?.[1];
+          if (timestamp) {
             versions.push({
               name: entry.name,
-              timestamp: match[1].replace(/-/g, ":").replace("T", " ").slice(0, -1), // Approximate restore
+              timestamp: timestamp.replace(/-/g, ":").replace("T", " ").slice(0, -1), // Approximate restore
             });
           }
         }
@@ -474,13 +490,15 @@ Deno.serve(async (req) => {
         let jsonStr = "";
 
         const jsonBlockMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/);
-        if (jsonBlockMatch?.[1]) {
-          jsonStr = jsonBlockMatch[1];
+        const jsonBlock = jsonBlockMatch?.[1];
+        if (jsonBlock) {
+          jsonStr = jsonBlock;
         } else {
           // Try to find raw JSON (array or object) in the response
           const jsonStartMatch = rawText.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-          if (jsonStartMatch?.[1]) {
-            jsonStr = jsonStartMatch[1];
+          const jsonStart = jsonStartMatch?.[1];
+          if (jsonStart) {
+            jsonStr = jsonStart;
           } else {
             jsonStr = rawText;
           }

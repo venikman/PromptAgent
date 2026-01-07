@@ -21,7 +21,7 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
 
     const check = async () => {
       try {
