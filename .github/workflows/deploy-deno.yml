@@ -29,8 +29,6 @@ jobs:
         run: |
           # Remove node_modules created by ui:deps to reduce deployment size
           rm -rf ui/node_modules
-          # Remove any other temporary files
-          rm -rf .cache
 
       - name: Deploy to Deno Deploy
         env:
