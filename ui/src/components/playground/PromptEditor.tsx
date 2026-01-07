@@ -6,6 +6,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -17,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import type { ChampionPrompt } from "@/types";
-import { IconWand } from "@tabler/icons-react";
+import { IconWand, IconDeviceFloppy, IconLoader2 } from "@tabler/icons-react";
 
 type PromptEditorProps = {
   promptOverride: string | null;
@@ -33,6 +34,8 @@ export function PromptEditor({
   const [champion, setChampion] = useState<ChampionPrompt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
     const fetchChampion = async () => {
@@ -55,6 +58,38 @@ export function PromptEditor({
   const effectivePrompt = promptOverride ?? champion?.composed ?? "";
   const isModified =
     promptOverride !== null && promptOverride !== champion?.composed;
+
+  const handleSaveAsChampion = async () => {
+    if (!promptOverride) return;
+
+    setSaving(true);
+    setSaveSuccess(false);
+
+    try {
+      const res = await fetch("/champion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ composed: promptOverride }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      setChampion(data.champion);
+      onPromptChange(null); // Reset override since it's now the champion
+      setSaveSuccess(true);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -143,13 +178,34 @@ export function PromptEditor({
         )}
 
         {isModified && (
-          <button
-            type="button"
-            className="text-xs text-muted-foreground hover:text-foreground underline"
-            onClick={() => onPromptChange(null)}
-          >
-            Reset to champion prompt
-          </button>
+          <div className="flex items-center justify-between gap-4">
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground underline"
+              onClick={() => onPromptChange(null)}
+            >
+              Reset to champion prompt
+            </button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSaveAsChampion}
+              disabled={saving || disabled}
+            >
+              {saving ? (
+                <IconLoader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <IconDeviceFloppy className="mr-1 h-3.5 w-3.5" />
+              )}
+              Save as Champion
+            </Button>
+          </div>
+        )}
+
+        {saveSuccess && (
+          <div className="rounded-md bg-green-500/10 border border-green-500/30 px-3 py-2 text-sm text-green-600 dark:text-green-400">
+            Prompt saved as new champion! Previous version backed up.
+          </div>
         )}
       </CardContent>
     </Card>

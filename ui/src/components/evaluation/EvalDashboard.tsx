@@ -9,11 +9,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { PromptDistReport, FPFSubscores } from "@/types";
+import { categorizeError } from "@/lib/errors";
 import { MetricsPanel } from "./MetricsPanel";
 import { DistributionChart } from "./DistributionChart";
 import { FPFRadar } from "./FPFRadar";
 import { RunsTable } from "./RunsTable";
-import { IconPlayerPlay, IconDatabase, IconLoader2 } from "@tabler/icons-react";
+import { IconPlayerPlay, IconDatabase, IconLoader2, IconRefresh, IconAlertTriangle, IconX } from "@tabler/icons-react";
 
 // Demo data for visualization without backend
 const DEMO_REPORT: PromptDistReport = {
@@ -323,13 +324,43 @@ export function EvalDashboard() {
       )}
 
       {/* Error Banner */}
-      {evalError && (
-        <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3">
-          <p className="text-sm text-destructive">
-            <span className="font-medium">Error:</span> {evalError}
-          </p>
-        </div>
-      )}
+      {evalError && (() => {
+        const errorInfo = categorizeError(evalError);
+        return (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4">
+            <div className="flex items-start gap-3">
+              <div className="text-destructive">
+                {errorInfo.icon === "warning" ? (
+                  <IconAlertTriangle className="h-5 w-5" />
+                ) : (
+                  <IconX className="h-5 w-5" />
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <p className="font-medium text-destructive">{errorInfo.title}</p>
+                <p className="text-sm text-muted-foreground">{errorInfo.suggestion}</p>
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Show details
+                  </summary>
+                  <pre className="mt-2 overflow-x-auto rounded bg-muted/50 p-2 font-mono text-destructive/80">
+                    {evalError}
+                  </pre>
+                </details>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRunEval}
+                  className="mt-2"
+                >
+                  <IconRefresh className="mr-2 h-3 w-3" />
+                  Retry Evaluation
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Metrics Panel */}
       <MetricsPanel report={report} loading={loading} />

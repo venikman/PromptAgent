@@ -5,7 +5,11 @@ import { fromFileUrl } from "jsr:@std/path";
 import { evalPromptDistribution, type PromptDistReport } from "../src/eval.ts";
 import { mineContrastivePairs, formatPairsForPrompt, type ContrastPair, type ScoredOutput } from "../src/pairMining.ts";
 import { generatePatchCandidates, composePrompt } from "../src/patchEngineer.ts";
-import type { Epic } from "../src/schema.ts";
+import { createStoryDecompositionScorer } from "../src/scorer.ts";
+import type { Epic, StoryPack } from "../src/schema.ts";
+
+// Create scorer instance (reused across requests)
+const scorer = createStoryDecompositionScorer();
 
 // LM Studio OpenAI-compatible API
 const LLM_API_BASE_URL =
@@ -28,6 +32,60 @@ type EvalTask = {
 };
 
 const evalTasks = new Map<string, EvalTask>();
+
+// ─────────────────────────────────────────────────
+// Tournament Task Store
+// ─────────────────────────────────────────────────
+
+type TournamentCandidateResult = {
+  id: string;
+  name: string;
+  patch: string;
+  objective: number;
+  passRate: number;
+  meanScore: number;
+  p10Score: number;
+  isChampion: boolean;
+  deltaVsChampion: number;
+  runsCompleted: number;
+  totalRuns: number;
+  report?: PromptDistReport;
+};
+
+type TournamentTask = {
+  id: string;
+  status: "pending" | "running" | "completed" | "failed";
+  progress: { candidateIdx: number; totalCandidates: number; runsCompleted: number; totalRuns: number };
+  candidates: TournamentCandidateResult[];
+  championObjective: number;
+  winner?: { id: string; objective: number; deltaVsChampion: number };
+  error?: string;
+  startedAt: string;
+  completedAt?: string;
+};
+
+const tournamentTasks = new Map<string, TournamentTask>();
+
+// Scorer result type (mastra/core doesn't export intermediate step types)
+type ScorerResultWithSteps = {
+  score: number;
+  reason: string;
+  results?: {
+    preprocessStepResult?: {
+      fpfJudgeResult?: {
+        info?: {
+          gateDecision?: "pass" | "degrade" | "block" | "abstain";
+          subscores?: {
+            correctness?: number;
+            completeness?: number;
+            processQuality?: number;
+            safety?: number;
+          };
+        };
+      };
+    };
+  };
+};
 
 // ─────────────────────────────────────────────────
 // Data paths
@@ -89,6 +147,96 @@ const safeJson = (text: string) => {
   }
 };
 
+/**
+ * Parse acceptance criteria from various formats:
+ * - Given/When/Then (GWT) blocks
+ * - Numbered lists (1. 2. 3.)
+ * - Bullet points (-, •, *, ◦)
+ * - Checkbox format (- [ ], - [x])
+ * - Plain newline-separated lines
+ */
+// Minimum length for a valid acceptance criterion (filters out noise/fragments)
+const MIN_CRITERION_LENGTH = 4;
+
+function parseAcceptanceCriteria(raw: string): string[] {
+  if (!raw || typeof raw !== "string") return [];
+
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+
+  const criteria: string[] = [];
+
+  // Check for Given/When/Then format
+  const gwtPattern = /\b(Given|When|Then|And|But)\b[:\s]+(.+?)(?=\b(?:Given|When|Then|And|But)\b|$)/gis;
+  const gwtMatches = [...trimmed.matchAll(gwtPattern)];
+
+  if (gwtMatches.length >= 2) {
+    // Has GWT format - group into scenarios
+    let currentScenario: string[] = [];
+
+    for (const match of gwtMatches) {
+      const keyword = match[1]!.toLowerCase();
+      const content = match[2]!.trim().replace(/\n+/g, " ");
+
+      if (keyword === "given" && currentScenario.length > 0) {
+        // Start of new scenario, save previous
+        criteria.push(currentScenario.join(" → "));
+        currentScenario = [];
+      }
+
+      currentScenario.push(`${match[1]} ${content}`);
+    }
+
+    // Don't forget the last scenario
+    if (currentScenario.length > 0) {
+      criteria.push(currentScenario.join(" → "));
+    }
+
+    if (criteria.length > 0) return criteria;
+  }
+
+  // Check for numbered list format (1. or 1) or a. or a))
+  const numberedPattern = /(?:^|\n)\s*(?:\d+[.)]\s*|[a-z][.)]\s*)/i;
+  if (numberedPattern.test(trimmed)) {
+    const items = trimmed.split(/(?:^|\n)\s*(?:\d+[.)]\s*|[a-z][.)]\s*)/i)
+      .map((s) => s.trim().replace(/\n+/g, " "))
+      .filter((s) => s.length >= MIN_CRITERION_LENGTH);
+    if (items.length > 0) return items;
+  }
+
+  // Check for bullet/checkbox format
+  // Matches: -, •, *, ◦, ▪, ►, →, and checkbox variants
+  const bulletPattern = /(?:^|\n)\s*[-•*◦▪►→]\s*(?:\[[ x]\]\s*)?/i;
+  if (bulletPattern.test(trimmed)) {
+    const items = trimmed.split(/(?:^|\n)\s*[-•*◦▪►→]\s*(?:\[[ x]\]\s*)?/)
+      .map((s) => s.trim().replace(/\n+/g, " "))
+      .filter((s) => s.length >= MIN_CRITERION_LENGTH);
+    if (items.length > 0) return items;
+  }
+
+  // Check for HTML list format (often from rich text)
+  if (trimmed.includes("<li>")) {
+    const liPattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+    const liMatches = [...trimmed.matchAll(liPattern)];
+    const items = liMatches
+      .map((m) => m[1]!.replace(/<[^>]+>/g, "").trim())
+      .filter((s) => s.length >= MIN_CRITERION_LENGTH);
+    if (items.length > 0) return items;
+  }
+
+  // Fallback: split by newlines (if multi-line) or return as single criterion
+  const lines = trimmed.split(/\n+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= MIN_CRITERION_LENGTH);
+
+  if (lines.length > 1) {
+    return lines;
+  }
+
+  // Single criterion - return as array
+  return trimmed.length >= MIN_CRITERION_LENGTH ? [trimmed] : [];
+}
+
 type GenerateRequest = {
   prompt?: string;
   model?: string;
@@ -127,6 +275,87 @@ Deno.serve(async (req) => {
   if (url.pathname === "/champion" && req.method === "GET") {
     const champion = await loadChampionPrompt();
     return jsonResponse(champion);
+  }
+
+  if (url.pathname === "/champion" && req.method === "POST") {
+    // Save a new champion prompt
+    let payload: { composed: string } | null = null;
+    try {
+      payload = await req.json();
+    } catch {
+      return jsonResponse({ error: "Invalid JSON body" }, 400);
+    }
+
+    const newComposed = payload?.composed?.trim();
+    if (!newComposed) {
+      return jsonResponse({ error: "composed prompt is required" }, 400);
+    }
+
+    try {
+      // Create versions directory if it doesn't exist
+      const versionsDir = `${PROMPTS_ROOT}/versions`;
+      try {
+        await Deno.mkdir(versionsDir, { recursive: true });
+      } catch { /* ignore if exists */ }
+
+      // Backup current champion with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const currentChampion = await loadChampionPrompt();
+      if (currentChampion.composed) {
+        await Deno.writeTextFile(
+          `${versionsDir}/champion.${timestamp}.md`,
+          currentChampion.composed
+        );
+      }
+
+      // Save new champion
+      await Deno.writeTextFile(`${PROMPTS_ROOT}/champion.md`, newComposed);
+
+      // Clear cache so next load gets fresh data
+      cachedChampion = null;
+
+      // Load and return the updated champion
+      const updated = await loadChampionPrompt();
+      return jsonResponse({
+        success: true,
+        champion: updated,
+        backupFile: currentChampion.composed ? `champion.${timestamp}.md` : null,
+      });
+    } catch (err) {
+      return jsonResponse(
+        { error: `Failed to save champion: ${err instanceof Error ? err.message : String(err)}` },
+        500
+      );
+    }
+  }
+
+  if (url.pathname === "/champion/versions" && req.method === "GET") {
+    // List available prompt versions
+    try {
+      const versionsDir = `${PROMPTS_ROOT}/versions`;
+      const versions: { name: string; timestamp: string }[] = [];
+
+      for await (const entry of Deno.readDir(versionsDir)) {
+        if (entry.isFile && entry.name.startsWith("champion.") && entry.name.endsWith(".md")) {
+          // Extract timestamp from filename: champion.2024-01-15T10-30-00-000Z.md
+          const match = entry.name.match(/champion\.(.+)\.md$/);
+          if (match?.[1]) {
+            versions.push({
+              name: entry.name,
+              timestamp: match[1].replace(/-/g, ":").replace("T", " ").slice(0, -1), // Approximate restore
+            });
+          }
+        }
+      }
+
+      // Sort by filename (timestamp) descending
+      versions.sort((a, b) => b.name.localeCompare(a.name));
+
+      return jsonResponse({ versions });
+    } catch (err) {
+      console.error("Failed to list champion versions:", err);
+      return jsonResponse({ versions: [] });
+    }
   }
 
   if (url.pathname === "/generate-story" && req.method === "POST") {
@@ -210,10 +439,22 @@ Deno.serve(async (req) => {
       let parseError: string | undefined;
       try {
         // Find JSON in the response (might be wrapped in markdown code blocks)
-        const jsonMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/) ||
-                         rawText.match(/```\s*([\s\S]*?)\s*```/) ||
-                         [null, rawText];
-        const jsonStr = jsonMatch[1] || rawText;
+        // Priority: 1) ```json blocks, 2) raw JSON starting with [ or {
+        let jsonStr = "";
+
+        const jsonBlockMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonBlockMatch?.[1]) {
+          jsonStr = jsonBlockMatch[1];
+        } else {
+          // Try to find raw JSON (array or object) in the response
+          const jsonStartMatch = rawText.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+          if (jsonStartMatch?.[1]) {
+            jsonStr = jsonStartMatch[1];
+          } else {
+            jsonStr = rawText;
+          }
+        }
+
         const parsed = JSON.parse(jsonStr.trim());
 
         // Transform LLM output to UI-expected format
@@ -229,12 +470,9 @@ Deno.serve(async (req) => {
               const iWantMatch = desc.match(/\*\*I want\*\*\s*([^,*]+)/i) || desc.match(/I want\s+([^,]+)/i);
               const soThatMatch = desc.match(/\*\*so that\*\*\s*([^,*]+)/i) || desc.match(/so that\s+(.+)/i);
 
-              // Parse acceptance criteria
+              // Parse acceptance criteria (handles GWT, numbered, bullet formats)
               const acRaw = String(item["Microsoft.VSTS.Common.AcceptanceCriteria"] ?? "");
-              const acceptanceCriteria = acRaw
-                .split(/[-•*]\s+/)
-                .map((s) => s.trim())
-                .filter((s) => s.length > 0);
+              const acceptanceCriteria = parseAcceptanceCriteria(acRaw);
 
               return {
                 title: item["System.Title"] ?? "Untitled",
@@ -271,6 +509,41 @@ Deno.serve(async (req) => {
         parseError = err instanceof Error ? err.message : "JSON parse failed";
       }
 
+      // Run scorer if we have a valid storyPack
+      let scorerResult = null;
+      if (storyPack && !parseError) {
+        try {
+          const epicInput: Epic = {
+            id: epicId,
+            title: (epic as { title?: string }).title ?? "Epic",
+            description: (epic as { description?: string }).description ?? JSON.stringify(epic),
+          };
+
+          const result = await scorer.run({
+            input: epicInput,
+            output: {
+              storyPack: storyPack as StoryPack,
+              rawText,
+              instructions: systemPrompt,
+            },
+          });
+
+          // Extract FPF info from nested results
+          const typedResult = result as ScorerResultWithSteps;
+          const fpfInfo = typedResult.results?.preprocessStepResult?.fpfJudgeResult?.info;
+
+          scorerResult = {
+            score: result.score,
+            reason: result.reason,
+            gateDecision: fpfInfo?.gateDecision ?? "abstain",
+            fpfSubscores: fpfInfo?.subscores ?? undefined,
+          };
+        } catch (scorerErr) {
+          console.error("Scorer error:", scorerErr);
+          // Continue without scorer result on error
+        }
+      }
+
       return jsonResponse({
         result: {
           storyPack,
@@ -279,7 +552,7 @@ Deno.serve(async (req) => {
           error: parseError,
           seed: payload?.seed,
         },
-        scorerResult: null,
+        scorerResult,
       });
     } catch (err) {
       return jsonResponse(
@@ -535,6 +808,187 @@ Deno.serve(async (req) => {
         500
       );
     }
+  }
+
+  // ─────────────────────────────────────────────────
+  // Flow C: Evolution - Tournament
+  // ─────────────────────────────────────────────────
+
+  if (url.pathname === "/run-tournament" && req.method === "POST") {
+    let payload: {
+      patches: Array<{ id: string; patch: string; name?: string }>;
+      replicates?: number;
+    } | null = null;
+
+    try {
+      payload = await req.json();
+    } catch {
+      return jsonResponse({ error: "Invalid JSON body" }, 400);
+    }
+
+    if (!payload?.patches || payload.patches.length === 0) {
+      return jsonResponse({ error: "patches array is required" }, 400);
+    }
+
+    const taskId = crypto.randomUUID();
+    const epics = await loadEpics() as Epic[];
+    const champion = await loadChampionPrompt();
+    const replicates = payload.replicates ?? 3;
+
+    if (epics.length === 0) {
+      return jsonResponse({ error: "No epics available" }, 400);
+    }
+
+    const runsPerCandidate = epics.length * replicates;
+    // +1 for champion evaluation
+    const totalCandidates = payload.patches.length + 1;
+    const totalRuns = runsPerCandidate * totalCandidates;
+
+    // Create task
+    const task: TournamentTask = {
+      id: taskId,
+      status: "pending",
+      progress: { candidateIdx: 0, totalCandidates, runsCompleted: 0, totalRuns },
+      candidates: [],
+      championObjective: 0,
+      startedAt: new Date().toISOString(),
+    };
+    tournamentTasks.set(taskId, task);
+
+    // Run tournament in background
+    (async () => {
+      task.status = "running";
+      let overallRunsCompleted = 0;
+
+      try {
+        // Step 1: Evaluate champion first
+        task.progress.candidateIdx = 0;
+        const championReport = await evalPromptDistribution({
+          promptId: "champion",
+          promptText: champion.composed,
+          epics,
+          replicates,
+          concurrency: 1,
+          onProgress: (completed, _total) => {
+            task.progress.runsCompleted = completed;
+          },
+        });
+
+        const championObjective = championReport.agg.objective;
+        task.championObjective = championObjective;
+        overallRunsCompleted += runsPerCandidate;
+
+        task.candidates.push({
+          id: "champion",
+          name: "Champion (Current)",
+          patch: champion.patch,
+          objective: championObjective,
+          passRate: championReport.agg.meanPassRate,
+          meanScore: championReport.agg.meanOfMeans,
+          p10Score: championReport.agg.meanP10,
+          isChampion: true,
+          deltaVsChampion: 0,
+          runsCompleted: runsPerCandidate,
+          totalRuns: runsPerCandidate,
+          report: championReport,
+        });
+
+        // Step 2: Evaluate each patch candidate
+        for (let i = 0; i < payload!.patches.length; i++) {
+          const patch = payload!.patches[i]!;
+          task.progress.candidateIdx = i + 1;
+
+          const candidatePrompt = composePrompt(champion.base, patch.patch);
+          const report = await evalPromptDistribution({
+            promptId: patch.id,
+            promptText: candidatePrompt,
+            epics,
+            replicates,
+            concurrency: 1,
+            onProgress: (completed, _total) => {
+              task.progress.runsCompleted = overallRunsCompleted + completed;
+            },
+          });
+
+          overallRunsCompleted += runsPerCandidate;
+
+          const delta = report.agg.objective - championObjective;
+          task.candidates.push({
+            id: patch.id,
+            name: patch.name || `Patch #${i + 1}`,
+            patch: patch.patch,
+            objective: report.agg.objective,
+            passRate: report.agg.meanPassRate,
+            meanScore: report.agg.meanOfMeans,
+            p10Score: report.agg.meanP10,
+            isChampion: false,
+            deltaVsChampion: delta,
+            runsCompleted: runsPerCandidate,
+            totalRuns: runsPerCandidate,
+            report,
+          });
+        }
+
+        // Step 3: Find winner
+        const sorted = [...task.candidates].sort((a, b) => b.objective - a.objective);
+        const best = sorted[0]!;
+        task.winner = {
+          id: best.id,
+          objective: best.objective,
+          deltaVsChampion: best.objective - championObjective,
+        };
+
+        task.status = "completed";
+        task.completedAt = new Date().toISOString();
+      } catch (err) {
+        task.status = "failed";
+        task.error = err instanceof Error ? err.message : String(err);
+        task.completedAt = new Date().toISOString();
+      }
+    })();
+
+    return jsonResponse({ taskId, status: "pending" });
+  }
+
+  // Poll tournament status
+  if (url.pathname.startsWith("/tournament/") && req.method === "GET") {
+    const taskId = url.pathname.split("/")[2]?.trim();
+
+    if (!taskId) {
+      return jsonResponse({ error: "Invalid task ID" }, 400);
+    }
+
+    const task = tournamentTasks.get(taskId);
+
+    if (!task) {
+      return jsonResponse({ error: "Task not found" }, 404);
+    }
+
+    // Return candidates without full reports (too large for polling)
+    const candidatesForUI = task.candidates.map((c) => ({
+      id: c.id,
+      name: c.name,
+      objective: c.objective,
+      passRate: c.passRate,
+      meanScore: c.meanScore,
+      p10Score: c.p10Score,
+      isChampion: c.isChampion,
+      deltaVsChampion: c.deltaVsChampion,
+      runsCompleted: c.runsCompleted,
+      totalRuns: c.totalRuns,
+    }));
+
+    return jsonResponse({
+      taskId: task.id,
+      status: task.status,
+      progress: task.progress,
+      candidates: candidatesForUI,
+      championObjective: task.championObjective,
+      winner: task.winner,
+      error: task.error,
+      startedAt: task.startedAt,
+      completedAt: task.completedAt,
+    });
   }
 
   if (url.pathname === "/") {

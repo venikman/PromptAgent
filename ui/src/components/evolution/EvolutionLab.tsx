@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -170,7 +170,33 @@ type PatchCandidate = {
   composedPrompt?: string;
 };
 
+type TournamentCandidate = {
+  id: string;
+  name: string;
+  objective: number;
+  passRate: number;
+  meanScore: number;
+  p10Score: number;
+  isChampion: boolean;
+  deltaVsChampion: number;
+  runsCompleted: number;
+  totalRuns: number;
+};
+
+type TournamentTaskResponse = {
+  taskId: string;
+  status: "pending" | "running" | "completed" | "failed";
+  progress: { candidateIdx: number; totalCandidates: number; runsCompleted: number; totalRuns: number };
+  candidates: TournamentCandidate[];
+  championObjective: number;
+  winner?: { id: string; objective: number; deltaVsChampion: number };
+  error?: string;
+};
+
 export function EvolutionLab() {
+  // Ref to track component mount state (prevents state updates after unmount)
+  const mountedRef = useRef(true);
+
   const [dataMode, setDataMode] = useState<DataMode>("empty");
   const [loading, setLoading] = useState(false);
   const [pairs, setPairs] = useState<ContrastPair[]>([]);
@@ -181,6 +207,16 @@ export function EvolutionLab() {
   const [error, setError] = useState<string | null>(null);
   const [miningPairs, setMiningPairs] = useState(false);
   const [generatingPatches, setGeneratingPatches] = useState(false);
+  const [tournamentCandidates, setTournamentCandidates] = useState<TournamentCandidate[]>([]);
+  const [runningTournament, setRunningTournament] = useState(false);
+  const [tournamentProgress, setTournamentProgress] = useState<{ runsCompleted: number; totalRuns: number } | null>(null);
+
+  // Cleanup mounted ref on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Load champion prompt on mount
   useEffect(() => {
@@ -207,9 +243,96 @@ export function EvolutionLab() {
   const handleClear = () => {
     setPairs([]);
     setPatchCandidates([]);
+    setTournamentCandidates([]);
+    setTournamentProgress(null);
     setError(null);
     setDataMode("empty");
     setActiveStep("pairs");
+  };
+
+  // Run tournament with patch candidates
+  const handleRunTournament = async () => {
+    if (patchCandidates.length === 0) {
+      setError("No patch candidates. Generate patches first.");
+      return;
+    }
+
+    setRunningTournament(true);
+    setError(null);
+    setTournamentCandidates([]);
+    setTournamentProgress(null);
+
+    try {
+      // Start tournament
+      const patches = patchCandidates.map((p, i) => ({
+        id: p.id,
+        patch: p.patch,
+        name: p.targetedIssue ? `Patch #${i + 1} (${p.targetedIssue})` : `Patch #${i + 1}`,
+      }));
+
+      const startRes = await fetch("/run-tournament", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patches, replicates: 3 }),
+      });
+
+      if (!startRes.ok) {
+        throw new Error(`HTTP ${startRes.status}`);
+      }
+
+      const { taskId } = await startRes.json();
+
+      // Poll for results using chained setTimeout (avoids race conditions)
+      // Timeout after 5 minutes (150 polls × 2s interval)
+      const MAX_POLL_ATTEMPTS = 150;
+      let pollCount = 0;
+
+      const poll = async () => {
+        // Skip if component unmounted
+        if (!mountedRef.current) return;
+
+        // Timeout guard
+        if (++pollCount > MAX_POLL_ATTEMPTS) {
+          setRunningTournament(false);
+          setError("Tournament timed out after 5 minutes");
+          return;
+        }
+
+        try {
+          const pollRes = await fetch(`/tournament/${taskId}`);
+          if (!pollRes.ok) {
+            throw new Error(`HTTP ${pollRes.status}`);
+          }
+
+          const data: TournamentTaskResponse = await pollRes.json();
+
+          // Check again after async operation
+          if (!mountedRef.current) return;
+
+          setTournamentProgress({ runsCompleted: data.progress.runsCompleted, totalRuns: data.progress.totalRuns });
+          setTournamentCandidates(data.candidates);
+
+          if (data.status === "completed") {
+            setRunningTournament(false);
+            setActiveStep("tournament");
+          } else if (data.status === "failed") {
+            setRunningTournament(false);
+            setError(data.error || "Tournament failed");
+          } else {
+            // Schedule next poll only after current one completes
+            setTimeout(poll, 2000);
+          }
+        } catch (err) {
+          if (!mountedRef.current) return;
+          setRunningTournament(false);
+          setError(err instanceof Error ? err.message : "Failed to poll tournament");
+        }
+      };
+      poll();
+    } catch (err) {
+      setRunningTournament(false);
+      setError(err instanceof Error ? err.message : "Failed to start tournament");
+    }
   };
 
   // Mine contrastive pairs from evaluation report
@@ -445,8 +568,10 @@ export function EvolutionLab() {
 
         <TabsContent value="tournament" className="mt-0">
           <TournamentView
-            candidates={dataMode === "demo" ? DEMO_TOURNAMENT_CANDIDATES : []}
-            loading={loading}
+            candidates={dataMode === "demo" ? DEMO_TOURNAMENT_CANDIDATES : tournamentCandidates}
+            loading={loading || runningTournament}
+            onRunTournament={handleRunTournament}
+            progress={tournamentProgress}
           />
         </TabsContent>
       </Tabs>
@@ -501,11 +626,21 @@ export function EvolutionLab() {
 
         {activeStep === "patches" && patchCandidates.length > 0 && dataMode === "live" && (
           <Button
-            onClick={() => setActiveStep("tournament")}
+            onClick={handleRunTournament}
             size="lg"
+            disabled={runningTournament}
           >
-            <IconTrophy className="mr-2 h-4 w-4" />
-            View Tournament
+            {runningTournament ? (
+              <>
+                <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
+                Running Tournament...
+              </>
+            ) : (
+              <>
+                <IconTrophy className="mr-2 h-4 w-4" />
+                Run Tournament
+              </>
+            )}
           </Button>
         )}
 

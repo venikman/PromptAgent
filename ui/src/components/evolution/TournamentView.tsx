@@ -38,6 +38,7 @@ type TournamentViewProps = {
   loading?: boolean;
   onRunTournament?: () => void;
   onPromoteChampion?: (candidateId: string) => void;
+  progress?: { runsCompleted: number; totalRuns: number } | null;
 };
 
 function DeltaBadge({ delta }: { delta: number }) {
@@ -68,16 +69,33 @@ function DeltaBadge({ delta }: { delta: number }) {
 export function TournamentView({
   candidates,
   loading,
-  onRunTournament: _onRunTournament,
+  onRunTournament,
   onPromoteChampion,
+  progress,
 }: TournamentViewProps) {
   if (loading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Tournament</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <IconTrophy className="h-5 w-5" />
+            Tournament
+          </CardTitle>
+          {progress && (
+            <CardDescription>
+              Evaluating candidates: {progress.runsCompleted} / {progress.totalRuns} runs
+            </CardDescription>
+          )}
         </CardHeader>
         <CardContent>
+          {progress && (
+            <div className="mb-4">
+              <Progress value={progress.totalRuns > 0 ? (progress.runsCompleted / progress.totalRuns) * 100 : 0} className="h-2" />
+              <p className="text-xs text-muted-foreground mt-1">
+                {progress.totalRuns > 0 ? Math.round((progress.runsCompleted / progress.totalRuns) * 100) : 0}% complete
+              </p>
+            </div>
+          )}
           <div className="space-y-2">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="h-12 animate-pulse bg-muted rounded" />
@@ -248,14 +266,18 @@ export function TournamentView({
 
           {/* Actions */}
           <div className="flex items-center justify-center gap-4">
-            <Button disabled variant="outline">
+            <Button
+              variant="outline"
+              onClick={onRunTournament}
+              disabled={!onRunTournament}
+            >
               <IconPlayerPlay className="mr-2 h-4 w-4" />
-              Run Tournament (Requires LLM)
+              Re-run Tournament
             </Button>
             {challenger && challenger.deltaVsChampion > 0 && (
               <Button
-                disabled
                 onClick={() => onPromoteChampion?.(challenger.id)}
+                disabled={!onPromoteChampion}
               >
                 <IconCrown className="mr-2 h-4 w-4" />
                 Promote Challenger

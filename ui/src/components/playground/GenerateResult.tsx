@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -11,11 +12,16 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { GenerateResult as GenerateResultType, ScorerResult } from "@/types";
+import { categorizeError, type ErrorCategory } from "@/lib/errors";
+import { exportToCSV, exportToJSON } from "@/lib/export";
 import {
   IconCheck,
   IconAlertTriangle,
   IconX,
   IconTerminal2,
+  IconRefresh,
+  IconFileTypeCsv,
+  IconBraces,
 } from "@tabler/icons-react";
 import { StoryPackDisplay } from "./StoryPackDisplay";
 
@@ -24,7 +30,22 @@ type GenerateResultProps = {
   scorerResult?: ScorerResult | null;
   loading?: boolean;
   error?: string | null;
+  onRetry?: () => void;
 };
+
+function ErrorIcon({ category }: { category: ErrorCategory }) {
+  const className = "h-5 w-5";
+  switch (category) {
+    case "timeout":
+      return <IconAlertTriangle className={className} />;
+    case "rate_limit":
+      return <IconAlertTriangle className={className} />;
+    case "connection":
+      return <IconX className={className} />;
+    default:
+      return <IconX className={className} />;
+  }
+}
 
 function GateBadge({ decision }: { decision?: string }) {
   if (!decision || decision === "abstain") {
@@ -81,7 +102,10 @@ export function GenerateResult({
   scorerResult,
   loading,
   error,
+  onRetry,
 }: GenerateResultProps) {
+  const errorInfo = error ? categorizeError(error) : null;
+
   return (
     <Card className="h-full">
       <CardHeader>
@@ -104,9 +128,31 @@ export function GenerateResult({
           </div>
         )}
 
-        {error && !loading && (
-          <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
-            {error}
+        {error && !loading && errorInfo && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4">
+            <div className="flex items-start gap-3">
+              <div className="text-destructive">
+                <ErrorIcon category={errorInfo.category} />
+              </div>
+              <div className="flex-1 space-y-2">
+                <p className="font-medium text-destructive">{errorInfo.title}</p>
+                <p className="text-sm text-muted-foreground">{errorInfo.suggestion}</p>
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Show details
+                  </summary>
+                  <pre className="mt-2 overflow-x-auto rounded bg-muted/50 p-2 font-mono text-destructive/80">
+                    {error}
+                  </pre>
+                </details>
+                {onRetry && (
+                  <Button variant="outline" size="sm" onClick={onRetry} className="mt-2">
+                    <IconRefresh className="mr-2 h-3 w-3" />
+                    Retry
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -120,7 +166,28 @@ export function GenerateResult({
 
             <TabsContent value="stories" className="mt-4">
               {result.storyPack ? (
-                <StoryPackDisplay storyPack={result.storyPack} />
+                <div className="space-y-4">
+                  {/* Export buttons */}
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => exportToCSV(result.storyPack!)}
+                    >
+                      <IconFileTypeCsv className="mr-1.5 h-4 w-4" />
+                      Export CSV
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => exportToJSON(result.storyPack!)}
+                    >
+                      <IconBraces className="mr-1.5 h-4 w-4" />
+                      Export JSON
+                    </Button>
+                  </div>
+                  <StoryPackDisplay storyPack={result.storyPack} />
+                </div>
               ) : (
                 <div className="rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
                   No valid story pack was generated.
