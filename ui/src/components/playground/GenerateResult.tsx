@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,21 +11,152 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type { GenerateResult as GenerateResultType, ScorerResult } from "@/types";
+import type { GenerateResult as GenerateResultType, ScorerResult, StoryPack } from "@/types";
 import {
   IconCheck,
   IconAlertTriangle,
   IconX,
   IconTerminal2,
+  IconRefresh,
+  IconFileTypeCsv,
+  IconBraces,
 } from "@tabler/icons-react";
 import { StoryPackDisplay } from "./StoryPackDisplay";
+
+// ─────────────────────────────────────────────────
+// Export Functions
+// ─────────────────────────────────────────────────
+
+function downloadFile(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportToCSV(storyPack: StoryPack) {
+  // CSV headers matching Azure DevOps import format
+  const headers = [
+    "Work Item Type",
+    "Title",
+    "Description",
+    "Acceptance Criteria",
+    "Story Points",
+    "Tags",
+  ];
+
+  const rows = storyPack.userStories.map((story) => {
+    const fields = story.ado.fields;
+    return [
+      "User Story",
+      escapeCsvField(fields["System.Title"]),
+      escapeCsvField(fields["System.Description"]),
+      escapeCsvField(fields["Microsoft.VSTS.Common.AcceptanceCriteria"]),
+      fields["Microsoft.VSTS.Scheduling.StoryPoints"]?.toString() || "",
+      escapeCsvField(fields["System.Tags"] || ""),
+    ];
+  });
+
+  const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+  const filename = `${storyPack.epicId || "stories"}-${new Date().toISOString().slice(0, 10)}.csv`;
+  downloadFile(csv, filename, "text/csv;charset=utf-8");
+}
+
+function escapeCsvField(value: string): string {
+  if (!value) return '""';
+  // Escape double quotes and wrap in quotes if contains comma, newline, or quote
+  const escaped = value.replace(/"/g, '""');
+  if (escaped.includes(",") || escaped.includes("\n") || escaped.includes('"')) {
+    return `"${escaped}"`;
+  }
+  return escaped;
+}
+
+function exportToJSON(storyPack: StoryPack) {
+  const json = JSON.stringify(storyPack, null, 2);
+  const filename = `${storyPack.epicId || "stories"}-${new Date().toISOString().slice(0, 10)}.json`;
+  downloadFile(json, filename, "application/json");
+}
 
 type GenerateResultProps = {
   result: GenerateResultType | null;
   scorerResult?: ScorerResult | null;
   loading?: boolean;
   error?: string | null;
+  onRetry?: () => void;
 };
+
+// Parse error messages to categorize them
+type ErrorCategory = "timeout" | "rate_limit" | "connection" | "json_parse" | "llm_error" | "unknown";
+
+function categorizeError(error: string): { category: ErrorCategory; title: string; suggestion: string } {
+  const lowerError = error.toLowerCase();
+
+  if (lowerError.includes("timeout") || lowerError.includes("timed out") || lowerError.includes("deadline")) {
+    return {
+      category: "timeout",
+      title: "Request Timeout",
+      suggestion: "The LLM took too long to respond. Try again or reduce the prompt complexity.",
+    };
+  }
+
+  if (lowerError.includes("rate limit") || lowerError.includes("429") || lowerError.includes("too many requests")) {
+    return {
+      category: "rate_limit",
+      title: "Rate Limited",
+      suggestion: "Too many requests. Wait a moment before retrying.",
+    };
+  }
+
+  if (lowerError.includes("econnrefused") || lowerError.includes("connection refused") || lowerError.includes("fetch failed")) {
+    return {
+      category: "connection",
+      title: "Connection Failed",
+      suggestion: "Cannot reach the LLM server. Make sure LM Studio or your LLM provider is running.",
+    };
+  }
+
+  if (lowerError.includes("json") || lowerError.includes("parse") || lowerError.includes("unexpected token")) {
+    return {
+      category: "json_parse",
+      title: "Invalid Response",
+      suggestion: "The LLM returned malformed output. Try regenerating with a different seed.",
+    };
+  }
+
+  if (lowerError.includes("llm_error") || lowerError.includes("model")) {
+    return {
+      category: "llm_error",
+      title: "LLM Error",
+      suggestion: "The language model encountered an error. Check your model configuration.",
+    };
+  }
+
+  return {
+    category: "unknown",
+    title: "Generation Failed",
+    suggestion: "An unexpected error occurred. Check the console for details.",
+  };
+}
+
+function ErrorIcon({ category }: { category: ErrorCategory }) {
+  const className = "h-5 w-5";
+  switch (category) {
+    case "timeout":
+      return <IconAlertTriangle className={className} />;
+    case "rate_limit":
+      return <IconAlertTriangle className={className} />;
+    case "connection":
+      return <IconX className={className} />;
+    default:
+      return <IconX className={className} />;
+  }
+}
 
 function GateBadge({ decision }: { decision?: string }) {
   if (!decision || decision === "abstain") {
@@ -81,7 +213,10 @@ export function GenerateResult({
   scorerResult,
   loading,
   error,
+  onRetry,
 }: GenerateResultProps) {
+  const errorInfo = error ? categorizeError(error) : null;
+
   return (
     <Card className="h-full">
       <CardHeader>
@@ -104,9 +239,31 @@ export function GenerateResult({
           </div>
         )}
 
-        {error && !loading && (
-          <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
-            {error}
+        {error && !loading && errorInfo && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4">
+            <div className="flex items-start gap-3">
+              <div className="text-destructive">
+                <ErrorIcon category={errorInfo.category} />
+              </div>
+              <div className="flex-1 space-y-2">
+                <p className="font-medium text-destructive">{errorInfo.title}</p>
+                <p className="text-sm text-muted-foreground">{errorInfo.suggestion}</p>
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Show details
+                  </summary>
+                  <pre className="mt-2 overflow-x-auto rounded bg-muted/50 p-2 font-mono text-destructive/80">
+                    {error}
+                  </pre>
+                </details>
+                {onRetry && (
+                  <Button variant="outline" size="sm" onClick={onRetry} className="mt-2">
+                    <IconRefresh className="mr-2 h-3 w-3" />
+                    Retry
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -120,7 +277,28 @@ export function GenerateResult({
 
             <TabsContent value="stories" className="mt-4">
               {result.storyPack ? (
-                <StoryPackDisplay storyPack={result.storyPack} />
+                <div className="space-y-4">
+                  {/* Export buttons */}
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => exportToCSV(result.storyPack!)}
+                    >
+                      <IconFileTypeCsv className="mr-1.5 h-4 w-4" />
+                      Export CSV
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => exportToJSON(result.storyPack!)}
+                    >
+                      <IconBraces className="mr-1.5 h-4 w-4" />
+                      Export JSON
+                    </Button>
+                  </div>
+                  <StoryPackDisplay storyPack={result.storyPack} />
+                </div>
               ) : (
                 <div className="rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
                   No valid story pack was generated.

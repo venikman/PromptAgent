@@ -13,7 +13,7 @@ import { MetricsPanel } from "./MetricsPanel";
 import { DistributionChart } from "./DistributionChart";
 import { FPFRadar } from "./FPFRadar";
 import { RunsTable } from "./RunsTable";
-import { IconPlayerPlay, IconDatabase, IconLoader2 } from "@tabler/icons-react";
+import { IconPlayerPlay, IconDatabase, IconLoader2, IconRefresh, IconAlertTriangle, IconX } from "@tabler/icons-react";
 
 // Demo data for visualization without backend
 const DEMO_REPORT: PromptDistReport = {
@@ -83,6 +83,49 @@ const DEMO_FPF_SUBSCORES: FPFSubscores = {
 
 type DataMode = "empty" | "demo" | "live";
 type EvalStatus = "idle" | "starting" | "running" | "completed" | "failed";
+
+// Parse error messages to categorize them
+function categorizeEvalError(error: string): { title: string; suggestion: string; icon: "warning" | "error" } {
+  const lowerError = error.toLowerCase();
+
+  if (lowerError.includes("timeout") || lowerError.includes("timed out")) {
+    return {
+      title: "Evaluation Timeout",
+      suggestion: "The LLM took too long. Try reducing replicates or checking your LLM server.",
+      icon: "warning",
+    };
+  }
+
+  if (lowerError.includes("econnrefused") || lowerError.includes("connection refused") || lowerError.includes("fetch failed")) {
+    return {
+      title: "Connection Failed",
+      suggestion: "Cannot reach the LLM server. Make sure LM Studio or your LLM provider is running on the configured port.",
+      icon: "error",
+    };
+  }
+
+  if (lowerError.includes("rate limit") || lowerError.includes("429")) {
+    return {
+      title: "Rate Limited",
+      suggestion: "Too many requests. Wait a moment before retrying the evaluation.",
+      icon: "warning",
+    };
+  }
+
+  if (lowerError.includes("no epics")) {
+    return {
+      title: "No Evaluation Data",
+      suggestion: "No epics found in data/epics.eval.json. Add evaluation epics first.",
+      icon: "error",
+    };
+  }
+
+  return {
+    title: "Evaluation Failed",
+    suggestion: "An unexpected error occurred. Check the server logs for details.",
+    icon: "error",
+  };
+}
 
 export function EvalDashboard() {
   const [dataMode, setDataMode] = useState<DataMode>("empty");
@@ -323,13 +366,43 @@ export function EvalDashboard() {
       )}
 
       {/* Error Banner */}
-      {evalError && (
-        <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3">
-          <p className="text-sm text-destructive">
-            <span className="font-medium">Error:</span> {evalError}
-          </p>
-        </div>
-      )}
+      {evalError && (() => {
+        const errorInfo = categorizeEvalError(evalError);
+        return (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4">
+            <div className="flex items-start gap-3">
+              <div className="text-destructive">
+                {errorInfo.icon === "warning" ? (
+                  <IconAlertTriangle className="h-5 w-5" />
+                ) : (
+                  <IconX className="h-5 w-5" />
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <p className="font-medium text-destructive">{errorInfo.title}</p>
+                <p className="text-sm text-muted-foreground">{errorInfo.suggestion}</p>
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Show details
+                  </summary>
+                  <pre className="mt-2 overflow-x-auto rounded bg-muted/50 p-2 font-mono text-destructive/80">
+                    {evalError}
+                  </pre>
+                </details>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRunEval}
+                  className="mt-2"
+                >
+                  <IconRefresh className="mr-2 h-3 w-3" />
+                  Retry Evaluation
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Metrics Panel */}
       <MetricsPanel report={report} loading={loading} />
