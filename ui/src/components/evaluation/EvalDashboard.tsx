@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { PromptDistReport, FPFSubscores } from "@/types";
+import { categorizeError } from "@/lib/errors";
 import { MetricsPanel } from "./MetricsPanel";
 import { DistributionChart } from "./DistributionChart";
 import { FPFRadar } from "./FPFRadar";
@@ -83,49 +84,6 @@ const DEMO_FPF_SUBSCORES: FPFSubscores = {
 
 type DataMode = "empty" | "demo" | "live";
 type EvalStatus = "idle" | "starting" | "running" | "completed" | "failed";
-
-// Parse error messages to categorize them
-function categorizeEvalError(error: string): { title: string; suggestion: string; icon: "warning" | "error" } {
-  const lowerError = error.toLowerCase();
-
-  if (lowerError.includes("timeout") || lowerError.includes("timed out")) {
-    return {
-      title: "Evaluation Timeout",
-      suggestion: "The LLM took too long. Try reducing replicates or checking your LLM server.",
-      icon: "warning",
-    };
-  }
-
-  if (lowerError.includes("econnrefused") || lowerError.includes("connection refused") || lowerError.includes("fetch failed")) {
-    return {
-      title: "Connection Failed",
-      suggestion: "Cannot reach the LLM server. Make sure LM Studio or your LLM provider is running on the configured port.",
-      icon: "error",
-    };
-  }
-
-  if (lowerError.includes("rate limit") || lowerError.includes("429")) {
-    return {
-      title: "Rate Limited",
-      suggestion: "Too many requests. Wait a moment before retrying the evaluation.",
-      icon: "warning",
-    };
-  }
-
-  if (lowerError.includes("no epics")) {
-    return {
-      title: "No Evaluation Data",
-      suggestion: "No epics found in data/epics.eval.json. Add evaluation epics first.",
-      icon: "error",
-    };
-  }
-
-  return {
-    title: "Evaluation Failed",
-    suggestion: "An unexpected error occurred. Check the server logs for details.",
-    icon: "error",
-  };
-}
 
 export function EvalDashboard() {
   const [dataMode, setDataMode] = useState<DataMode>("empty");
@@ -367,7 +325,7 @@ export function EvalDashboard() {
 
       {/* Error Banner */}
       {evalError && (() => {
-        const errorInfo = categorizeEvalError(evalError);
+        const errorInfo = categorizeError(evalError);
         return (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4">
             <div className="flex items-start gap-3">

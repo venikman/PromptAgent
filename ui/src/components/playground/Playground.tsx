@@ -18,7 +18,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import type { Epic, GenerateResult, ScorerResult, StoryPack, ChampionPrompt } from "@/types";
+import type { Epic, GenerateResult, ScorerResult, ChampionPrompt } from "@/types";
+import { categorizeError } from "@/lib/errors";
+import { exportToCSV, exportToJSON } from "@/lib/export";
 import {
   IconPlayerPlay,
   IconRefresh,
@@ -35,94 +37,6 @@ import {
   IconDeviceFloppy,
   IconSparkles,
 } from "@tabler/icons-react";
-
-// ─────────────────────────────────────────────────
-// Error Handling - Human-friendly messages
-// ─────────────────────────────────────────────────
-
-type ErrorInfo = {
-  title: string;
-  message: string;
-  action: string;
-};
-
-function parseError(error: string): ErrorInfo {
-  const lower = error.toLowerCase();
-
-  if (lower.includes("unexpected token") || lower.includes("json") || lower.includes("parse")) {
-    return {
-      title: "Model returned invalid format",
-      message: "The AI generated text instead of structured data. This happens occasionally with complex prompts.",
-      action: "Try again - the model will likely succeed on retry",
-    };
-  }
-
-  if (lower.includes("timeout") || lower.includes("timed out")) {
-    return {
-      title: "Request timed out",
-      message: "The model took too long to respond.",
-      action: "Try again with a simpler epic or shorter prompt",
-    };
-  }
-
-  if (lower.includes("econnrefused") || lower.includes("connection") || lower.includes("fetch failed")) {
-    return {
-      title: "Cannot connect to LLM",
-      message: "Make sure LM Studio or your model server is running on localhost:1234.",
-      action: "Start the LLM server and try again",
-    };
-  }
-
-  if (lower.includes("rate limit") || lower.includes("429")) {
-    return {
-      title: "Rate limited",
-      message: "Too many requests in a short time.",
-      action: "Wait a moment and try again",
-    };
-  }
-
-  return {
-    title: "Generation failed",
-    message: error.slice(0, 100),
-    action: "Try again or check the console for details",
-  };
-}
-
-// ─────────────────────────────────────────────────
-// Export utilities
-// ─────────────────────────────────────────────────
-
-function downloadFile(content: string, filename: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function exportCSV(pack: StoryPack) {
-  const headers = ["Work Item Type", "Title", "Description", "Acceptance Criteria", "Story Points"];
-  const rows = pack.userStories.map((s) => {
-    const f = s.ado?.fields ?? {};
-    const escape = (v: string) => `"${(v || "").replace(/"/g, '""')}"`;
-    return [
-      "User Story",
-      escape(f["System.Title"] || s.title),
-      escape(f["System.Description"] || ""),
-      escape(f["Microsoft.VSTS.Common.AcceptanceCriteria"] || ""),
-      f["Microsoft.VSTS.Scheduling.StoryPoints"]?.toString() || "",
-    ].join(",");
-  });
-  downloadFile([headers.join(","), ...rows].join("\n"), `${pack.epicId}-stories.csv`, "text/csv");
-}
-
-function exportJSON(pack: StoryPack) {
-  downloadFile(JSON.stringify(pack, null, 2), `${pack.epicId}-stories.json`, "application/json");
-}
 
 // ─────────────────────────────────────────────────
 // Main Component
@@ -216,7 +130,7 @@ export function Playground() {
     }
   };
 
-  const errorInfo = error ? parseError(error) : null;
+  const errorInfo = error ? categorizeError(error) : null;
 
   return (
     <div className="space-y-8">
@@ -445,10 +359,10 @@ function ResultDisplay({ result, scorerResult }: { result: GenerateResult; score
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => exportCSV(pack)} className="h-8 px-2">
+          <Button variant="ghost" size="sm" onClick={() => exportToCSV(pack)} className="h-8 px-2">
             <IconFileTypeCsv className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => exportJSON(pack)} className="h-8 px-2">
+          <Button variant="ghost" size="sm" onClick={() => exportToJSON(pack)} className="h-8 px-2">
             <IconBraces className="h-4 w-4" />
           </Button>
         </div>

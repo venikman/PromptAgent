@@ -272,8 +272,8 @@ export function EvolutionLab() {
 
       const { taskId } = await startRes.json();
 
-      // Poll for results
-      const pollInterval = setInterval(async () => {
+      // Poll for results using chained setTimeout (avoids race conditions)
+      const poll = async () => {
         try {
           const pollRes = await fetch(`/tournament/${taskId}`);
           if (!pollRes.ok) {
@@ -285,20 +285,21 @@ export function EvolutionLab() {
           setTournamentCandidates(data.candidates);
 
           if (data.status === "completed") {
-            clearInterval(pollInterval);
             setRunningTournament(false);
             setActiveStep("tournament");
           } else if (data.status === "failed") {
-            clearInterval(pollInterval);
             setRunningTournament(false);
             setError(data.error || "Tournament failed");
+          } else {
+            // Schedule next poll only after current one completes
+            setTimeout(poll, 2000);
           }
         } catch (err) {
-          clearInterval(pollInterval);
           setRunningTournament(false);
           setError(err instanceof Error ? err.message : "Failed to poll tournament");
         }
-      }, 2000);
+      };
+      poll();
     } catch (err) {
       setRunningTournament(false);
       setError(err instanceof Error ? err.message : "Failed to start tournament");

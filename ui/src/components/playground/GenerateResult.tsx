@@ -11,7 +11,9 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type { GenerateResult as GenerateResultType, ScorerResult, StoryPack } from "@/types";
+import type { GenerateResult as GenerateResultType, ScorerResult } from "@/types";
+import { categorizeError, type ErrorCategory } from "@/lib/errors";
+import { exportToCSV, exportToJSON } from "@/lib/export";
 import {
   IconCheck,
   IconAlertTriangle,
@@ -23,66 +25,6 @@ import {
 } from "@tabler/icons-react";
 import { StoryPackDisplay } from "./StoryPackDisplay";
 
-// ─────────────────────────────────────────────────
-// Export Functions
-// ─────────────────────────────────────────────────
-
-function downloadFile(content: string, filename: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function exportToCSV(storyPack: StoryPack) {
-  // CSV headers matching Azure DevOps import format
-  const headers = [
-    "Work Item Type",
-    "Title",
-    "Description",
-    "Acceptance Criteria",
-    "Story Points",
-    "Tags",
-  ];
-
-  const rows = storyPack.userStories.map((story) => {
-    const fields = story.ado.fields;
-    return [
-      "User Story",
-      escapeCsvField(fields["System.Title"]),
-      escapeCsvField(fields["System.Description"]),
-      escapeCsvField(fields["Microsoft.VSTS.Common.AcceptanceCriteria"]),
-      fields["Microsoft.VSTS.Scheduling.StoryPoints"]?.toString() || "",
-      escapeCsvField(fields["System.Tags"] || ""),
-    ];
-  });
-
-  const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
-  const filename = `${storyPack.epicId || "stories"}-${new Date().toISOString().slice(0, 10)}.csv`;
-  downloadFile(csv, filename, "text/csv;charset=utf-8");
-}
-
-function escapeCsvField(value: string): string {
-  if (!value) return '""';
-  // Escape double quotes and wrap in quotes if contains comma, newline, or quote
-  const escaped = value.replace(/"/g, '""');
-  if (escaped.includes(",") || escaped.includes("\n") || escaped.includes('"')) {
-    return `"${escaped}"`;
-  }
-  return escaped;
-}
-
-function exportToJSON(storyPack: StoryPack) {
-  const json = JSON.stringify(storyPack, null, 2);
-  const filename = `${storyPack.epicId || "stories"}-${new Date().toISOString().slice(0, 10)}.json`;
-  downloadFile(json, filename, "application/json");
-}
-
 type GenerateResultProps = {
   result: GenerateResultType | null;
   scorerResult?: ScorerResult | null;
@@ -90,59 +32,6 @@ type GenerateResultProps = {
   error?: string | null;
   onRetry?: () => void;
 };
-
-// Parse error messages to categorize them
-type ErrorCategory = "timeout" | "rate_limit" | "connection" | "json_parse" | "llm_error" | "unknown";
-
-function categorizeError(error: string): { category: ErrorCategory; title: string; suggestion: string } {
-  const lowerError = error.toLowerCase();
-
-  if (lowerError.includes("timeout") || lowerError.includes("timed out") || lowerError.includes("deadline")) {
-    return {
-      category: "timeout",
-      title: "Request Timeout",
-      suggestion: "The LLM took too long to respond. Try again or reduce the prompt complexity.",
-    };
-  }
-
-  if (lowerError.includes("rate limit") || lowerError.includes("429") || lowerError.includes("too many requests")) {
-    return {
-      category: "rate_limit",
-      title: "Rate Limited",
-      suggestion: "Too many requests. Wait a moment before retrying.",
-    };
-  }
-
-  if (lowerError.includes("econnrefused") || lowerError.includes("connection refused") || lowerError.includes("fetch failed")) {
-    return {
-      category: "connection",
-      title: "Connection Failed",
-      suggestion: "Cannot reach the LLM server. Make sure LM Studio or your LLM provider is running.",
-    };
-  }
-
-  if (lowerError.includes("json") || lowerError.includes("parse") || lowerError.includes("unexpected token")) {
-    return {
-      category: "json_parse",
-      title: "Invalid Response",
-      suggestion: "The LLM returned malformed output. Try regenerating with a different seed.",
-    };
-  }
-
-  if (lowerError.includes("llm_error") || lowerError.includes("model")) {
-    return {
-      category: "llm_error",
-      title: "LLM Error",
-      suggestion: "The language model encountered an error. Check your model configuration.",
-    };
-  }
-
-  return {
-    category: "unknown",
-    title: "Generation Failed",
-    suggestion: "An unexpected error occurred. Check the console for details.",
-  };
-}
 
 function ErrorIcon({ category }: { category: ErrorCategory }) {
   const className = "h-5 w-5";

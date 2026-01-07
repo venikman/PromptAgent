@@ -134,6 +134,9 @@ const safeJson = (text: string) => {
  * - Checkbox format (- [ ], - [x])
  * - Plain newline-separated lines
  */
+// Minimum length for a valid acceptance criterion (filters out noise/fragments)
+const MIN_CRITERION_LENGTH = 4;
+
 function parseAcceptanceCriteria(raw: string): string[] {
   if (!raw || typeof raw !== "string") return [];
 
@@ -176,7 +179,7 @@ function parseAcceptanceCriteria(raw: string): string[] {
   if (numberedPattern.test(trimmed)) {
     const items = trimmed.split(/(?:^|\n)\s*(?:\d+[.)]\s*|[a-z][.)]\s*)/i)
       .map((s) => s.trim().replace(/\n+/g, " "))
-      .filter((s) => s.length > 3);
+      .filter((s) => s.length >= MIN_CRITERION_LENGTH);
     if (items.length > 0) return items;
   }
 
@@ -186,7 +189,7 @@ function parseAcceptanceCriteria(raw: string): string[] {
   if (bulletPattern.test(trimmed)) {
     const items = trimmed.split(/(?:^|\n)\s*[-•*◦▪►→]\s*(?:\[[ x]\]\s*)?/)
       .map((s) => s.trim().replace(/\n+/g, " "))
-      .filter((s) => s.length > 3);
+      .filter((s) => s.length >= MIN_CRITERION_LENGTH);
     if (items.length > 0) return items;
   }
 
@@ -196,21 +199,21 @@ function parseAcceptanceCriteria(raw: string): string[] {
     const liMatches = [...trimmed.matchAll(liPattern)];
     const items = liMatches
       .map((m) => m[1]!.replace(/<[^>]+>/g, "").trim())
-      .filter((s) => s.length > 3);
+      .filter((s) => s.length >= MIN_CRITERION_LENGTH);
     if (items.length > 0) return items;
   }
 
   // Fallback: split by newlines (if multi-line) or return as single criterion
   const lines = trimmed.split(/\n+/)
     .map((s) => s.trim())
-    .filter((s) => s.length > 3);
+    .filter((s) => s.length >= MIN_CRITERION_LENGTH);
 
   if (lines.length > 1) {
     return lines;
   }
 
   // Single criterion - return as array
-  return trimmed.length > 3 ? [trimmed] : [];
+  return trimmed.length >= MIN_CRITERION_LENGTH ? [trimmed] : [];
 }
 
 type GenerateRequest = {
@@ -328,7 +331,8 @@ Deno.serve(async (req) => {
       versions.sort((a, b) => b.name.localeCompare(a.name));
 
       return jsonResponse({ versions });
-    } catch {
+    } catch (err) {
+      console.error("Failed to list champion versions:", err);
       return jsonResponse({ versions: [] });
     }
   }
