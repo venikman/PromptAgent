@@ -25,19 +25,39 @@ jobs:
           deno task ui:deps
           deno task ui:build
 
+      - name: Clean up build artifacts before deploy
+        run: |
+          # Remove node_modules created by ui:deps to reduce deployment size
+          rm -rf ui/node_modules
+          # Remove any other temporary files
+          rm -rf .cache
+
       - name: Deploy to Deno Deploy
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
-          deno run -A jsr:@deno/deployctl deploy \
-            --project="${{ vars.DENO_DEPLOY_PROJECT || 'promptagent' }}" \
-            --prod \
-            --exclude=node_modules \
-            --exclude=.git \
-            --exclude=.github \
-            --exclude=.vscode \
-            --exclude=.cursor \
-            --exclude=runs \
-            --exclude=docs \
-            --exclude=.auto-claude \
-            deploy/main.ts
+          # Retry logic for transient network failures
+          for attempt in 1 2 3; do
+            echo "Deployment attempt $attempt..."
+            if deno run -A jsr:@deno/deployctl deploy \
+              --project="${{ vars.DENO_DEPLOY_PROJECT || 'promptagent' }}" \
+              --prod \
+              --exclude='**/node_modules' \
+              --exclude=.git \
+              --exclude=.github \
+              --exclude=.vscode \
+              --exclude=.cursor \
+              --exclude=runs \
+              --exclude=docs \
+              --exclude=.auto-claude \
+              deploy/main.ts; then
+              echo "Deployment succeeded!"
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "Deployment failed, retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+          echo "Deployment failed after 3 attempts"
+          exit 1
