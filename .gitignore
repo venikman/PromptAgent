@@ -48,3 +48,6 @@ docs/
 
 # optimizer run logs (can be large)
 runs/
+
+# Auto Claude data directory
+.auto-claude/

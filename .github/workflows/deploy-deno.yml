@@ -34,7 +34,7 @@ jobs:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
           deployctl deploy \
-            --project="${{ vars.DENO_DEPLOY_PROJECT || 'promptagent-venikman' }}" \
+            --project="${{ vars.DENO_DEPLOY_PROJECT }}" \
             --prod \
             --exclude=node_modules \
             --exclude=.git \

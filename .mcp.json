@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "browser": {
-      "command": "npx",
-      "args": ["@agent-infra/mcp-server-browser@0.0.18"]
-    }
-  }
-}
