@@ -90,9 +90,9 @@ export function TournamentView({
         <CardContent>
           {progress && (
             <div className="mb-4">
-              <Progress value={(progress.runsCompleted / progress.totalRuns) * 100} className="h-2" />
+              <Progress value={progress.totalRuns > 0 ? (progress.runsCompleted / progress.totalRuns) * 100 : 0} className="h-2" />
               <p className="text-xs text-muted-foreground mt-1">
-                {Math.round((progress.runsCompleted / progress.totalRuns) * 100)}% complete
+                {progress.totalRuns > 0 ? Math.round((progress.runsCompleted / progress.totalRuns) * 100) : 0}% complete
               </p>
             </div>
           )}

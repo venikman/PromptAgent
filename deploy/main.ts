@@ -318,7 +318,7 @@ Deno.serve(async (req) => {
         if (entry.isFile && entry.name.startsWith("champion.") && entry.name.endsWith(".md")) {
           // Extract timestamp from filename: champion.2024-01-15T10-30-00-000Z.md
           const match = entry.name.match(/champion\.(.+)\.md$/);
-          if (match) {
+          if (match?.[1]) {
             versions.push({
               name: entry.name,
               timestamp: match[1].replace(/-/g, ":").replace("T", " ").slice(0, -1), // Approximate restore
@@ -422,12 +422,12 @@ Deno.serve(async (req) => {
         let jsonStr = "";
 
         const jsonBlockMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/);
-        if (jsonBlockMatch) {
+        if (jsonBlockMatch?.[1]) {
           jsonStr = jsonBlockMatch[1];
         } else {
           // Try to find raw JSON (array or object) in the response
           const jsonStartMatch = rawText.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-          if (jsonStartMatch) {
+          if (jsonStartMatch?.[1]) {
             jsonStr = jsonStartMatch[1];
           } else {
             jsonStr = rawText;

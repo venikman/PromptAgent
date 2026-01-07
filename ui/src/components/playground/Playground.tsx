@@ -18,7 +18,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import type { Epic, GenerateResult, ScorerResult, ChampionPrompt } from "@/types";
+import type { Epic, GenerateResult, ScorerResult, ChampionPrompt, UserStory } from "@/types";
 import { categorizeError } from "@/lib/errors";
 import { exportToCSV, exportToJSON } from "@/lib/export";
 import {
@@ -114,6 +114,7 @@ export function Playground() {
   const handleSavePrompt = async () => {
     if (!promptOverride) return;
     setSaving(true);
+    setError(null);
     try {
       const res = await fetch("/champion", {
         method: "POST",
@@ -124,7 +125,11 @@ export function Playground() {
       if (res.ok) {
         setChampion(data.champion);
         setPromptOverride(null);
+      } else {
+        setError(data.error || "Failed to save prompt");
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save prompt");
     } finally {
       setSaving(false);
     }
@@ -395,7 +400,7 @@ function ResultDisplay({ result, scorerResult }: { result: GenerateResult; score
   );
 }
 
-function StoryItem({ story, index }: { story: any; index: number }) {
+function StoryItem({ story, index }: { story: UserStory; index: number }) {
   const points = story.ado?.fields?.["Microsoft.VSTS.Scheduling.StoryPoints"];
   const criteria = story.acceptanceCriteria || [];
 

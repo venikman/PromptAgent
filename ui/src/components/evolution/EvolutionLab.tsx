@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -194,6 +194,9 @@ type TournamentTaskResponse = {
 };
 
 export function EvolutionLab() {
+  // Ref to track component mount state (prevents state updates after unmount)
+  const mountedRef = useRef(true);
+
   const [dataMode, setDataMode] = useState<DataMode>("empty");
   const [loading, setLoading] = useState(false);
   const [pairs, setPairs] = useState<ContrastPair[]>([]);
@@ -207,6 +210,13 @@ export function EvolutionLab() {
   const [tournamentCandidates, setTournamentCandidates] = useState<TournamentCandidate[]>([]);
   const [runningTournament, setRunningTournament] = useState(false);
   const [tournamentProgress, setTournamentProgress] = useState<{ runsCompleted: number; totalRuns: number } | null>(null);
+
+  // Cleanup mounted ref on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Load champion prompt on mount
   useEffect(() => {
@@ -274,6 +284,9 @@ export function EvolutionLab() {
 
       // Poll for results using chained setTimeout (avoids race conditions)
       const poll = async () => {
+        // Skip if component unmounted
+        if (!mountedRef.current) return;
+
         try {
           const pollRes = await fetch(`/tournament/${taskId}`);
           if (!pollRes.ok) {
@@ -281,6 +294,10 @@ export function EvolutionLab() {
           }
 
           const data: TournamentTaskResponse = await pollRes.json();
+
+          // Check again after async operation
+          if (!mountedRef.current) return;
+
           setTournamentProgress({ runsCompleted: data.progress.runsCompleted, totalRuns: data.progress.totalRuns });
           setTournamentCandidates(data.candidates);
 
@@ -295,6 +312,7 @@ export function EvolutionLab() {
             setTimeout(poll, 2000);
           }
         } catch (err) {
+          if (!mountedRef.current) return;
           setRunningTournament(false);
           setError(err instanceof Error ? err.message : "Failed to poll tournament");
         }
