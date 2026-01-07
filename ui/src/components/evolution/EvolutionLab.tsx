@@ -283,9 +283,20 @@ export function EvolutionLab() {
       const { taskId } = await startRes.json();
 
       // Poll for results using chained setTimeout (avoids race conditions)
+      // Timeout after 5 minutes (150 polls × 2s interval)
+      const MAX_POLL_ATTEMPTS = 150;
+      let pollCount = 0;
+
       const poll = async () => {
         // Skip if component unmounted
         if (!mountedRef.current) return;
+
+        // Timeout guard
+        if (++pollCount > MAX_POLL_ATTEMPTS) {
+          setRunningTournament(false);
+          setError("Tournament timed out after 5 minutes");
+          return;
+        }
 
         try {
           const pollRes = await fetch(`/tournament/${taskId}`);

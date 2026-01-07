@@ -66,6 +66,27 @@ type TournamentTask = {
 
 const tournamentTasks = new Map<string, TournamentTask>();
 
+// Scorer result type (mastra/core doesn't export intermediate step types)
+type ScorerResultWithSteps = {
+  score: number;
+  reason: string;
+  results?: {
+    preprocessStepResult?: {
+      fpfJudgeResult?: {
+        info?: {
+          gateDecision?: "pass" | "degrade" | "block" | "abstain";
+          subscores?: {
+            correctness?: number;
+            completeness?: number;
+            processQuality?: number;
+            safety?: number;
+          };
+        };
+      };
+    };
+  };
+};
+
 // ─────────────────────────────────────────────────
 // Data paths
 // ─────────────────────────────────────────────────
@@ -508,9 +529,8 @@ Deno.serve(async (req) => {
           });
 
           // Extract FPF info from nested results
-          // deno-lint-ignore no-explicit-any
-          const preprocessResult = (result as any).results?.preprocessStepResult;
-          const fpfInfo = preprocessResult?.fpfJudgeResult?.info;
+          const typedResult = result as ScorerResultWithSteps;
+          const fpfInfo = typedResult.results?.preprocessStepResult?.fpfJudgeResult?.info;
 
           scorerResult = {
             score: result.score,
