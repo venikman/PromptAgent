@@ -26,18 +26,18 @@ jobs:
           deno task ui:deps
           deno task ui:build
 
+      - name: Install deployctl
+        run: deno install -A --global jsr:@deno/deployctl
+
       - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: ${{ vars.DENO_DEPLOY_PROJECT || 'promptagent-venikman' }}
-          entrypoint: deploy/main.ts
-          root: .
-          exclude: |
-            node_modules
-            .git
-            .github
-            .vscode
-            .cursor
-            runs
-            docs
-            .auto-claude
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          deployctl deploy \
+            --project="${{ vars.DENO_DEPLOY_PROJECT || 'promptagent-venikman' }}" \
+            --prod \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=.github \
+            --exclude=ui/node_modules \
+            deploy/main.ts
