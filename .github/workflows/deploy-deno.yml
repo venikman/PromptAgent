@@ -28,16 +28,28 @@ jobs:
       - name: Deploy to Deno Deploy
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          DENO_DEPLOY_PROJECT: ${{ vars.DENO_DEPLOY_PROJECT || 'promptagent' }}
         run: |
-          deno run -A jsr:@deno/deployctl deploy \
-            --project="${{ vars.DENO_DEPLOY_PROJECT || 'promptagent' }}" \
-            --prod \
-            --exclude=node_modules \
-            --exclude=.git \
-            --exclude=.github \
-            --exclude=.vscode \
-            --exclude=.cursor \
-            --exclude=runs \
-            --exclude=docs \
-            --exclude=.auto-claude \
-            deploy/main.ts
+          # Retry up to 3 times for transient network errors
+          for attempt in 1 2 3; do
+            echo "Deploy attempt $attempt..."
+            if deno run -A jsr:@deno/deployctl deploy \
+              --project="$DENO_DEPLOY_PROJECT" \
+              --prod \
+              --exclude=node_modules \
+              --exclude=.git \
+              --exclude=.github \
+              --exclude=.vscode \
+              --exclude=.cursor \
+              --exclude=runs \
+              --exclude=docs \
+              --exclude=.auto-claude \
+              deploy/main.ts; then
+              echo "Deploy succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "Deploy failed on attempt $attempt, waiting 10s..."
+            sleep 10
+          done
+          echo "All deploy attempts failed"
+          exit 1
