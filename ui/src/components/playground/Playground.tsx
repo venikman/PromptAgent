@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -61,6 +61,9 @@ export function Playground() {
   // Prompt saving
   const [saving, setSaving] = useState(false);
 
+  // AbortController ref for cancelling generate requests
+  const generateControllerRef = useRef<AbortController | null>(null);
+
   // Load epics and champion prompt on mount
   useEffect(() => {
     const controller = new AbortController();
@@ -93,6 +96,11 @@ export function Playground() {
   const handleGenerate = async () => {
     if (!selectedEpic) return;
 
+    // Cancel any in-flight request
+    generateControllerRef.current?.abort();
+    const controller = new AbortController();
+    generateControllerRef.current = controller;
+
     setGenerating(true);
     setError(null);
     setResult(null);
@@ -106,6 +114,7 @@ export function Playground() {
           epicId: selectedEpic.id,
           ...(promptOverride && { promptOverride }),
         }),
+        signal: controller.signal,
       });
 
       const data = await res.json();
@@ -117,6 +126,8 @@ export function Playground() {
       setResult(data.result || null);
       setScorerResult(data.scorerResult || null);
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setGenerating(false);
