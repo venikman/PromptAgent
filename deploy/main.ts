@@ -20,6 +20,7 @@ import {
   type TaskRecord,
 } from "../src/orchestrator/index.ts";
 
+
 // Create scorer instance (reused across requests)
 const scorer = createStoryDecompositionScorer();
 
@@ -339,11 +340,22 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Save new champion
-      await Deno.writeTextFile(`${PROMPTS_ROOT}/champion.md`, newComposed);
+      const patchMarker = "## PATCH SECTION (auto-generated)";
+      const [basePart = newComposed, patchPart] = newComposed.split(patchMarker, 2);
+      const nextBase = basePart.trim();
+      const nextPatch = patchPart?.trim() ?? "";
 
-      // Clear cache so next load gets fresh data
+      // Save new champion prompt and keep base/patch in sync
+      const normalizedComposed = composePrompt(nextBase, nextPatch);
+      await Promise.all([
+        Deno.writeTextFile(`${PROMPTS_ROOT}/champion.md`, normalizedComposed),
+        Deno.writeTextFile(`${PROMPTS_ROOT}/champion.base.md`, nextBase),
+        Deno.writeTextFile(`${PROMPTS_ROOT}/champion.patch.md`, nextPatch),
+      ]);
+
+      // Clear caches so next load gets fresh data
       cachedChampion = null;
+      cachedOrchestrator = null;
 
       // Load and return the updated champion
       const updated = await loadChampionPrompt();
@@ -370,10 +382,11 @@ Deno.serve(async (req) => {
         if (entry.isFile && entry.name.startsWith("champion.") && entry.name.endsWith(".md")) {
           // Extract timestamp from filename: champion.2024-01-15T10-30-00-000Z.md
           const match = entry.name.match(/champion\.(.+)\.md$/);
-          if (match?.[1]) {
+          const timestamp = match?.[1];
+          if (timestamp) {
             versions.push({
               name: entry.name,
-              timestamp: match[1].replace(/-/g, ":").replace("T", " ").slice(0, -1), // Approximate restore
+              timestamp: timestamp.replace(/-/g, ":").replace("T", " ").slice(0, -1), // Approximate restore
             });
           }
         }
@@ -474,15 +487,27 @@ Deno.serve(async (req) => {
         let jsonStr = "";
 
         const jsonBlockMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/);
-        if (jsonBlockMatch?.[1]) {
-          jsonStr = jsonBlockMatch[1];
+        const jsonBlock = jsonBlockMatch?.[1];
+        if (jsonBlock) {
+          jsonStr = jsonBlock;
         } else {
-          // Try to find raw JSON (array or object) in the response
-          const jsonStartMatch = rawText.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-          if (jsonStartMatch?.[1]) {
-            jsonStr = jsonStartMatch[1];
+          // Try to find raw JSON - use non-greedy match and validate
+          // First try to find a JSON array or object at the start (most common)
+          const trimmed = rawText.trim();
+          if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+            jsonStr = trimmed;
           } else {
-            jsonStr = rawText;
+            // Find the first [ or { and try to parse from there
+            const arrayStart = rawText.indexOf("[");
+            const objStart = rawText.indexOf("{");
+            const startIdx = arrayStart === -1 ? objStart :
+                            objStart === -1 ? arrayStart :
+                            Math.min(arrayStart, objStart);
+            if (startIdx !== -1) {
+              jsonStr = rawText.slice(startIdx);
+            } else {
+              jsonStr = rawText;
+            }
           }
         }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -61,17 +61,32 @@ export function Playground() {
   // Prompt saving
   const [saving, setSaving] = useState(false);
 
+  // AbortController ref for cancelling generate requests
+  const generateControllerRef = useRef<AbortController | null>(null);
+
   // Load epics and champion prompt on mount
   useEffect(() => {
+    const controller = new AbortController();
+    let mounted = true;
+
     Promise.all([
-      fetch("/epics").then(r => r.json()),
-      fetch("/champion").then(r => r.json()),
+      fetch("/epics", { signal: controller.signal }).then((r) => r.json()),
+      fetch("/champion", { signal: controller.signal }).then((r) => r.json()),
     ]).then(([epicsData, championData]) => {
+      if (!mounted) return;
       setEpics(epicsData.epics || []);
       setChampion(championData);
-    }).catch(() => {
+    }).catch((err) => {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       // Silent fail - will show empty states
-    }).finally(() => setLoadingData(false));
+    }).finally(() => {
+      if (mounted) setLoadingData(false);
+    });
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, []);
 
   const effectivePrompt = promptOverride ?? champion?.composed ?? "";
@@ -80,6 +95,11 @@ export function Playground() {
 
   const handleGenerate = async () => {
     if (!selectedEpic) return;
+
+    // Cancel any in-flight request
+    generateControllerRef.current?.abort();
+    const controller = new AbortController();
+    generateControllerRef.current = controller;
 
     setGenerating(true);
     setError(null);
@@ -94,6 +114,7 @@ export function Playground() {
           epicId: selectedEpic.id,
           ...(promptOverride && { promptOverride }),
         }),
+        signal: controller.signal,
       });
 
       const data = await res.json();
@@ -105,6 +126,8 @@ export function Playground() {
       setResult(data.result || null);
       setScorerResult(data.scorerResult || null);
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setGenerating(false);
