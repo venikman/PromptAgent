@@ -183,9 +183,11 @@ const handleAutoOptimize = async () => {
       patchCandidates: 3,
     });
 
-    // Poll for up to 5 minutes with bounded retries
-    const MAX_ATTEMPTS = 150;
+    // Poll with bounded retries and exponential backoff
+    // Max ~2 minutes: 30 attempts × ~4s average delay
+    const MAX_ATTEMPTS = 30;
     const BASE_DELAY_MS = 2000;
+    const MAX_DELAY_MS = 10000;
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       try {
@@ -205,13 +207,13 @@ const handleAutoOptimize = async () => {
         return;
       }
 
-      // Exponential backoff: 2s, 4s, 8s, etc. (capped at 30s)
-      const delayMs = Math.min(BASE_DELAY_MS * Math.pow(2, Math.floor(attempt / 5)), 30000);
+      // Exponential backoff: 2s → 4s → 8s → 10s (capped)
+      const delayMs = Math.min(BASE_DELAY_MS * Math.pow(2, attempt), MAX_DELAY_MS);
       await new Promise(r => setTimeout(r, delayMs));
     }
 
     // Timeout reached
-    setError("Optimization polling timed out after 5 minutes");
+    setError("Optimization is taking longer than expected. Please try again later.");
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to start optimization";
     setError(message);
