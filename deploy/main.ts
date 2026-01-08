@@ -341,7 +341,7 @@ Deno.serve(async (req) => {
       }
 
       const patchMarker = "## PATCH SECTION (auto-generated)";
-      const [basePart, patchPart] = newComposed.split(patchMarker, 2);
+      const [basePart = newComposed, patchPart] = newComposed.split(patchMarker, 2);
       const nextBase = basePart.trim();
       const nextPatch = patchPart?.trim() ?? "";
 
