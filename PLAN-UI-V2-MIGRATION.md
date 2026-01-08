@@ -79,7 +79,8 @@ export const api = {
   // NOTE: Backend does not yet expose a task-listing endpoint.
   // To support recovery, first add an endpoint such as GET /v2/tasks?status=running
   listTasks: async (filter?: { status?: string }): Promise<{ tasks: TaskRecord[] }> => {
-    const params = new URLSearchParams(filter || {});
+    const params = new URLSearchParams();
+    if (filter?.status) params.set("status", filter.status);
     const res = await fetch(`${API_BASE}/v2/tasks?${params}`);
     return handleResponse<{ tasks: TaskRecord[] }>(res);
   },
@@ -183,13 +184,14 @@ const handleAutoOptimize = async () => {
       patchCandidates: 3,
     });
 
-    // Poll with bounded retries and exponential backoff
-    // Max ~2 minutes: 30 attempts × ~4s average delay
+    // Poll with bounded retries at fixed 2s intervals
+    // Max ~1 minute: 30 attempts × 2s delay
     const MAX_ATTEMPTS = 30;
-    const BASE_DELAY_MS = 2000;
-    const MAX_DELAY_MS = 10000;
+    const POLL_INTERVAL_MS = 2000;
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+
       try {
         const task = await api.getTask(taskId);
         if (task.status === "completed") {
@@ -206,10 +208,6 @@ const handleAutoOptimize = async () => {
         setError(`Polling failed: ${message}`);
         return;
       }
-
-      // Exponential backoff: 2s → 4s → 8s → 10s (capped)
-      const delayMs = Math.min(BASE_DELAY_MS * Math.pow(2, attempt), MAX_DELAY_MS);
-      await new Promise(r => setTimeout(r, delayMs));
     }
 
     // Timeout reached
