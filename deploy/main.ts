@@ -20,6 +20,7 @@ import {
   type TaskRecord,
 } from "../src/orchestrator/index.ts";
 
+
 // Create scorer instance (reused across requests)
 const scorer = createStoryDecompositionScorer();
 
