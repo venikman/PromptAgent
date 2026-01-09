@@ -28,7 +28,7 @@ const scorer = createStoryDecompositionScorer();
 const LLM_API_BASE_URL =
   Deno.env.get("LLM_API_BASE_URL") ?? "http://localhost:1234/v1";
 const LLM_API_KEY = Deno.env.get("LLM_API_KEY") ?? "";
-const DEFAULT_MODEL = Deno.env.get("LLM_MODEL") ?? "anthropic/claude-3-haiku";
+const DEFAULT_MODEL = Deno.env.get("LLM_MODEL") ?? "openai/gpt-oss-120b";
 
 // Debug: Log config on startup (key is redacted)
 console.log("[LLM Config]", {
