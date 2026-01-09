@@ -5,16 +5,18 @@ import {
   IconPlayerPlay,
   IconChartBar,
   IconDna,
+  IconBook,
 } from "@tabler/icons-react";
 import { Playground } from "@/components/playground";
 import { EvalDashboard } from "@/components/evaluation";
 import { EvolutionLab } from "@/components/evolution";
+import { MethodologyPanel } from "@/components/methodology";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function App() {
-  const [healthStatus, setHealthStatus] = useState<
-    "loading" | "ok" | "error"
-  >("loading");
+  const [healthStatus, setHealthStatus] = useState<"loading" | "ok" | "error">(
+    "loading",
+  );
   const [healthError, setHealthError] = useState<string>("");
   const [activeTab, setActiveTab] = useState("playground");
 
@@ -63,10 +65,14 @@ export default function App() {
 
         {/* Connection Error */}
         {healthStatus === "error" && (
-          <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2 duration-300">
+          <Alert
+            variant="destructive"
+            className="animate-in fade-in slide-in-from-top-2 duration-300"
+          >
             <AlertTitle>Connection Error</AlertTitle>
             <AlertDescription>
-              {healthError || "Unable to connect to the API. Please check that the server is running."}
+              {healthError ||
+                "Unable to connect to the API. Please check that the server is running."}
             </AlertDescription>
           </Alert>
         )}
@@ -77,31 +83,63 @@ export default function App() {
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-3 h-12">
-            <TabsTrigger value="playground" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
+          <TabsList className="grid w-full grid-cols-4 h-12">
+            <TabsTrigger
+              value="playground"
+              className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+            >
               <IconPlayerPlay className="h-4 w-4" />
               <span className="hidden sm:inline">Playground</span>
             </TabsTrigger>
-            <TabsTrigger value="evaluation" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
+            <TabsTrigger
+              value="evaluation"
+              className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+            >
               <IconChartBar className="h-4 w-4" />
               <span className="hidden sm:inline">Evaluation</span>
             </TabsTrigger>
-            <TabsTrigger value="evolution" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
+            <TabsTrigger
+              value="evolution"
+              className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+            >
               <IconDna className="h-4 w-4" />
               <span className="hidden sm:inline">Evolution</span>
             </TabsTrigger>
+            <TabsTrigger
+              value="methodology"
+              className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+            >
+              <IconBook className="h-4 w-4" />
+              <span className="hidden sm:inline">Methodology</span>
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="playground" className="animate-in fade-in-50 duration-300">
+          <TabsContent
+            value="playground"
+            className="animate-in fade-in-50 duration-300"
+          >
             <Playground />
           </TabsContent>
 
-          <TabsContent value="evaluation" className="animate-in fade-in-50 duration-300">
+          <TabsContent
+            value="evaluation"
+            className="animate-in fade-in-50 duration-300"
+          >
             <EvalDashboard />
           </TabsContent>
 
-          <TabsContent value="evolution" className="animate-in fade-in-50 duration-300">
+          <TabsContent
+            value="evolution"
+            className="animate-in fade-in-50 duration-300"
+          >
             <EvolutionLab />
+          </TabsContent>
+
+          <TabsContent
+            value="methodology"
+            className="animate-in fade-in-50 duration-300"
+          >
+            <MethodologyPanel />
           </TabsContent>
         </Tabs>
       </div>
