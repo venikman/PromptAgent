@@ -44,7 +44,8 @@ ui/.vite/
 
 # Local development apps
 explain/
-docs/
+docs/*
+!docs/adr/
 
 # optimizer run logs (can be large)
 runs/
