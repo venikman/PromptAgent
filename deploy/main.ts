@@ -341,9 +341,14 @@ Deno.serve(async (req) => {
       }
 
       const patchMarker = "## PATCH SECTION (auto-generated)";
-      const [basePart = newComposed, patchPart] = newComposed.split(patchMarker, 2);
-      const nextBase = basePart.trim();
-      const nextPatch = patchPart?.trim() ?? "";
+      const markerIndex = newComposed.indexOf(patchMarker);
+      let nextBase = newComposed;
+      let nextPatch = "";
+
+      if (markerIndex !== -1) {
+        nextBase = newComposed.slice(0, markerIndex).trim();
+        nextPatch = newComposed.slice(markerIndex + patchMarker.length).trim();
+      }
 
       // Save new champion prompt and keep base/patch in sync
       const normalizedComposed = composePrompt(nextBase, nextPatch);
