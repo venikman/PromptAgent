@@ -24,11 +24,19 @@ import {
 // Create scorer instance (reused across requests)
 const scorer = createStoryDecompositionScorer();
 
-// LM Studio OpenAI-compatible API
+// OpenAI-compatible API (OpenRouter, LM Studio, etc.)
 const LLM_API_BASE_URL =
   Deno.env.get("LLM_API_BASE_URL") ?? "http://localhost:1234/v1";
-const LLM_API_KEY = Deno.env.get("LLM_API_KEY") ?? ""; // Optional for LM Studio
-const DEFAULT_MODEL = Deno.env.get("LLM_MODEL") ?? "gpt-oss-120b";
+const LLM_API_KEY = Deno.env.get("LLM_API_KEY") ?? "";
+const DEFAULT_MODEL = Deno.env.get("LLM_MODEL") ?? "anthropic/claude-3-haiku";
+
+// Debug: Log config on startup (key is redacted)
+console.log("[LLM Config]", {
+  baseUrl: LLM_API_BASE_URL,
+  model: DEFAULT_MODEL,
+  hasKey: !!LLM_API_KEY,
+  keyPrefix: LLM_API_KEY ? LLM_API_KEY.slice(0, 10) + "..." : "(none)",
+});
 
 // ─────────────────────────────────────────────────
 // Async Task Store (in-memory for demo)
@@ -293,6 +301,20 @@ Deno.serve(async (req) => {
 
   if (url.pathname === "/health") {
     return jsonResponse({ status: "ok", time: new Date().toISOString() });
+  }
+
+  // Debug endpoint - shows LLM config (key is redacted for security)
+  if (url.pathname === "/debug/config") {
+    return jsonResponse({
+      llm: {
+        baseUrl: LLM_API_BASE_URL,
+        model: DEFAULT_MODEL,
+        hasKey: !!LLM_API_KEY,
+        keyLength: LLM_API_KEY.length,
+        keyPrefix: LLM_API_KEY ? LLM_API_KEY.slice(0, 12) + "..." : "(none)",
+      },
+      env: Deno.env.get("DENO_DEPLOYMENT_ID") ? "deploy" : "local",
+    });
   }
 
   // ─────────────────────────────────────────────────
