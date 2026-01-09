@@ -225,6 +225,8 @@ export interface PairMinerInput {
   minSim?: number;
   minDelta?: number;
   maxPairs?: number;
+  /** Enable tiered (CRPO-style) pair mining with quality tiers */
+  tieredMining?: boolean;
 }
 
 /**
@@ -292,6 +294,10 @@ export interface OptimizationConfig {
   metaEvolutionEnabled?: boolean;
   /** Probability of hypermutation per iteration (default: 0.1) */
   hypermutationRate?: number;
+
+  // ─── Tiered Pair Mining (CRPO-style) ───
+  /** Enable tiered contrastive pair mining with quality tiers */
+  tieredPairMining?: boolean;
 }
 
 /**

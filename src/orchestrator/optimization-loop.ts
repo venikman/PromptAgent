@@ -188,6 +188,7 @@ export class OptimizationLoopAgent {
       result.championObjective = state.championObjective;
 
       // Step 2: Mine contrastive pairs
+      // Use tiered mining if meta-evolution is enabled (better signal for mutations)
       const pairsCtx = createToolContext(ctx.runId);
       const pairsResult = await executePairMiner(
         {
@@ -195,6 +196,8 @@ export class OptimizationLoopAgent {
           minSim: env.PAIR_MIN_SIM,
           minDelta: env.PAIR_MIN_DELTA,
           maxPairs: env.PAIR_MAX_PAIRS,
+          tieredMining:
+            this.config.tieredPairMining ?? this.config.metaEvolutionEnabled,
         },
         pairsCtx,
       );
@@ -206,7 +209,7 @@ export class OptimizationLoopAgent {
         return result;
       }
 
-      result.pairsFound = pairsResult.data!.length;
+      result.pairsFound = pairsResult.data!.pairs.length;
 
       // Step 3: Generate patch candidates
       // Use meta-evolution patcher if enabled, otherwise standard patcher
@@ -220,7 +223,7 @@ export class OptimizationLoopAgent {
           {
             basePrompt: state.championPrompt.base,
             currentPatch: state.championPrompt.patch,
-            pairs: pairsResult.data!,
+            pairs: pairsResult.data!.pairs,
             candidateCount: this.config.patchCandidates,
             temperature: env.OPT_PATCH_TEMPERATURE,
             mutationPrompts: state.mutationPrompts,
@@ -245,7 +248,7 @@ export class OptimizationLoopAgent {
           {
             basePrompt: state.championPrompt.base,
             currentPatch: state.championPrompt.patch,
-            pairs: pairsResult.data!,
+            pairs: pairsResult.data!.pairs,
             candidateCount: this.config.patchCandidates,
             temperature: env.OPT_PATCH_TEMPERATURE,
           },
