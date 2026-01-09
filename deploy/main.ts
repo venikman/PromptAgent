@@ -20,6 +20,7 @@ import {
   type TaskRecord,
 } from "../src/orchestrator/index.ts";
 
+
 // Create scorer instance (reused across requests)
 const scorer = createStoryDecompositionScorer();
 
@@ -357,8 +358,9 @@ Deno.serve(async (req) => {
         Deno.writeTextFile(`${PROMPTS_ROOT}/champion.patch.md`, nextPatch),
       ]);
 
-      // Clear cache so next load gets fresh data
+      // Clear caches so next load gets fresh data
       cachedChampion = null;
+      cachedOrchestrator = null;
 
       // Load and return the updated champion
       const updated = await loadChampionPrompt();
@@ -494,13 +496,23 @@ Deno.serve(async (req) => {
         if (jsonBlock) {
           jsonStr = jsonBlock;
         } else {
-          // Try to find raw JSON (array or object) in the response
-          const jsonStartMatch = rawText.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-          const jsonStart = jsonStartMatch?.[1];
-          if (jsonStart) {
-            jsonStr = jsonStart;
+          // Try to find raw JSON - use non-greedy match and validate
+          // First try to find a JSON array or object at the start (most common)
+          const trimmed = rawText.trim();
+          if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+            jsonStr = trimmed;
           } else {
-            jsonStr = rawText;
+            // Find the first [ or { and try to parse from there
+            const arrayStart = rawText.indexOf("[");
+            const objStart = rawText.indexOf("{");
+            const startIdx = arrayStart === -1 ? objStart :
+                            objStart === -1 ? arrayStart :
+                            Math.min(arrayStart, objStart);
+            if (startIdx !== -1) {
+              jsonStr = rawText.slice(startIdx);
+            } else {
+              jsonStr = rawText;
+            }
           }
         }
 
