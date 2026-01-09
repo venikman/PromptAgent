@@ -92,8 +92,10 @@ Deno.test("mineContrastivePairs - finds pairs within same epic", () => {
     maxPairs: 10,
   });
 
-  // Should find a pair since outputs are similar but scores differ
-  assert(pairs.length >= 0, "Should process without error");
+  // Identical variant content yields similarity=1, delta=0.4 which passes thresholds
+  assertEquals(pairs.length, 1, "Should find exactly one pair with identical content");
+  assertEquals(pairs[0]!.good.score, 0.9);
+  assertEquals(pairs[0]!.bad.score, 0.5);
 });
 
 Deno.test("mineContrastivePairs - does not pair different epics", () => {

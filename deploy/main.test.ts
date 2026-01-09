@@ -13,13 +13,11 @@ let server: Deno.HttpServer | null = null;
 let baseUrl: string;
 
 // ─────────────────────────────────────────────────
-// Test Setup / Teardown
+// Test Setup / Teardown (shared across all tests)
 // ─────────────────────────────────────────────────
 
-async function startTestServer(): Promise<void> {
-
-  // Minimal test server that mimics main.ts routing
-  server = Deno.serve({ port: TEST_PORT }, async (req) => {
+function createMockServer(): Deno.HttpServer {
+  return Deno.serve({ port: TEST_PORT }, async (req) => {
     const url = new URL(req.url);
 
     // CORS preflight
@@ -163,297 +161,201 @@ async function startTestServer(): Promise<void> {
 
     return jsonResponse({ error: "not_found" }, 404);
   });
-
-  baseUrl = `http://localhost:${TEST_PORT}`;
-
-  // Wait for server to be ready
-  await new Promise((resolve) => setTimeout(resolve, 100));
 }
 
-async function stopTestServer(): Promise<void> {
-  if (server) {
-    await server.shutdown();
-    server = null;
-  }
-}
-
-// ─────────────────────────────────────────────────
-// Health Check Tests
-// ─────────────────────────────────────────────────
-
-Deno.test({
-  name: "API - GET /health returns ok status",
-  async fn() {
-    await startTestServer();
+/** Wait for server to be ready with retry */
+async function waitForServer(maxRetries = 10, delayMs = 50): Promise<void> {
+  for (let i = 0; i < maxRetries; i++) {
     try {
       const res = await fetch(`${baseUrl}/health`);
-      assertEquals(res.status, 200);
-
-      const data = await res.json();
-      assertEquals(data.status, "ok");
-      assertExists(data.time);
-    } finally {
-      await stopTestServer();
+      if (res.ok) return;
+    } catch {
+      // Server not ready yet
     }
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  throw new Error("Server failed to start within timeout");
+}
 
 // ─────────────────────────────────────────────────
-// CORS Tests
+// Test Suite with Shared Server
 // ─────────────────────────────────────────────────
 
 Deno.test({
-  name: "API - OPTIONS returns CORS headers",
-  async fn() {
-    await startTestServer();
+  name: "API Integration Tests",
+  async fn(t) {
+    // Setup: Start server once for all subtests
+    server = createMockServer();
+    baseUrl = `http://localhost:${TEST_PORT}`;
+    await waitForServer();
+
     try {
-      const res = await fetch(`${baseUrl}/health`, { method: "OPTIONS" });
-      assertEquals(res.status, 204);
-      assertEquals(res.headers.get("access-control-allow-origin"), "*");
-      assertEquals(res.headers.get("access-control-allow-methods"), "GET,POST,OPTIONS");
-    } finally {
-      await stopTestServer();
-    }
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
+      // ─────────────────────────────────────────────────
+      // Health Check Tests
+      // ─────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────
-// Epics Endpoint Tests
-// ─────────────────────────────────────────────────
+      await t.step("GET /health returns ok status", async () => {
+        const res = await fetch(`${baseUrl}/health`);
+        assertEquals(res.status, 200);
 
-Deno.test({
-  name: "API - GET /epics returns epic list",
-  async fn() {
-    await startTestServer();
-    try {
-      const res = await fetch(`${baseUrl}/epics`);
-      assertEquals(res.status, 200);
-
-      const data = await res.json();
-      assertExists(data.epics);
-      assert(Array.isArray(data.epics));
-      assert(data.epics.length > 0);
-
-      // Check epic structure
-      const epic = data.epics[0];
-      assertExists(epic.id);
-      assertExists(epic.title);
-      assertExists(epic.description);
-    } finally {
-      await stopTestServer();
-    }
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-// ─────────────────────────────────────────────────
-// Champion Endpoint Tests
-// ─────────────────────────────────────────────────
-
-Deno.test({
-  name: "API - GET /champion returns prompt structure",
-  async fn() {
-    await startTestServer();
-    try {
-      const res = await fetch(`${baseUrl}/champion`);
-      assertEquals(res.status, 200);
-
-      const data = await res.json();
-      assertExists(data.base);
-      assertExists(data.patch);
-      assertExists(data.composed);
-    } finally {
-      await stopTestServer();
-    }
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-// ─────────────────────────────────────────────────
-// Generate Story Tests
-// ─────────────────────────────────────────────────
-
-Deno.test({
-  name: "API - POST /generate-story requires epicId",
-  async fn() {
-    await startTestServer();
-    try {
-      const res = await fetch(`${baseUrl}/generate-story`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),  // Missing epicId
+        const data = await res.json();
+        assertEquals(data.status, "ok");
+        assertExists(data.time);
       });
-      assertEquals(res.status, 400);
 
-      const data = await res.json();
-      assertEquals(data.error, "epicId is required");
-    } finally {
-      await stopTestServer();
-    }
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
+      // ─────────────────────────────────────────────────
+      // CORS Tests
+      // ─────────────────────────────────────────────────
 
-Deno.test({
-  name: "API - POST /generate-story rejects invalid JSON",
-  async fn() {
-    await startTestServer();
-    try {
-      const res = await fetch(`${baseUrl}/generate-story`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "not valid json",
+      await t.step("OPTIONS returns CORS headers", async () => {
+        const res = await fetch(`${baseUrl}/health`, { method: "OPTIONS" });
+        assertEquals(res.status, 204);
+        assertEquals(res.headers.get("access-control-allow-origin"), "*");
+        assertEquals(res.headers.get("access-control-allow-methods"), "GET,POST,OPTIONS");
       });
-      assertEquals(res.status, 400);
 
-      const data = await res.json();
-      assertEquals(data.error, "Invalid JSON body");
-    } finally {
-      await stopTestServer();
-    }
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
+      // ─────────────────────────────────────────────────
+      // Epics Endpoint Tests
+      // ─────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────
-// V2 Endpoint Tests
-// ─────────────────────────────────────────────────
+      await t.step("GET /epics returns epic list", async () => {
+        const res = await fetch(`${baseUrl}/epics`);
+        assertEquals(res.status, 200);
 
-Deno.test({
-  name: "API - POST /v2/playground requires epicId",
-  async fn() {
-    await startTestServer();
-    try {
-      const res = await fetch(`${baseUrl}/v2/playground`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        const data = await res.json();
+        assertExists(data.epics);
+        assert(Array.isArray(data.epics));
+        assert(data.epics.length > 0);
+
+        // Check epic structure
+        const epic = data.epics[0];
+        assertExists(epic.id);
+        assertExists(epic.title);
+        assertExists(epic.description);
       });
-      assertEquals(res.status, 400);
 
-      const data = await res.json();
-      assertEquals(data.error, "epicId is required");
-    } finally {
-      await stopTestServer();
-    }
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
+      // ─────────────────────────────────────────────────
+      // Champion Endpoint Tests
+      // ─────────────────────────────────────────────────
 
-Deno.test({
-  name: "API - POST /v2/evaluate returns taskId",
-  async fn() {
-    await startTestServer();
-    try {
-      const res = await fetch(`${baseUrl}/v2/evaluate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ replicates: 2 }),
+      await t.step("GET /champion returns prompt structure", async () => {
+        const res = await fetch(`${baseUrl}/champion`);
+        assertEquals(res.status, 200);
+
+        const data = await res.json();
+        assertExists(data.base);
+        assertExists(data.patch);
+        assertExists(data.composed);
       });
-      assertEquals(res.status, 200);
 
-      const data = await res.json();
-      assertExists(data.taskId);
-      assertEquals(data.status, "pending");
-    } finally {
-      await stopTestServer();
-    }
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
+      // ─────────────────────────────────────────────────
+      // Generate Story Tests
+      // ─────────────────────────────────────────────────
 
-Deno.test({
-  name: "API - GET /v2/tasks/:id returns task status",
-  async fn() {
-    await startTestServer();
-    try {
-      const res = await fetch(`${baseUrl}/v2/tasks/test-task-123`);
-      assertEquals(res.status, 200);
+      await t.step("POST /generate-story requires epicId", async () => {
+        const res = await fetch(`${baseUrl}/generate-story`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}), // Missing epicId
+        });
+        assertEquals(res.status, 400);
 
-      const data = await res.json();
-      assertExists(data.taskId);
-      assertExists(data.status);
-      assertExists(data.progress);
-    } finally {
-      await stopTestServer();
-    }
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-// ─────────────────────────────────────────────────
-// Pair Mining Tests
-// ─────────────────────────────────────────────────
-
-Deno.test({
-  name: "API - POST /mine-pairs requires report",
-  async fn() {
-    await startTestServer();
-    try {
-      const res = await fetch(`${baseUrl}/mine-pairs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        const data = await res.json();
+        assertEquals(data.error, "epicId is required");
       });
-      assertEquals(res.status, 400);
+
+      await t.step("POST /generate-story rejects invalid JSON", async () => {
+        const res = await fetch(`${baseUrl}/generate-story`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "not valid json",
+        });
+        assertEquals(res.status, 400);
+
+        const data = await res.json();
+        assertEquals(data.error, "Invalid JSON body");
+      });
+
+      // ─────────────────────────────────────────────────
+      // V2 Endpoint Tests
+      // ─────────────────────────────────────────────────
+
+      await t.step("POST /v2/playground requires epicId", async () => {
+        const res = await fetch(`${baseUrl}/v2/playground`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        assertEquals(res.status, 400);
+
+        const data = await res.json();
+        assertEquals(data.error, "epicId is required");
+      });
+
+      await t.step("POST /v2/evaluate returns taskId", async () => {
+        const res = await fetch(`${baseUrl}/v2/evaluate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ replicates: 2 }),
+        });
+        assertEquals(res.status, 200);
+
+        const data = await res.json();
+        assertExists(data.taskId);
+        assertEquals(data.status, "pending");
+      });
+
+      await t.step("GET /v2/tasks/:id returns task status", async () => {
+        const res = await fetch(`${baseUrl}/v2/tasks/test-task-123`);
+        assertEquals(res.status, 200);
+
+        const data = await res.json();
+        assertExists(data.taskId);
+        assertExists(data.status);
+        assertExists(data.progress);
+      });
+
+      // ─────────────────────────────────────────────────
+      // Pair Mining Tests
+      // ─────────────────────────────────────────────────
+
+      await t.step("POST /mine-pairs requires report", async () => {
+        const res = await fetch(`${baseUrl}/mine-pairs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        assertEquals(res.status, 400);
+      });
+
+      // ─────────────────────────────────────────────────
+      // 404 Tests
+      // ─────────────────────────────────────────────────
+
+      await t.step("Unknown route returns 404", async () => {
+        const res = await fetch(`${baseUrl}/unknown-route`);
+        assertEquals(res.status, 404);
+
+        const data = await res.json();
+        assertEquals(data.error, "not_found");
+      });
+
+      // ─────────────────────────────────────────────────
+      // Root Endpoint Tests
+      // ─────────────────────────────────────────────────
+
+      await t.step("GET / returns service info", async () => {
+        const res = await fetch(`${baseUrl}/`);
+        assertEquals(res.status, 200);
+
+        const data = await res.json();
+        assertExists(data.service);
+        assertExists(data.routes);
+      });
     } finally {
-      await stopTestServer();
-    }
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-// ─────────────────────────────────────────────────
-// 404 Tests
-// ─────────────────────────────────────────────────
-
-Deno.test({
-  name: "API - Unknown route returns 404",
-  async fn() {
-    await startTestServer();
-    try {
-      const res = await fetch(`${baseUrl}/unknown-route`);
-      assertEquals(res.status, 404);
-
-      const data = await res.json();
-      assertEquals(data.error, "not_found");
-    } finally {
-      await stopTestServer();
-    }
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-// ─────────────────────────────────────────────────
-// Root Endpoint Tests
-// ─────────────────────────────────────────────────
-
-Deno.test({
-  name: "API - GET / returns service info",
-  async fn() {
-    await startTestServer();
-    try {
-      const res = await fetch(`${baseUrl}/`);
-      assertEquals(res.status, 200);
-
-      const data = await res.json();
-      assertExists(data.service);
-      assertExists(data.routes);
-    } finally {
-      await stopTestServer();
+      // Teardown: Stop server once after all subtests
+      await server.shutdown();
+      server = null;
     }
   },
   sanitizeResources: false,
