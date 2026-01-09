@@ -7,11 +7,13 @@
 ## Context
 
 PromptAgent requires a deployment strategy that supports:
+
 1. **Local development** with LM Studio (free, offline LLM inference)
 2. **Staging environment** for testing before production
 3. **Production deployment** with cloud LLM providers (OpenRouter, OpenAI, etc.)
 
 The challenge is managing configuration across these environments without:
+
 - Accidentally deploying localhost URLs to production
 - Requiring complex build-time configuration
 - Breaking backwards compatibility when renaming env vars
@@ -38,10 +40,10 @@ The challenge is managing configuration across these environments without:
 
 ### Deployment Triggers
 
-| Branch    | Target Project         | Trigger          |
-|-----------|------------------------|------------------|
-| `main`    | `promptagent`          | Push / Manual    |
-| `staging` | `promptagent-staging`  | Push / Manual    |
+| Branch    | Target Project        | Trigger       |
+| --------- | --------------------- | ------------- |
+| `main`    | `promptagent`         | Push / Manual |
+| `staging` | `promptagent-staging` | Push / Manual |
 
 ### Environment Detection (Fail-Fast)
 
@@ -67,12 +69,12 @@ if (isDeployed) {
 
 ### Environment Variables
 
-| Variable            | Local Default        | Production Required |
-|---------------------|----------------------|---------------------|
-| `LLM_BASE_URL`      | `localhost:1234/v1`  | Yes                 |
-| `LLM_API_BASE_URL`  | (legacy alias)       | Supported           |
-| `LLM_API_KEY`       | `""`                 | Yes                 |
-| `LLM_MODEL`         | `openai/gpt-oss-120b`| Recommended         |
+| Variable           | Local Default         | Production Required |
+| ------------------ | --------------------- | ------------------- |
+| `LLM_BASE_URL`     | `localhost:1234/v1`   | Yes                 |
+| `LLM_API_BASE_URL` | (legacy alias)        | Supported           |
+| `LLM_API_KEY`      | `""`                  | Yes                 |
+| `LLM_MODEL`        | `openai/gpt-oss-120b` | Recommended         |
 
 **Backwards Compatibility:** Both `LLM_BASE_URL` and `LLM_API_BASE_URL` are supported via nullish coalescing:
 
@@ -90,6 +92,7 @@ const LLM_BASE_URL =
 **Approach:** Inject env vars at build time via Vite/esbuild.
 
 **Rejected because:**
+
 - Requires separate builds per environment
 - Secrets potentially embedded in artifacts
 - More complex CI/CD pipeline
@@ -99,6 +102,7 @@ const LLM_BASE_URL =
 **Approach:** One Deno Deploy project, use feature flags for staging features.
 
 **Rejected because:**
+
 - No isolation between staging and production
 - Staging bugs affect production users
 - Harder to test deployment process itself
@@ -108,6 +112,7 @@ const LLM_BASE_URL =
 **Approach:** Containerized deployment with K8s.
 
 **Rejected because:**
+
 - Overkill for current scale
 - Higher operational complexity
 - Deno Deploy provides simpler edge deployment
@@ -117,6 +122,7 @@ const LLM_BASE_URL =
 **Approach:** Use Deno Deploy's branch deployments with different env vars per branch.
 
 **Considered viable but:**
+
 - Less explicit control over which branches deploy where
 - Current approach with separate projects is clearer
 
@@ -138,11 +144,11 @@ const LLM_BASE_URL =
 
 ### Risks
 
-| Risk | Mitigation |
-|------|------------|
-| Forgetting to set env vars in new project | Deploy fails fast with clear error message |
-| Env var naming drift | Tests verify both names are supported |
-| Staging getting stale | Workflow supports `workflow_dispatch` for manual deploys |
+| Risk                                      | Mitigation                                               |
+| ----------------------------------------- | -------------------------------------------------------- |
+| Forgetting to set env vars in new project | Deploy fails fast with clear error message               |
+| Env var naming drift                      | Tests verify both names are supported                    |
+| Staging getting stale                     | Workflow supports `workflow_dispatch` for manual deploys |
 
 ## Setup Checklist
 
@@ -177,6 +183,6 @@ git push -u origin staging
 
 - `.github/workflows/deploy-deno.yml` - Production workflow
 - `.github/workflows/deploy-staging.yml` - Staging workflow
-- `deploy/main.ts` - Server with env validation
+- `deploy/main.ts` - Server entry point with production env validation
 - `deploy/deploy-config.test.ts` - Configuration tests
 - `.env.example` - Environment variable documentation
