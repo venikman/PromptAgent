@@ -40,11 +40,15 @@ function check(
   name: string,
   passed: boolean,
   message: string,
-  severity: "error" | "warning" = "error"
+  severity: "error" | "warning" = "error",
 ) {
   results.push({ name, passed, message, severity });
 
-  const icon = passed ? `${GREEN}✓${RESET}` : severity === "error" ? `${RED}✗${RESET}` : `${YELLOW}⚠${RESET}`;
+  const icon = passed
+    ? `${GREEN}✓${RESET}`
+    : severity === "error"
+      ? `${RED}✗${RESET}`
+      : `${YELLOW}⚠${RESET}`;
   const color = passed ? GREEN : severity === "error" ? RED : YELLOW;
   log(`${icon} ${color}${name}${RESET}: ${message}`);
 }
@@ -70,7 +74,7 @@ function checkNoSecretsCommitted() {
     !isTracked,
     isTracked
       ? ".env is tracked by git! Run: git rm --cached .env"
-      : ".env is properly gitignored"
+      : ".env is properly gitignored",
   );
 
   // Check staged files for secrets
@@ -103,7 +107,7 @@ function checkNoSecretsCommitted() {
             `No secrets in ${file}`,
             false,
             "File may contain API keys!",
-            "error"
+            "error",
           );
           foundSecrets = true;
         }
@@ -117,7 +121,7 @@ function checkNoSecretsCommitted() {
     check(
       "No secrets in staged files",
       true,
-      `Checked ${stagedFiles.length} staged file(s)`
+      `Checked ${stagedFiles.length} staged file(s)`,
     );
   }
 }
@@ -135,7 +139,7 @@ function checkEnvironmentConfig() {
     existsSync(envExamplePath),
     existsSync(envExamplePath)
       ? "Template file present"
-      : "Missing .env.example template"
+      : "Missing .env.example template",
   );
 
   // .env exists for local dev
@@ -146,19 +150,20 @@ function checkEnvironmentConfig() {
     existsSync(envPath)
       ? "Local config present"
       : "Missing .env for local development",
-    "warning"
+    "warning",
   );
 
   // Check .env has localhost configuration
   if (existsSync(envPath)) {
     const content = readFileSync(envPath, "utf-8");
-    const hasLocalhost = content.includes("localhost") || content.includes("127.0.0.1");
+    const hasLocalhost =
+      content.includes("localhost") || content.includes("127.0.0.1");
     check(
       "Local development URL",
       hasLocalhost,
       hasLocalhost
         ? "Using localhost for LM Studio"
-        : "No localhost URL found - may be pointing to production"
+        : "No localhost URL found - may be pointing to production",
     );
   }
 }
@@ -184,7 +189,7 @@ async function checkTypeScript() {
     result.success,
     result.success
       ? "No type errors"
-      : `Type errors found:\n${stderr.slice(0, 500)}`
+      : `Type errors found:\n${stderr.slice(0, 500)}`,
   );
 }
 
@@ -213,9 +218,7 @@ async function checkTests() {
   check(
     "Unit tests",
     result.success && failed === 0,
-    result.success
-      ? `${passed} tests passed`
-      : `${failed} test(s) failed`
+    result.success ? `${passed} tests passed` : `${failed} test(s) failed`,
   );
 }
 
@@ -233,8 +236,8 @@ function checkViteProxy() {
 
   const content = readFileSync(viteConfigPath, "utf-8");
 
-  // Check for required proxy routes
-  const requiredRoutes = ["/v1", "/v2", "/v3", "/health", "/generate"];
+  // Check for required proxy routes (only API routes, not external URLs like /v1 for LM Studio)
+  const requiredRoutes = ["/v2", "/health", "/epics", "/champion"];
   const missingRoutes: string[] = [];
 
   for (const route of requiredRoutes) {
@@ -249,7 +252,7 @@ function checkViteProxy() {
     missingRoutes.length === 0
       ? "All required routes configured"
       : `Missing routes: ${missingRoutes.join(", ")}`,
-    "warning"
+    "warning",
   );
 }
 
@@ -274,18 +277,19 @@ function checkDeployConfig() {
     usesEnvVars,
     usesEnvVars
       ? "API config from environment"
-      : "May have hardcoded configuration"
+      : "May have hardcoded configuration",
   );
 
   // Should have fallback for local
-  const hasLocalFallback = content.includes("localhost:1234") || content.includes("127.0.0.1:1234");
+  const hasLocalFallback =
+    content.includes("localhost:1234") || content.includes("127.0.0.1:1234");
   check(
     "Local development fallback",
     hasLocalFallback,
     hasLocalFallback
       ? "Has localhost fallback"
       : "Missing localhost fallback for local dev",
-    "warning"
+    "warning",
   );
 
   // Should detect deployment environment
@@ -296,7 +300,7 @@ function checkDeployConfig() {
     detectsDeploy
       ? "Detects Deno Deploy environment"
       : "Cannot distinguish local from deployed",
-    "warning"
+    "warning",
   );
 }
 
@@ -312,9 +316,17 @@ function checkNoDebugLogs() {
     const walk = (path: string) => {
       for (const entry of Deno.readDirSync(path)) {
         const fullPath = join(path, entry.name);
-        if (entry.isDirectory && !entry.name.startsWith(".") && entry.name !== "node_modules") {
+        if (
+          entry.isDirectory &&
+          !entry.name.startsWith(".") &&
+          entry.name !== "node_modules"
+        ) {
           walk(fullPath);
-        } else if (entry.isFile && entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")) {
+        } else if (
+          entry.isFile &&
+          entry.name.endsWith(".ts") &&
+          !entry.name.endsWith(".test.ts")
+        ) {
           try {
             const content = readFileSync(fullPath, "utf-8");
             if (pattern.test(content)) {
@@ -332,9 +344,12 @@ function checkNoDebugLogs() {
   };
 
   // Check for console.log (but allow console.warn, console.error)
+  // Exclude CLI files which legitimately need console output
   const srcDir = join(ROOT_DIR, "src");
   if (existsSync(srcDir)) {
-    const filesWithLogs = checkDir(srcDir, /console\.log\s*\(/);
+    const filesWithLogs = checkDir(srcDir, /console\.log\s*\(/).filter(
+      (f) => !f.includes("/cli/"),
+    ); // CLI files can use console.log
 
     check(
       "No console.log in src/",
@@ -342,7 +357,7 @@ function checkNoDebugLogs() {
       filesWithLogs.length === 0
         ? "No debug logs found"
         : `Found in: ${filesWithLogs.slice(0, 3).join(", ")}${filesWithLogs.length > 3 ? "..." : ""}`,
-      "warning"
+      "warning",
     );
   }
 }
