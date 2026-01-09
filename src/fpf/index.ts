@@ -76,3 +76,24 @@ export {
   type NQDArchive,
   type NQDSelectorConfig,
 } from "./nqd-selector.ts";
+
+// Confidence Intervals
+export {
+  mean,
+  stdDev,
+  standardError,
+  percentile,
+  wilsonInterval,
+  bootstrapInterval,
+  tInterval,
+  interJudgeInterval,
+  normalInterval,
+  autoConfidenceInterval,
+  scoreWithJudgeConfidence,
+  scoreWithBootstrapConfidence,
+  formatConfidenceInterval,
+  intervalsOverlap,
+  intervalWidth,
+  type ConfidenceInterval,
+  type ScoreWithConfidence,
+} from "./confidence-interval.ts";
