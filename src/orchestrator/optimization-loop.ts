@@ -26,12 +26,20 @@ import {
 import { executeEvaluator } from "./tools/evaluator-tool.ts";
 import { executePairMiner, hasPairs } from "./tools/pair-miner-tool.ts";
 import { executePatcher, hasCandidates } from "./tools/patcher-tool.ts";
+import {
+  executeMetaPatcher,
+  hasMetaPatches,
+  updateMutationFitness,
+  runHypermutation,
+  type MetaPatchResult,
+} from "./tools/meta-patcher-tool.ts";
 import { saveCheckpoint } from "./state/kv-store.ts";
 import {
   runNQDTournament,
   type NQDTournamentCandidate,
   type NQDTournamentResult,
 } from "./nqd-tournament.ts";
+import { createSeedMutationPrompts } from "../meta-evolution/index.ts";
 
 // ─────────────────────────────────────────────────
 // Default Configuration
@@ -50,6 +58,9 @@ function defaultConfig(
     onIterationStart: overrides.onIterationStart,
     onIterationEnd: overrides.onIterationEnd,
     onProgress: overrides.onProgress,
+    // Meta-evolution defaults
+    metaEvolutionEnabled: overrides.metaEvolutionEnabled ?? false,
+    hypermutationRate: overrides.hypermutationRate ?? 0.1,
   };
 }
 
@@ -79,6 +90,11 @@ export class OptimizationLoopAgent {
    */
   async execute(initialState?: OptimizationState): Promise<OptimizationState> {
     let state = initialState ?? createInitialState({ base: "", patch: "" });
+
+    // Initialize mutation prompts if meta-evolution enabled and not already set
+    if (this.config.metaEvolutionEnabled && !state.mutationPrompts) {
+      state.mutationPrompts = createSeedMutationPrompts();
+    }
 
     // If no champion objective yet, do initial evaluation
     if (state.championObjective === 0 && state.iteration === 0) {
@@ -193,24 +209,60 @@ export class OptimizationLoopAgent {
       result.pairsFound = pairsResult.data!.length;
 
       // Step 3: Generate patch candidates
+      // Use meta-evolution patcher if enabled, otherwise standard patcher
       const patchCtx = createToolContext(ctx.runId);
-      const patchResult = await executePatcher(
-        {
-          basePrompt: state.championPrompt.base,
-          currentPatch: state.championPrompt.patch,
-          pairs: pairsResult.data!,
-          candidateCount: this.config.patchCandidates,
-          temperature: env.OPT_PATCH_TEMPERATURE,
-        },
-        patchCtx,
-      );
+      let patches: string[] = [];
+      let metaPatchResults: MetaPatchResult[] | undefined;
 
-      if (!hasCandidates(patchResult)) {
+      if (this.config.metaEvolutionEnabled && state.mutationPrompts) {
+        // Meta-evolution: use evolved mutation prompts
+        const metaResult = await executeMetaPatcher(
+          {
+            basePrompt: state.championPrompt.base,
+            currentPatch: state.championPrompt.patch,
+            pairs: pairsResult.data!,
+            candidateCount: this.config.patchCandidates,
+            temperature: env.OPT_PATCH_TEMPERATURE,
+            mutationPrompts: state.mutationPrompts,
+          },
+          patchCtx,
+        );
+
+        if (hasMetaPatches(metaResult)) {
+          metaPatchResults = metaResult.data!.patches;
+          patches = metaPatchResults.map((p) => p.patch);
+          state.mutationPrompts = metaResult.data!.mutationPrompts;
+
+          // Track mutations used for telemetry
+          result.mutationsUsed = metaPatchResults.map((p) => ({
+            id: p.mutationId,
+            type: p.mutationType,
+          }));
+        }
+      } else {
+        // Standard patcher
+        const patchResult = await executePatcher(
+          {
+            basePrompt: state.championPrompt.base,
+            currentPatch: state.championPrompt.patch,
+            pairs: pairsResult.data!,
+            candidateCount: this.config.patchCandidates,
+            temperature: env.OPT_PATCH_TEMPERATURE,
+          },
+          patchCtx,
+        );
+
+        if (hasCandidates(patchResult)) {
+          patches = patchResult.data!;
+        }
+      }
+
+      if (patches.length === 0) {
         result.duration = Date.now() - iterationStart;
         return result;
       }
 
-      result.candidatesGenerated = patchResult.data!.length;
+      result.candidatesGenerated = patches.length;
 
       // Step 4: Tournament - evaluate all candidates
       const championPromptText = composePrompt(
@@ -219,7 +271,7 @@ export class OptimizationLoopAgent {
       );
       const tournamentResult = await this.runTournament(
         state.championPrompt.base,
-        patchResult.data!,
+        patches,
         state.championObjective,
         championPromptText,
       );
@@ -248,6 +300,41 @@ export class OptimizationLoopAgent {
       if (improvement > this.config.promotionThreshold) {
         state.championPrompt.patch = best.patch;
         result.promoted = true;
+      }
+
+      // Step 6: Meta-evolution feedback (if enabled)
+      if (
+        this.config.metaEvolutionEnabled &&
+        state.mutationPrompts &&
+        metaPatchResults
+      ) {
+        // Update mutation fitness based on patch performance
+        const patchFeedback = metaPatchResults.map((mp, idx) => ({
+          mutationId: mp.mutationId,
+          objective: tournamentResult.candidates[idx]?.objective ?? 0,
+          championObjective: state.championObjective,
+        }));
+        state.mutationPrompts = updateMutationFitness(
+          state.mutationPrompts,
+          patchFeedback,
+        );
+
+        // Track best mutation type
+        const bestIdx = tournamentResult.candidates.findIndex(
+          (c) => c.patch === best.patch,
+        );
+        if (bestIdx >= 0 && metaPatchResults[bestIdx]) {
+          result.bestMutationType = metaPatchResults[bestIdx].mutationType;
+        }
+
+        // Hypermutation: evolve mutation prompts with probability
+        if (Math.random() < (this.config.hypermutationRate ?? 0.1)) {
+          state.mutationPrompts = await runHypermutation(
+            state.mutationPrompts,
+            state.iteration,
+          );
+          result.hypermutationApplied = true;
+        }
       }
 
       result.duration = Date.now() - iterationStart;

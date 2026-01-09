@@ -12,6 +12,7 @@ import type {
   IlluminationTelemetry,
   ParetoFront,
 } from "../fpf/nqd-selector.ts";
+import type { MutationPrompt } from "../meta-evolution/types.ts";
 
 // Re-export composePrompt from patchEngineer
 export { composePrompt } from "../patchEngineer.ts";
@@ -137,6 +138,14 @@ export interface IterationResult {
   nqdChangedWinner?: boolean;
   /** Number of ineligible candidates (failed creativity gate) */
   ineligibleCount?: number;
+
+  // ─── Meta-Evolution Telemetry ───
+  /** Mutation prompts used this iteration (if meta-evolution enabled) */
+  mutationsUsed?: Array<{ id: string; type: string }>;
+  /** Whether hypermutation was applied this iteration */
+  hypermutationApplied?: boolean;
+  /** Best performing mutation type this iteration */
+  bestMutationType?: string;
 }
 
 /**
@@ -160,6 +169,10 @@ export interface OptimizationState {
   startedAt: string;
   /** When optimization completed (if done) */
   completedAt?: string;
+
+  // ─── Meta-Evolution State ───
+  /** Evolved mutation prompts (if meta-evolution enabled) */
+  mutationPrompts?: MutationPrompt[];
 }
 
 /**
@@ -273,6 +286,12 @@ export interface OptimizationConfig {
   onIterationEnd?: (result: IterationResult) => void;
   /** Progress callback for evaluation */
   onProgress?: (completed: number, total: number) => void;
+
+  // ─── Meta-Evolution (PromptBreeder-style) ───
+  /** Enable meta-evolution for mutation prompt optimization */
+  metaEvolutionEnabled?: boolean;
+  /** Probability of hypermutation per iteration (default: 0.1) */
+  hypermutationRate?: number;
 }
 
 /**
