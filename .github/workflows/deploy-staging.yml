@@ -1,0 +1,43 @@
+name: Deploy (Staging)
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Build UI
+        run: |
+          deno task ui:deps
+          deno task ui:build
+
+      - name: Install deployctl
+        run: deno install -A --global jsr:@deno/deployctl
+
+      - name: Deploy to Deno Deploy (Staging)
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          deployctl deploy \
+            --project="${{ vars.DENO_DEPLOY_PROJECT_STAGING }}" \
+            --prod \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=.github \
+            --exclude=ui/node_modules \
+            deploy/main.ts

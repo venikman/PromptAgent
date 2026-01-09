@@ -45,14 +45,43 @@ import { env } from "../src/config.ts";
 // Create scorer instance (reused across requests)
 const scorer = createStoryDecompositionScorer();
 
+// ─────────────────────────────────────────────────
+// Environment Detection & Validation
+// ─────────────────────────────────────────────────
+const isDeployed = !!Deno.env.get("DENO_DEPLOYMENT_ID");
+
 // OpenAI-compatible API (OpenRouter, LM Studio, etc.)
 const LLM_API_BASE_URL =
   Deno.env.get("LLM_API_BASE_URL") ?? "http://localhost:1234/v1";
 const LLM_API_KEY = Deno.env.get("LLM_API_KEY") ?? "";
 const DEFAULT_MODEL = Deno.env.get("LLM_MODEL") ?? "openai/gpt-oss-120b";
 
+// Production validation - fail fast if config is missing
+if (isDeployed) {
+  if (!Deno.env.get("LLM_API_BASE_URL")) {
+    throw new Error(
+      "LLM_API_BASE_URL is required in production. " +
+        "Set it in Deno Deploy → Settings → Environment Variables. " +
+        "Example: https://openrouter.ai/api/v1",
+    );
+  }
+  if (LLM_API_BASE_URL.includes("localhost")) {
+    throw new Error(
+      "LLM_API_BASE_URL cannot be localhost in production. " +
+        "Configure a real API endpoint like OpenRouter or OpenAI.",
+    );
+  }
+  if (!LLM_API_KEY) {
+    throw new Error(
+      "LLM_API_KEY is required in production. " +
+        "Set it in Deno Deploy → Settings → Environment Variables.",
+    );
+  }
+}
+
 // Debug: Log config on startup (key is redacted)
 console.log("[LLM Config]", {
+  environment: isDeployed ? "production" : "local",
   baseUrl: LLM_API_BASE_URL,
   model: DEFAULT_MODEL,
   hasKey: !!LLM_API_KEY,

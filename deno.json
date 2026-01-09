@@ -31,5 +31,21 @@
     "strict": true,
     "noImplicitAny": true,
     "noUncheckedIndexedAccess": true
+  },
+  "deploy": {
+    "project": "f75fcfab-6b0c-458c-ae47-e69714ace613",
+    "exclude": [
+      "**/node_modules"
+    ],
+    "include": [
+      "deploy",
+      "src",
+      "data",
+      "prompts",
+      "ui/dist",
+      "deno.json",
+      "deno.lock"
+    ],
+    "entrypoint": "deploy/main.ts"
   }
 }
