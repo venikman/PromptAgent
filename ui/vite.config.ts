@@ -23,6 +23,12 @@ export default defineConfig({
       "/evaluate": "http://localhost:8000",
       "/mine-pairs": "http://localhost:8000",
       "/generate-patches": "http://localhost:8000",
+      "/run-tournament": "http://localhost:8000",
+      "/tournament": "http://localhost:8000",
+      // V2 endpoints
+      "/v2": "http://localhost:8000",
+      // V3 endpoints (streaming optimization)
+      "/v3": "http://localhost:8000",
     },
   },
 });

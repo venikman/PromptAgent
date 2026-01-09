@@ -81,10 +81,7 @@ export {
   evaluateSingleEpic,
 } from "./tools/evaluator-tool.ts";
 
-export {
-  executePairMiner,
-  hasPairs,
-} from "./tools/pair-miner-tool.ts";
+export { executePairMiner, hasPairs } from "./tools/pair-miner-tool.ts";
 
 export {
   executePatcher,
@@ -101,6 +98,32 @@ export {
   runOptimizationLoop,
   resumeOptimizationLoop,
 } from "./optimization-loop.ts";
+
+// ─────────────────────────────────────────────────
+// Optimization Progress (Streaming)
+// ─────────────────────────────────────────────────
+
+export {
+  // Types
+  type OptimizationStep,
+  type EvalProgress,
+  type TournamentProgress,
+  type PatchGenProgress,
+  type OptimizationProgress,
+  type IterationSummary,
+  type OptimizationTask,
+
+  // Constants
+  STEP_LABELS,
+
+  // Factory & Helpers
+  createOptimizationTask,
+  updateTaskStep,
+  updateTaskEvalProgress,
+  updateTaskTournamentProgress,
+  completeTaskIteration,
+  toIterationSummary,
+} from "./optimization-progress.ts";
 
 // ─────────────────────────────────────────────────
 // Root Orchestrator

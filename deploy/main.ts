@@ -3,8 +3,16 @@ import { fromFileUrl } from "jsr:@std/path";
 
 // Import PromptAgent modules
 import { evalPromptDistribution, type PromptDistReport } from "../src/eval.ts";
-import { mineContrastivePairs, formatPairsForPrompt, type ContrastPair, type ScoredOutput } from "../src/pairMining.ts";
-import { generatePatchCandidates, composePrompt } from "../src/patchEngineer.ts";
+import {
+  mineContrastivePairs,
+  formatPairsForPrompt,
+  type ContrastPair,
+  type ScoredOutput,
+} from "../src/pairMining.ts";
+import {
+  generatePatchCandidates,
+  composePrompt,
+} from "../src/patchEngineer.ts";
 import { createStoryDecompositionScorer } from "../src/scorer.ts";
 import type { Epic, StoryPack } from "../src/schema.ts";
 
@@ -18,8 +26,21 @@ import {
   completeTask,
   failTask,
   type TaskRecord,
+  // Streaming optimization imports
+  type OptimizationTask,
+  type OptimizationStep,
+  createOptimizationTask,
+  updateTaskStep,
+  updateTaskEvalProgress,
+  updateTaskTournamentProgress,
+  completeTaskIteration,
+  toIterationSummary,
+  runOptimizationLoop,
+  type OptimizationConfig,
+  type IterationResult,
 } from "../src/orchestrator/index.ts";
 
+import { env } from "../src/config.ts";
 
 // Create scorer instance (reused across requests)
 const scorer = createStoryDecompositionScorer();
@@ -76,7 +97,12 @@ type TournamentCandidateResult = {
 type TournamentTask = {
   id: string;
   status: "pending" | "running" | "completed" | "failed";
-  progress: { candidateIdx: number; totalCandidates: number; runsCompleted: number; totalRuns: number };
+  progress: {
+    candidateIdx: number;
+    totalCandidates: number;
+    runsCompleted: number;
+    totalRuns: number;
+  };
   candidates: TournamentCandidateResult[];
   championObjective: number;
   winner?: { id: string; objective: number; deltaVsChampion: number };
@@ -86,6 +112,12 @@ type TournamentTask = {
 };
 
 const tournamentTasks = new Map<string, TournamentTask>();
+
+// ─────────────────────────────────────────────────
+// Streaming Optimization Task Store (V3)
+// ─────────────────────────────────────────────────
+
+const optimizationTasks = new Map<string, OptimizationTask>();
 
 // Scorer result type (mastra/core doesn't export intermediate step types)
 type ScorerResultWithSteps = {
@@ -117,7 +149,8 @@ const PROMPTS_ROOT = fromFileUrl(new URL("../prompts", import.meta.url));
 
 // Cached data
 let cachedEpics: unknown[] | null = null;
-let cachedChampion: { base: string; patch: string; composed: string } | null = null;
+let cachedChampion: { base: string; patch: string; composed: string } | null =
+  null;
 
 // Cached orchestrator (lazy initialized)
 let cachedOrchestrator: Orchestrator | null = null;
@@ -133,7 +166,11 @@ async function loadEpics(): Promise<unknown[]> {
   }
 }
 
-async function loadChampionPrompt(): Promise<{ base: string; patch: string; composed: string }> {
+async function loadChampionPrompt(): Promise<{
+  base: string;
+  patch: string;
+  composed: string;
+}> {
   if (cachedChampion) return cachedChampion;
   try {
     const [base, patch, composed] = await Promise.all([
@@ -141,7 +178,11 @@ async function loadChampionPrompt(): Promise<{ base: string; patch: string; comp
       Deno.readTextFile(`${PROMPTS_ROOT}/champion.patch.md`).catch(() => ""),
       Deno.readTextFile(`${PROMPTS_ROOT}/champion.md`).catch(() => ""),
     ]);
-    cachedChampion = { base: base.trim(), patch: patch.trim(), composed: composed.trim() };
+    cachedChampion = {
+      base: base.trim(),
+      patch: patch.trim(),
+      composed: composed.trim(),
+    };
     return cachedChampion;
   } catch {
     return { base: "", patch: "", composed: "" };
@@ -154,7 +195,7 @@ async function loadChampionPrompt(): Promise<{ base: string; patch: string; comp
  */
 async function getOrchestrator(): Promise<Orchestrator> {
   if (!cachedOrchestrator) {
-    const epics = await loadEpics() as Epic[];
+    const epics = (await loadEpics()) as Epic[];
     const champion = await loadChampionPrompt();
     cachedOrchestrator = new Orchestrator({
       epics,
@@ -207,7 +248,8 @@ function parseAcceptanceCriteria(raw: string): string[] {
   const criteria: string[] = [];
 
   // Check for Given/When/Then format
-  const gwtPattern = /\b(Given|When|Then|And|But)\b[:\s]+(.+?)(?=\b(?:Given|When|Then|And|But)\b|$)/gis;
+  const gwtPattern =
+    /\b(Given|When|Then|And|But)\b[:\s]+(.+?)(?=\b(?:Given|When|Then|And|But)\b|$)/gis;
   const gwtMatches = [...trimmed.matchAll(gwtPattern)];
 
   if (gwtMatches.length >= 2) {
@@ -238,7 +280,8 @@ function parseAcceptanceCriteria(raw: string): string[] {
   // Check for numbered list format (1. or 1) or a. or a))
   const numberedPattern = /(?:^|\n)\s*(?:\d+[.)]\s*|[a-z][.)]\s*)/i;
   if (numberedPattern.test(trimmed)) {
-    const items = trimmed.split(/(?:^|\n)\s*(?:\d+[.)]\s*|[a-z][.)]\s*)/i)
+    const items = trimmed
+      .split(/(?:^|\n)\s*(?:\d+[.)]\s*|[a-z][.)]\s*)/i)
       .map((s) => s.trim().replace(/\n+/g, " "))
       .filter((s) => s.length >= MIN_CRITERION_LENGTH);
     if (items.length > 0) return items;
@@ -248,7 +291,8 @@ function parseAcceptanceCriteria(raw: string): string[] {
   // Matches: -, •, *, ◦, ▪, ►, →, and checkbox variants
   const bulletPattern = /(?:^|\n)\s*[-•*◦▪►→]\s*(?:\[[ x]\]\s*)?/i;
   if (bulletPattern.test(trimmed)) {
-    const items = trimmed.split(/(?:^|\n)\s*[-•*◦▪►→]\s*(?:\[[ x]\]\s*)?/)
+    const items = trimmed
+      .split(/(?:^|\n)\s*[-•*◦▪►→]\s*(?:\[[ x]\]\s*)?/)
       .map((s) => s.trim().replace(/\n+/g, " "))
       .filter((s) => s.length >= MIN_CRITERION_LENGTH);
     if (items.length > 0) return items;
@@ -265,7 +309,8 @@ function parseAcceptanceCriteria(raw: string): string[] {
   }
 
   // Fallback: split by newlines (if multi-line) or return as single criterion
-  const lines = trimmed.split(/\n+/)
+  const lines = trimmed
+    .split(/\n+/)
     .map((s) => s.trim())
     .filter((s) => s.length >= MIN_CRITERION_LENGTH);
 
@@ -350,7 +395,9 @@ Deno.serve(async (req) => {
       const versionsDir = `${PROMPTS_ROOT}/versions`;
       try {
         await Deno.mkdir(versionsDir, { recursive: true });
-      } catch { /* ignore if exists */ }
+      } catch {
+        /* ignore if exists */
+      }
 
       // Backup current champion with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -358,7 +405,7 @@ Deno.serve(async (req) => {
       if (currentChampion.composed) {
         await Deno.writeTextFile(
           `${versionsDir}/champion.${timestamp}.md`,
-          currentChampion.composed
+          currentChampion.composed,
         );
       }
 
@@ -389,12 +436,16 @@ Deno.serve(async (req) => {
       return jsonResponse({
         success: true,
         champion: updated,
-        backupFile: currentChampion.composed ? `champion.${timestamp}.md` : null,
+        backupFile: currentChampion.composed
+          ? `champion.${timestamp}.md`
+          : null,
       });
     } catch (err) {
       return jsonResponse(
-        { error: `Failed to save champion: ${err instanceof Error ? err.message : String(err)}` },
-        500
+        {
+          error: `Failed to save champion: ${err instanceof Error ? err.message : String(err)}`,
+        },
+        500,
       );
     }
   }
@@ -406,14 +457,21 @@ Deno.serve(async (req) => {
       const versions: { name: string; timestamp: string }[] = [];
 
       for await (const entry of Deno.readDir(versionsDir)) {
-        if (entry.isFile && entry.name.startsWith("champion.") && entry.name.endsWith(".md")) {
+        if (
+          entry.isFile &&
+          entry.name.startsWith("champion.") &&
+          entry.name.endsWith(".md")
+        ) {
           // Extract timestamp from filename: champion.2024-01-15T10-30-00-000Z.md
           const match = entry.name.match(/champion\.(.+)\.md$/);
           const timestamp = match?.[1];
           if (timestamp) {
             versions.push({
               name: entry.name,
-              timestamp: timestamp.replace(/-/g, ":").replace("T", " ").slice(0, -1), // Approximate restore
+              timestamp: timestamp
+                .replace(/-/g, ":")
+                .replace("T", " ")
+                .slice(0, -1), // Approximate restore
             });
           }
         }
@@ -431,7 +489,11 @@ Deno.serve(async (req) => {
 
   if (url.pathname === "/generate-story" && req.method === "POST") {
     // Uses LM Studio's OpenAI-compatible API
-    let payload: { epicId?: string; promptOverride?: string; seed?: number } | null = null;
+    let payload: {
+      epicId?: string;
+      promptOverride?: string;
+      seed?: number;
+    } | null = null;
     try {
       payload = await req.json();
     } catch {
@@ -490,19 +552,25 @@ Deno.serve(async (req) => {
           method: "POST",
           headers,
           body: JSON.stringify(requestBody),
-        }
+        },
       );
 
       const raw = await upstream.text();
       if (!upstream.ok) {
         return jsonResponse(
-          { error: "llm_error", status: upstream.status, detail: safeJson(raw) },
-          upstream.status
+          {
+            error: "llm_error",
+            status: upstream.status,
+            detail: safeJson(raw),
+          },
+          upstream.status,
         );
       }
 
       // OpenAI format: { choices: [{ message: { content: "..." } }] }
-      const data = safeJson(raw) as { choices?: Array<{ message?: { content?: string } }> };
+      const data = safeJson(raw) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
       const rawText = data?.choices?.[0]?.message?.content ?? "";
 
       // Try to parse the response as JSON
@@ -527,9 +595,12 @@ Deno.serve(async (req) => {
             // Find the first [ or { and try to parse from there
             const arrayStart = rawText.indexOf("[");
             const objStart = rawText.indexOf("{");
-            const startIdx = arrayStart === -1 ? objStart :
-                            objStart === -1 ? arrayStart :
-                            Math.min(arrayStart, objStart);
+            const startIdx =
+              arrayStart === -1
+                ? objStart
+                : objStart === -1
+                  ? arrayStart
+                  : Math.min(arrayStart, objStart);
             if (startIdx !== -1) {
               jsonStr = rawText.slice(startIdx);
             } else {
@@ -545,16 +616,25 @@ Deno.serve(async (req) => {
         if (Array.isArray(parsed)) {
           storyPack = {
             epicId: epicId,
-            epicTitle: (epic as { title?: string }).title ?? "Generated Stories",
+            epicTitle:
+              (epic as { title?: string }).title ?? "Generated Stories",
             userStories: parsed.map((item: Record<string, unknown>) => {
               // Parse "As a X, I want Y, so that Z" from description
               const desc = String(item["System.Description"] ?? "");
-              const asAMatch = desc.match(/\*\*As a\*\*\s*([^,*]+)/i) || desc.match(/As a\s+([^,]+)/i);
-              const iWantMatch = desc.match(/\*\*I want\*\*\s*([^,*]+)/i) || desc.match(/I want\s+([^,]+)/i);
-              const soThatMatch = desc.match(/\*\*so that\*\*\s*([^,*]+)/i) || desc.match(/so that\s+(.+)/i);
+              const asAMatch =
+                desc.match(/\*\*As a\*\*\s*([^,*]+)/i) ||
+                desc.match(/As a\s+([^,]+)/i);
+              const iWantMatch =
+                desc.match(/\*\*I want\*\*\s*([^,*]+)/i) ||
+                desc.match(/I want\s+([^,]+)/i);
+              const soThatMatch =
+                desc.match(/\*\*so that\*\*\s*([^,*]+)/i) ||
+                desc.match(/so that\s+(.+)/i);
 
               // Parse acceptance criteria (handles GWT, numbered, bullet formats)
-              const acRaw = String(item["Microsoft.VSTS.Common.AcceptanceCriteria"] ?? "");
+              const acRaw = String(
+                item["Microsoft.VSTS.Common.AcceptanceCriteria"] ?? "",
+              );
               const acceptanceCriteria = parseAcceptanceCriteria(acRaw);
 
               return {
@@ -567,8 +647,11 @@ Deno.serve(async (req) => {
                   fields: {
                     "System.Title": item["System.Title"],
                     "System.Description": item["System.Description"],
-                    "Microsoft.VSTS.Common.AcceptanceCriteria": item["Microsoft.VSTS.Common.AcceptanceCriteria"],
-                    "Microsoft.VSTS.Scheduling.StoryPoints": item["StoryPoints"] ?? item["Microsoft.VSTS.Scheduling.StoryPoints"],
+                    "Microsoft.VSTS.Common.AcceptanceCriteria":
+                      item["Microsoft.VSTS.Common.AcceptanceCriteria"],
+                    "Microsoft.VSTS.Scheduling.StoryPoints":
+                      item["StoryPoints"] ??
+                      item["Microsoft.VSTS.Scheduling.StoryPoints"],
                   },
                 },
               };
@@ -581,7 +664,10 @@ Deno.serve(async (req) => {
           // Already in expected format or close to it
           storyPack = {
             epicId: parsed.epicId ?? epicId,
-            epicTitle: parsed.epicTitle ?? (epic as { title?: string }).title ?? "Generated Stories",
+            epicTitle:
+              parsed.epicTitle ??
+              (epic as { title?: string }).title ??
+              "Generated Stories",
             userStories: parsed.userStories ?? [],
             assumptions: parsed.assumptions ?? [],
             risks: parsed.risks ?? [],
@@ -599,7 +685,9 @@ Deno.serve(async (req) => {
           const epicInput: Epic = {
             id: epicId,
             title: (epic as { title?: string }).title ?? "Epic",
-            description: (epic as { description?: string }).description ?? JSON.stringify(epic),
+            description:
+              (epic as { description?: string }).description ??
+              JSON.stringify(epic),
           };
 
           const result = await scorer.run({
@@ -613,7 +701,8 @@ Deno.serve(async (req) => {
 
           // Extract FPF info from nested results
           const typedResult = result as ScorerResultWithSteps;
-          const fpfInfo = typedResult.results?.preprocessStepResult?.fpfJudgeResult?.info;
+          const fpfInfo =
+            typedResult.results?.preprocessStepResult?.fpfJudgeResult?.info;
 
           scorerResult = {
             score: result.score,
@@ -640,7 +729,7 @@ Deno.serve(async (req) => {
     } catch (err) {
       return jsonResponse(
         { error: err instanceof Error ? err.message : String(err) },
-        500
+        500,
       );
     }
   }
@@ -671,7 +760,8 @@ Deno.serve(async (req) => {
       model,
       messages,
       stream: false,
-      temperature: (payload?.options as Record<string, unknown>)?.temperature ?? 0.7,
+      temperature:
+        (payload?.options as Record<string, unknown>)?.temperature ?? 0.7,
       max_tokens: -1,
     };
 
@@ -688,7 +778,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers,
         body: JSON.stringify(requestBody),
-      }
+      },
     );
 
     const raw = await upstream.text();
@@ -699,11 +789,13 @@ Deno.serve(async (req) => {
           status: upstream.status,
           detail: safeJson(raw),
         },
-        upstream.status
+        upstream.status,
       );
     }
 
-    const data = safeJson(raw) as { choices?: Array<{ message?: { content?: string } }> };
+    const data = safeJson(raw) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
     const content = data?.choices?.[0]?.message?.content ?? "";
     return jsonResponse({ provider: "lm-studio", model, response: content });
   }
@@ -722,7 +814,7 @@ Deno.serve(async (req) => {
     }
 
     const taskId = crypto.randomUUID();
-    const epics = await loadEpics() as Epic[];
+    const epics = (await loadEpics()) as Epic[];
     const champion = await loadChampionPrompt();
     const promptText = payload?.promptOverride || champion.composed;
     const replicates = payload?.replicates ?? 3; // Default to 3 for faster demo
@@ -817,7 +909,7 @@ Deno.serve(async (req) => {
         pass: run.pass,
         storyPack: run.storyPack,
         rawText: run.rawText,
-      }))
+      })),
     );
 
     // Mine pairs (pure computation, no LLM)
@@ -872,7 +964,7 @@ Deno.serve(async (req) => {
           currentPatch: champion.patch,
           pairsContext,
         },
-        count
+        count,
       );
 
       // Return patches with metadata
@@ -888,7 +980,7 @@ Deno.serve(async (req) => {
     } catch (err) {
       return jsonResponse(
         { error: err instanceof Error ? err.message : String(err) },
-        500
+        500,
       );
     }
   }
@@ -914,7 +1006,7 @@ Deno.serve(async (req) => {
     }
 
     const taskId = crypto.randomUUID();
-    const epics = await loadEpics() as Epic[];
+    const epics = (await loadEpics()) as Epic[];
     const champion = await loadChampionPrompt();
     const replicates = payload.replicates ?? 3;
 
@@ -931,7 +1023,12 @@ Deno.serve(async (req) => {
     const task: TournamentTask = {
       id: taskId,
       status: "pending",
-      progress: { candidateIdx: 0, totalCandidates, runsCompleted: 0, totalRuns },
+      progress: {
+        candidateIdx: 0,
+        totalCandidates,
+        runsCompleted: 0,
+        totalRuns,
+      },
       candidates: [],
       championObjective: 0,
       startedAt: new Date().toISOString(),
@@ -1013,7 +1110,9 @@ Deno.serve(async (req) => {
         }
 
         // Step 3: Find winner
-        const sorted = [...task.candidates].sort((a, b) => b.objective - a.objective);
+        const sorted = [...task.candidates].sort(
+          (a, b) => b.objective - a.objective,
+        );
         const best = sorted[0]!;
         task.winner = {
           id: best.id,
@@ -1080,7 +1179,11 @@ Deno.serve(async (req) => {
 
   // V2 Playground: Single epic generation with scoring
   if (url.pathname === "/v2/playground" && req.method === "POST") {
-    let payload: { epicId: string; promptOverride?: string; seed?: number } | null = null;
+    let payload: {
+      epicId: string;
+      promptOverride?: string;
+      seed?: number;
+    } | null = null;
     try {
       payload = await req.json();
     } catch {
@@ -1110,7 +1213,7 @@ Deno.serve(async (req) => {
     } catch (err) {
       return jsonResponse(
         { error: err instanceof Error ? err.message : String(err) },
-        500
+        500,
       );
     }
   }
@@ -1124,7 +1227,7 @@ Deno.serve(async (req) => {
       payload = {};
     }
 
-    const epics = await loadEpics() as Epic[];
+    const epics = (await loadEpics()) as Epic[];
     if (epics.length === 0) {
       return jsonResponse({ error: "No epics available" }, 400);
     }
@@ -1155,7 +1258,10 @@ Deno.serve(async (req) => {
 
         await completeTask(task.id, result);
       } catch (err) {
-        await failTask(task.id, err instanceof Error ? err.message : String(err));
+        await failTask(
+          task.id,
+          err instanceof Error ? err.message : String(err),
+        );
       }
     })();
 
@@ -1202,7 +1308,7 @@ Deno.serve(async (req) => {
       payload = {};
     }
 
-    const epics = await loadEpics() as Epic[];
+    const epics = (await loadEpics()) as Epic[];
     if (epics.length === 0) {
       return jsonResponse({ error: "No epics available" }, 400);
     }
@@ -1226,16 +1332,171 @@ Deno.serve(async (req) => {
             onProgress: (completed, total) => {
               updateTaskProgress(task.id, { completed, total });
             },
-          }
+          },
         );
 
         await completeTask(task.id, finalState);
       } catch (err) {
-        await failTask(task.id, err instanceof Error ? err.message : String(err));
+        await failTask(
+          task.id,
+          err instanceof Error ? err.message : String(err),
+        );
       }
     })();
 
     return jsonResponse({ taskId: task.id, status: "pending" });
+  }
+
+  // ─────────────────────────────────────────────────
+  // V3 Streaming Optimization (detailed step progress)
+  // ─────────────────────────────────────────────────
+
+  // Start optimization with streaming progress
+  if (url.pathname === "/v3/optimize" && req.method === "POST") {
+    let payload: {
+      maxIterations?: number;
+      replicates?: number;
+      patchCandidates?: number;
+      metaEvolutionEnabled?: boolean;
+    } | null = null;
+
+    try {
+      payload = await req.json();
+    } catch {
+      payload = {};
+    }
+
+    const epics = (await loadEpics()) as Epic[];
+    if (epics.length === 0) {
+      return jsonResponse({ error: "No epics available" }, 400);
+    }
+
+    const champion = await loadChampionPrompt();
+    const taskId = crypto.randomUUID();
+
+    // Configuration with defaults from env
+    const config = {
+      maxIterations: payload?.maxIterations ?? env.OPT_ITERATIONS,
+      replicates: payload?.replicates ?? env.EVAL_REPLICATES,
+      patchCandidates: payload?.patchCandidates ?? env.OPT_PATCH_CANDIDATES,
+      metaEvolutionEnabled: payload?.metaEvolutionEnabled ?? false,
+    };
+
+    // Create streaming optimization task
+    const task = createOptimizationTask(taskId, config);
+    optimizationTasks.set(taskId, task);
+
+    const startTime = Date.now();
+
+    // Run optimization in background with detailed progress callbacks
+    (async () => {
+      task.status = "running";
+      let iterationStartTime = startTime;
+
+      try {
+        const finalState = await runOptimizationLoop(
+          epics,
+          { base: champion.base, patch: champion.patch },
+          {
+            maxIterations: config.maxIterations,
+            replicates: config.replicates,
+            patchCandidates: config.patchCandidates,
+            metaEvolutionEnabled: config.metaEvolutionEnabled,
+            promotionThreshold: env.OPT_PROMOTION_THRESHOLD,
+            concurrency: env.OPT_CONCURRENCY,
+
+            // Iteration callbacks for step-level progress
+            onIterationStart: (iteration: number) => {
+              iterationStartTime = Date.now();
+              task.progress.iteration = iteration;
+              updateTaskStep(task, "evaluating_champion", {
+                totalElapsed: Date.now() - startTime,
+              });
+            },
+
+            onIterationEnd: (result: IterationResult) => {
+              completeTaskIteration(task, result);
+              task.progress.totalElapsed = Date.now() - startTime;
+              task.progress.iterationElapsed = Date.now() - iterationStartTime;
+            },
+
+            // Evaluation progress callback
+            onProgress: (completed: number, total: number) => {
+              // Determine if we're in initial eval or tournament based on step
+              if (task.progress.step === "evaluating_champion") {
+                updateTaskEvalProgress(task, { completed, total });
+              } else if (task.progress.step === "tournament") {
+                // During tournament, update tournament progress
+                const candidateIdx = Math.floor(
+                  completed / (total / (config.patchCandidates + 1)),
+                );
+                updateTaskTournamentProgress(task, {
+                  candidateIdx,
+                  totalCandidates: config.patchCandidates + 1,
+                  runsCompleted: completed,
+                  totalRuns: total,
+                });
+              }
+              task.progress.totalElapsed = Date.now() - startTime;
+            },
+          },
+          { enableCheckpoints: true },
+        );
+
+        // Mark completed with final results
+        task.status = "completed";
+        task.completedAt = new Date().toISOString();
+        updateTaskStep(task, "completed");
+
+        const baselineObjective =
+          task.progress.history[0]?.championObjective ?? 0;
+        task.result = {
+          finalObjective: finalState.championObjective,
+          totalIterations: finalState.iteration,
+          improvementVsBaseline:
+            finalState.championObjective - baselineObjective,
+          championPatch: finalState.championPrompt.patch,
+          history: task.progress.history,
+        };
+      } catch (err) {
+        task.status = "failed";
+        task.error = err instanceof Error ? err.message : String(err);
+        task.completedAt = new Date().toISOString();
+        updateTaskStep(task, "failed");
+      }
+    })();
+
+    return jsonResponse({
+      taskId,
+      status: "pending",
+      config,
+    });
+  }
+
+  // Poll streaming optimization progress
+  if (url.pathname.startsWith("/v3/optimize/") && req.method === "GET") {
+    const taskId = url.pathname.split("/")[3]?.trim();
+
+    if (!taskId) {
+      return jsonResponse({ error: "Invalid task ID" }, 400);
+    }
+
+    const task = optimizationTasks.get(taskId);
+
+    if (!task) {
+      return jsonResponse({ error: "Task not found" }, 404);
+    }
+
+    return jsonResponse({
+      taskId: task.id,
+      status: task.status,
+      config: task.config,
+      progress: task.progress,
+      result: task.result,
+      error: task.error,
+      startedAt: task.startedAt,
+      completedAt: task.completedAt,
+    });
   }
 
   if (url.pathname === "/") {
@@ -1263,6 +1524,11 @@ Deno.serve(async (req) => {
         "POST /v2/evaluate": "Start async evaluation with Deno KV",
         "POST /v2/optimize": "Start async optimization loop with Deno KV",
         "GET /v2/tasks/:id": "Get task status from Deno KV",
+        // V3 endpoints with streaming progress
+        "POST /v3/optimize":
+          "Start optimization with step-level streaming progress",
+        "GET /v3/optimize/:id":
+          "Poll optimization progress (iteration, step, metrics)",
         "GET /ui": "HTML demo interface",
       },
     });

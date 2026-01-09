@@ -20,6 +20,7 @@ import {
   type MutationPrompt,
   type GenerationStats,
 } from "./MetaEvolutionView";
+import { OptimizationView } from "./OptimizationView";
 import {
   IconArrowsExchange,
   IconDna,
@@ -29,6 +30,7 @@ import {
   IconLoader2,
   IconPlayerPlay,
   IconFlame,
+  IconRocket,
 } from "@tabler/icons-react";
 
 // Demo data for visualization without backend
@@ -181,7 +183,7 @@ const DEMO_TOURNAMENT_CANDIDATES = [
 ];
 
 type DataMode = "empty" | "demo" | "live";
-type EvolutionStep = "pairs" | "patches" | "tournament" | "meta";
+type EvolutionStep = "pairs" | "patches" | "tournament" | "meta" | "optimize";
 type PatchCandidate = {
   id: string;
   patch: string;
@@ -615,6 +617,15 @@ export function EvolutionLab() {
           <IconFlame className="h-3.5 w-3.5" />
           4. Meta-Evolution
         </Badge>
+        <span className="text-muted-foreground mx-2">|</span>
+        <Badge
+          variant={activeStep === "optimize" ? "default" : "outline"}
+          className="cursor-pointer gap-1 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30"
+          onClick={() => setActiveStep("optimize")}
+        >
+          <IconRocket className="h-3.5 w-3.5" />
+          Full Loop
+        </Badge>
       </div>
 
       {/* Step Content */}
@@ -627,6 +638,7 @@ export function EvolutionLab() {
           <TabsTrigger value="patches">Patches</TabsTrigger>
           <TabsTrigger value="tournament">Tournament</TabsTrigger>
           <TabsTrigger value="meta">Meta-Evolution</TabsTrigger>
+          <TabsTrigger value="optimize">Full Loop</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pairs" className="mt-0">
@@ -667,6 +679,17 @@ export function EvolutionLab() {
             }
             currentGeneration={currentGeneration}
             loading={loading}
+          />
+        </TabsContent>
+
+        <TabsContent value="optimize" className="mt-0">
+          <OptimizationView
+            onOptimizationComplete={(result) => {
+              // Update champion patch if optimization succeeded
+              if (result.championPatch) {
+                setCurrentPatch(result.championPatch);
+              }
+            }}
           />
         </TabsContent>
       </Tabs>

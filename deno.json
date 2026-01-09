@@ -7,6 +7,10 @@
   "tasks": {
     "dev": "deno run -A scripts/dev.ts",
     "test": "deno test -A --parallel",
+    "test:config": "deno test -A src/config.test.ts src/connectivity.test.ts src/deployment.test.ts",
+    "test:connectivity": "CONNECTIVITY_TEST=true deno test -A src/connectivity.test.ts",
+    "pre-commit": "deno run -A scripts/pre-commit-checks.ts",
+    "hooks:install": "deno run -A scripts/install-hooks.ts",
     "test:unit": "deno test -A src/**/*.test.ts",
     "test:api": "deno test -A deploy/**/*.test.ts",
     "test:coverage": "deno test -A --coverage=coverage",
