@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  typecheck:
+  check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,3 +20,26 @@ jobs:
 
       - name: Typecheck
         run: deno task typecheck
+
+      - name: Lint
+        run: deno task lint
+
+      - name: Format Check
+        run: deno task fmt:check
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Run Unit Tests
+        run: deno task test:unit
+
+      - name: Run API Tests
+        run: deno task test:api
