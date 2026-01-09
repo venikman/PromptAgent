@@ -16,6 +16,9 @@ import {
   PoLLMetric,
   isPoLLMetricInfo,
   type PoLLMetricInfo,
+  interJudgeInterval,
+  formatConfidenceInterval,
+  type ConfidenceInterval,
 } from "./fpf/index.ts";
 
 type ScorerInput = Epic;
@@ -126,6 +129,15 @@ export function createStoryDecompositionScorer() {
         }
       }
 
+      // Compute confidence interval from PoLL judge scores if available
+      let scoreConfidence: ConfidenceInterval | null = null;
+      if (pollResult && isPoLLMetricInfo(pollResult.info)) {
+        const pollInfo = pollResult.info as PoLLMetricInfo;
+        if (pollInfo.judgeScores && pollInfo.judgeScores.length > 1) {
+          scoreConfidence = interJudgeInterval(pollInfo.judgeScores, 0.95);
+        }
+      }
+
       return {
         epicText,
         rawText,
@@ -137,6 +149,7 @@ export function createStoryDecompositionScorer() {
         pollResult,
         pollError,
         pollEnabled: !!pollMetric,
+        scoreConfidence,
       };
     })
     .analyze({
@@ -261,6 +274,13 @@ export function createStoryDecompositionScorer() {
           `rEff=${pollInfo.rEff.toFixed(3)}`,
           `rRaw=${pollInfo.rRaw.toFixed(3)}`,
         );
+
+        // Add confidence interval if available
+        if (p.scoreConfidence) {
+          reasonParts.push(
+            `CI95=[${p.scoreConfidence.lower.toFixed(3)},${p.scoreConfidence.upper.toFixed(3)}]`,
+          );
+        }
       } else if (fpfSubscores) {
         // Fallback to single-judge FPF info
         reasonParts.push(
