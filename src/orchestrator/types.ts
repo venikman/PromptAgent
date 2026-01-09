@@ -8,6 +8,10 @@
 import type { Epic, StoryPack } from "../schema.ts";
 import type { PromptDistReport, FlatRun } from "../eval.ts";
 import type { ContrastPair } from "../pairMining.ts";
+import type {
+  IlluminationTelemetry,
+  ParetoFront,
+} from "../fpf/nqd-selector.ts";
 
 // Re-export composePrompt from patchEngineer
 export { composePrompt } from "../patchEngineer.ts";
@@ -64,7 +68,7 @@ export interface ToolResult<T> {
 export function successResult<T>(
   data: T,
   ctx: ToolContext,
-  startTime: number
+  startTime: number,
 ): ToolResult<T> {
   return {
     success: true,
@@ -80,7 +84,7 @@ export function successResult<T>(
 export function failureResult<T>(
   error: unknown,
   ctx: ToolContext,
-  startTime: number
+  startTime: number,
 ): ToolResult<T> {
   return {
     success: false,
@@ -123,6 +127,16 @@ export interface IterationResult {
   duration: number;
   /** Error message if iteration failed */
   error?: string;
+
+  // ─── NQD Telemetry (FPF C.18) ───
+  /** NQD illumination metrics (if NQD enabled) */
+  illumination?: IlluminationTelemetry;
+  /** Pareto front size */
+  paretoFrontSize?: number;
+  /** Whether NQD changed winner vs simple objective sort */
+  nqdChangedWinner?: boolean;
+  /** Number of ineligible candidates (failed creativity gate) */
+  ineligibleCount?: number;
 }
 
 /**
@@ -153,7 +167,7 @@ export interface OptimizationState {
  */
 export function createInitialState(
   champion: ChampionPrompt,
-  sessionId?: string
+  sessionId?: string,
 ): OptimizationState {
   return {
     sessionId: sessionId ?? crypto.randomUUID(),

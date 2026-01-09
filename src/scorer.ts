@@ -12,6 +12,11 @@ import {
   type PromptAgentJudgeInput,
   isPromptAgentJudgeInfo,
 } from "./judge/promptagent-fpf-judge.ts";
+import {
+  PoLLMetric,
+  isPoLLMetricInfo,
+  type PoLLMetricInfo,
+} from "./fpf/index.ts";
 
 type ScorerInput = Epic;
 type ScorerOutput = {
@@ -44,6 +49,10 @@ export function createStoryDecompositionScorer() {
   const keywordMetric = new KeywordCoverageMetric();
   const fpfJudge = new PromptAgentFPFMetric(judgeModel);
 
+  // PoLL: 3-judge panel with WLNK aggregation (FPF B.3 compliant)
+  // Only instantiate if enabled to avoid unnecessary overhead
+  const pollMetric = env.POLL_ENABLED ? new PoLLMetric() : null;
+
   return createScorer<ScorerInput, ScorerOutput>({
     name: "EpicToUserStoriesQuality",
     description: "Schema gate + keyword coverage + INVEST/testability judge",
@@ -70,6 +79,8 @@ export function createStoryDecompositionScorer() {
 
       let fpfJudgeResult: MetricResult | null = null;
       let fpfJudgeError: string | null = null;
+      let pollResult: MetricResult | null = null;
+      let pollError: string | null = null;
 
       const judgeInput: PromptAgentJudgeInput = {
         query: epicText,
@@ -83,10 +94,36 @@ export function createStoryDecompositionScorer() {
         gateProfile: "Core",
       };
 
-      try {
-        fpfJudgeResult = await fpfJudge.measure(judgeInput);
-      } catch (err) {
-        fpfJudgeError = err instanceof Error ? err.message : String(err);
+      // Run evaluations in parallel when PoLL is enabled
+      if (pollMetric) {
+        // PoLL enabled: run both in parallel, use PoLL as primary
+        const [fpfResult, pollRes] = await Promise.allSettled([
+          fpfJudge.measure(judgeInput),
+          pollMetric.measure({
+            query: epicText,
+            instructions,
+            response: rawText,
+          }),
+        ]);
+
+        if (fpfResult.status === "fulfilled") {
+          fpfJudgeResult = fpfResult.value;
+        } else {
+          fpfJudgeError = fpfResult.reason?.message ?? String(fpfResult.reason);
+        }
+
+        if (pollRes.status === "fulfilled") {
+          pollResult = pollRes.value;
+        } else {
+          pollError = pollRes.reason?.message ?? String(pollRes.reason);
+        }
+      } else {
+        // PoLL disabled: use single FPF judge only
+        try {
+          fpfJudgeResult = await fpfJudge.measure(judgeInput);
+        } catch (err) {
+          fpfJudgeError = err instanceof Error ? err.message : String(err);
+        }
       }
 
       return {
@@ -97,6 +134,9 @@ export function createStoryDecompositionScorer() {
         coverageScore: coverageResult.score,
         fpfJudgeResult,
         fpfJudgeError,
+        pollResult,
+        pollError,
+        pollEnabled: !!pollMetric,
       };
     })
     .analyze({
@@ -133,10 +173,17 @@ export function createStoryDecompositionScorer() {
       if (!p.isValid) return 0;
 
       const a = results.analyzeStepResult;
+
+      // Determine gate decision from either PoLL or single-judge FPF
+      const pollInfo = isPoLLMetricInfo(p.pollResult?.info)
+        ? (p.pollResult!.info as PoLLMetricInfo)
+        : undefined;
       const fpfInfo = isPromptAgentJudgeInfo(p.fpfJudgeResult?.info)
         ? p.fpfJudgeResult!.info
         : undefined;
-      const gateDecision = fpfInfo?.gateDecision;
+
+      // PoLL takes precedence for gate decision when available
+      const gateDecision = pollInfo?.gateDecision ?? fpfInfo?.gateDecision;
       if (gateDecision === "block") return 0;
 
       // Story count scoring: 4-8 is optimal
@@ -155,13 +202,21 @@ export function createStoryDecompositionScorer() {
         HEURISTIC_WEIGHTS.duplication * a.duplication +
         HEURISTIC_WEIGHTS.count * countScore;
 
-      const fpfScore = typeof p.fpfJudgeResult?.score === "number" ? p.fpfJudgeResult.score : null;
+      // Use PoLL R_eff (WLNK-aggregated) when available, else single-judge FPF
+      // PoLL's R_eff already incorporates the congruence penalty (Φ)
+      const judgeScore =
+        pollInfo?.rEff ??
+        (typeof p.fpfJudgeResult?.score === "number"
+          ? p.fpfJudgeResult.score
+          : null);
+
       const gatePenalty = gateDecision === "degrade" ? DEGRADE_GATE_PENALTY : 1;
 
       const blendedScore =
-        fpfScore === null
-          ? heuristicScore // FPF judge failed: fall back to heuristics without downweighting
-          : HEURISTIC_SCORE_WEIGHT * heuristicScore + FPF_SCORE_WEIGHT * fpfScore;
+        judgeScore === null
+          ? heuristicScore // Judge failed: fall back to heuristics without downweighting
+          : HEURISTIC_SCORE_WEIGHT * heuristicScore +
+            FPF_SCORE_WEIGHT * judgeScore;
 
       const score = clamp01(blendedScore * gatePenalty);
 
@@ -172,11 +227,24 @@ export function createStoryDecompositionScorer() {
       if (!p.isValid) return `Score=${score}. Schema validation failed.`;
 
       const a = results.analyzeStepResult;
+
+      // Extract PoLL info if available
+      const pollInfo = isPoLLMetricInfo(p.pollResult?.info)
+        ? (p.pollResult!.info as PoLLMetricInfo)
+        : undefined;
+
+      // Extract single-judge FPF info
       const maybeFpfInfo = p.fpfJudgeResult?.info;
-      const fpfInfo = isPromptAgentJudgeInfo(maybeFpfInfo) ? maybeFpfInfo : undefined;
-      const gateDecision = fpfInfo?.gateDecision ?? "abstain";
+      const fpfInfo = isPromptAgentJudgeInfo(maybeFpfInfo)
+        ? maybeFpfInfo
+        : undefined;
+
+      const gateDecision =
+        pollInfo?.gateDecision ?? fpfInfo?.gateDecision ?? "abstain";
       const fpfSubscores = fpfInfo?.subscores;
-      return [
+
+      // Build reason parts
+      const reasonParts = [
         `Score=${score.toFixed(3)}`,
         `coverage=${p.coverageScore.toFixed(3)}`,
         `invest=${a.invest.toFixed(3)}`,
@@ -184,14 +252,33 @@ export function createStoryDecompositionScorer() {
         `dup=${a.duplication.toFixed(3)}`,
         `stories=${p.storyCount}`,
         `gate=${gateDecision}`,
-        fpfSubscores
-          ? `fpf={corr:${fpfSubscores.correctness?.toFixed(3) ?? "?"},comp:${fpfSubscores.completeness?.toFixed(3) ?? "?"},proc:${fpfSubscores.processQuality?.toFixed(3) ?? "?"},safe:${fpfSubscores.safety?.toFixed(3) ?? "?"}}`
-          : "fpf=missing",
-        fpfInfo && typeof fpfInfo.rEff === "number" ? `rEff=${fpfInfo.rEff.toFixed(3)}` : undefined,
-        p.fpfJudgeError ? `fpfError=${p.fpfJudgeError}` : undefined,
-        `notes=${a.notes}`,
-      ]
-        .filter(Boolean)
-        .join(" | ");
+      ];
+
+      // Add PoLL-specific info when available (takes precedence)
+      if (pollInfo) {
+        reasonParts.push(
+          `poll={judges:${pollInfo.numJudges},CL:${pollInfo.congruenceLevelName},delta:${pollInfo.maxInterJudgeDelta.toFixed(3)}}`,
+          `rEff=${pollInfo.rEff.toFixed(3)}`,
+          `rRaw=${pollInfo.rRaw.toFixed(3)}`,
+        );
+      } else if (fpfSubscores) {
+        // Fallback to single-judge FPF info
+        reasonParts.push(
+          `fpf={corr:${fpfSubscores.correctness?.toFixed(3) ?? "?"},comp:${fpfSubscores.completeness?.toFixed(3) ?? "?"},proc:${fpfSubscores.processQuality?.toFixed(3) ?? "?"},safe:${fpfSubscores.safety?.toFixed(3) ?? "?"}}`,
+        );
+        if (fpfInfo && typeof fpfInfo.rEff === "number") {
+          reasonParts.push(`rEff=${fpfInfo.rEff.toFixed(3)}`);
+        }
+      } else {
+        reasonParts.push("judge=missing");
+      }
+
+      // Add errors if any
+      if (p.pollError) reasonParts.push(`pollError=${p.pollError}`);
+      if (p.fpfJudgeError) reasonParts.push(`fpfError=${p.fpfJudgeError}`);
+
+      reasonParts.push(`notes=${a.notes}`);
+
+      return reasonParts.filter(Boolean).join(" | ");
     });
 }

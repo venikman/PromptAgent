@@ -75,6 +75,59 @@ const EnvSchema = z.object({
 
   /** Concurrency for parallel epic evaluation */
   OPT_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(2),
+
+  // ─────────────────────────────────────────────────
+  // FPF PoLL Configuration (Panel of LLM Evaluators)
+  // Based on arXiv 2404.18796 + FPF B.3 Trust Calculus
+  // ─────────────────────────────────────────────────
+  /** Enable PoLL (3-judge panel) instead of single judge */
+  POLL_ENABLED: z.coerce.boolean().default(true),
+
+  /** Number of judges in the panel (default: 3 per PoLL paper) */
+  POLL_NUM_JUDGES: z.coerce.number().int().min(2).max(7).default(3),
+
+  /** Temperature spread for judge diversity (judge_i gets base + i*spread) */
+  POLL_TEMP_BASE: z.coerce.number().min(0).max(1).default(0.3),
+  POLL_TEMP_SPREAD: z.coerce.number().min(0).max(0.5).default(0.2),
+
+  // ─────────────────────────────────────────────────
+  // FPF Congruence Penalty (Φ) Configuration
+  // Per FPF B.3:4.4 - monotone decreasing penalties
+  // ─────────────────────────────────────────────────
+  /** Penalty for CL0 (weak guess - high disagreement) */
+  FPF_PHI_CL0: z.coerce.number().min(0).max(1).default(0.3),
+
+  /** Penalty for CL1 (plausible - moderate agreement) */
+  FPF_PHI_CL1: z.coerce.number().min(0).max(1).default(0.15),
+
+  /** Penalty for CL2 (validated - strong agreement) */
+  FPF_PHI_CL2: z.coerce.number().min(0).max(1).default(0.05),
+
+  /** Penalty for CL3 (verified - near-unanimous) */
+  FPF_PHI_CL3: z.coerce.number().min(0).max(1).default(0.0),
+
+  // ─────────────────────────────────────────────────
+  // FPF Congruence Level Thresholds
+  // Max inter-judge delta to achieve each CL
+  // ─────────────────────────────────────────────────
+  /** Max delta for CL3 (verified) */
+  FPF_CL_THRESHOLD_CL3: z.coerce.number().min(0).max(1).default(0.1),
+
+  /** Max delta for CL2 (validated) */
+  FPF_CL_THRESHOLD_CL2: z.coerce.number().min(0).max(1).default(0.25),
+
+  /** Max delta for CL1 (plausible) */
+  FPF_CL_THRESHOLD_CL1: z.coerce.number().min(0).max(1).default(0.4),
+
+  // ─────────────────────────────────────────────────
+  // FPF NQD Portfolio Selection (C.18)
+  // Multi-objective Pareto selection for tournament
+  // ─────────────────────────────────────────────────
+  /** Enable NQD selection in optimizer tournament */
+  NQD_ENABLED: z.coerce.boolean().default(true),
+
+  /** Constraint-fit threshold for eligibility (1.0 = perfect schema compliance) */
+  NQD_CONSTRAINT_FIT_THRESHOLD: z.coerce.number().min(0).max(1).default(1.0),
 });
 
 // Parse and export validated config

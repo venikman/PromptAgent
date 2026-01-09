@@ -27,15 +27,23 @@ import { executeEvaluator } from "./tools/evaluator-tool.ts";
 import { executePairMiner, hasPairs } from "./tools/pair-miner-tool.ts";
 import { executePatcher, hasCandidates } from "./tools/patcher-tool.ts";
 import { saveCheckpoint } from "./state/kv-store.ts";
+import {
+  runNQDTournament,
+  type NQDTournamentCandidate,
+  type NQDTournamentResult,
+} from "./nqd-tournament.ts";
 
 // ─────────────────────────────────────────────────
 // Default Configuration
 // ─────────────────────────────────────────────────
 
-function defaultConfig(overrides: Partial<OptimizationConfig> = {}): OptimizationConfig {
+function defaultConfig(
+  overrides: Partial<OptimizationConfig> = {},
+): OptimizationConfig {
   return {
     maxIterations: overrides.maxIterations ?? env.OPT_ITERATIONS,
-    promotionThreshold: overrides.promotionThreshold ?? env.OPT_PROMOTION_THRESHOLD,
+    promotionThreshold:
+      overrides.promotionThreshold ?? env.OPT_PROMOTION_THRESHOLD,
     replicates: overrides.replicates ?? env.EVAL_REPLICATES,
     patchCandidates: overrides.patchCandidates ?? env.OPT_PATCH_CANDIDATES,
     concurrency: overrides.concurrency ?? env.OPT_CONCURRENCY,
@@ -57,7 +65,7 @@ export class OptimizationLoopAgent {
   constructor(
     config: Partial<OptimizationConfig>,
     epics: Epic[],
-    options?: { enableCheckpoints?: boolean }
+    options?: { enableCheckpoints?: boolean },
   ) {
     this.config = defaultConfig(config);
     this.epics = epics;
@@ -80,7 +88,10 @@ export class OptimizationLoopAgent {
       }
     }
 
-    while (state.iteration < this.config.maxIterations && state.shouldContinue) {
+    while (
+      state.iteration < this.config.maxIterations &&
+      state.shouldContinue
+    ) {
       state.iteration++;
       this.config.onIterationStart?.(state.iteration);
 
@@ -88,7 +99,10 @@ export class OptimizationLoopAgent {
       state.history.push(iterationResult);
 
       // Apply promotion if successful
-      if (iterationResult.promoted && iterationResult.bestCandidateObjective > 0) {
+      if (
+        iterationResult.promoted &&
+        iterationResult.bestCandidateObjective > 0
+      ) {
         state.championObjective = iterationResult.bestCandidateObjective;
       }
 
@@ -112,7 +126,9 @@ export class OptimizationLoopAgent {
   /**
    * Run a single optimization iteration.
    */
-  private async runIteration(state: OptimizationState): Promise<IterationResult> {
+  private async runIteration(
+    state: OptimizationState,
+  ): Promise<IterationResult> {
     const iterationStart = Date.now();
     const ctx = createToolContext();
 
@@ -130,7 +146,7 @@ export class OptimizationLoopAgent {
       // Step 1: Evaluate current champion
       const composedPrompt = composePrompt(
         state.championPrompt.base,
-        state.championPrompt.patch
+        state.championPrompt.patch,
       );
 
       const evalResult = await executeEvaluator(
@@ -142,7 +158,7 @@ export class OptimizationLoopAgent {
           concurrency: this.config.concurrency,
           onProgress: this.config.onProgress,
         },
-        ctx
+        ctx,
       );
 
       if (!evalResult.success) {
@@ -164,7 +180,7 @@ export class OptimizationLoopAgent {
           minDelta: env.PAIR_MIN_DELTA,
           maxPairs: env.PAIR_MAX_PAIRS,
         },
-        pairsCtx
+        pairsCtx,
       );
 
       if (!hasPairs(pairsResult)) {
@@ -186,7 +202,7 @@ export class OptimizationLoopAgent {
           candidateCount: this.config.patchCandidates,
           temperature: env.OPT_PATCH_TEMPERATURE,
         },
-        patchCtx
+        patchCtx,
       );
 
       if (!hasCandidates(patchResult)) {
@@ -197,19 +213,34 @@ export class OptimizationLoopAgent {
       result.candidatesGenerated = patchResult.data!.length;
 
       // Step 4: Tournament - evaluate all candidates
-      const candidates = await this.runTournament(
+      const championPromptText = composePrompt(
+        state.championPrompt.base,
+        state.championPrompt.patch,
+      );
+      const tournamentResult = await this.runTournament(
         state.championPrompt.base,
         patchResult.data!,
-        state.championObjective
+        state.championObjective,
+        championPromptText,
       );
 
-      if (candidates.length === 0) {
+      if (tournamentResult.candidates.length === 0) {
         result.duration = Date.now() - iterationStart;
         return result;
       }
 
-      // Find best candidate
-      const best = candidates[0]!;
+      // Extract NQD telemetry if available
+      if (tournamentResult.nqdResult) {
+        result.illumination = tournamentResult.nqdResult.archive.illumination;
+        result.paretoFrontSize =
+          tournamentResult.nqdResult.archive.paretoFront.stats.frontSize;
+        result.nqdChangedWinner = tournamentResult.nqdResult.nqdChangedWinner;
+        result.ineligibleCount =
+          tournamentResult.nqdResult.archive.paretoFront.stats.ineligibleCount;
+      }
+
+      // Find best candidate (from NQD winner or simple sort)
+      const best = tournamentResult.winner ?? tournamentResult.candidates[0]!;
       result.bestCandidateObjective = best.objective;
 
       // Step 5: Promotion decision
@@ -231,11 +262,13 @@ export class OptimizationLoopAgent {
   /**
    * Evaluate the current champion prompt.
    */
-  private async evaluateChampion(state: OptimizationState): Promise<number | null> {
+  private async evaluateChampion(
+    state: OptimizationState,
+  ): Promise<number | null> {
     const ctx = createToolContext();
     const composedPrompt = composePrompt(
       state.championPrompt.base,
-      state.championPrompt.patch
+      state.championPrompt.patch,
     );
 
     const result = await executeEvaluator(
@@ -247,7 +280,7 @@ export class OptimizationLoopAgent {
         concurrency: this.config.concurrency,
         onProgress: this.config.onProgress,
       },
-      ctx
+      ctx,
     );
 
     if (!result.success) {
@@ -259,13 +292,17 @@ export class OptimizationLoopAgent {
 
   /**
    * Run tournament: evaluate all candidates and rank them.
+   *
+   * When NQD_ENABLED, uses multi-objective Pareto selection (FPF C.18).
+   * Otherwise, uses simple objective sorting.
    */
   private async runTournament(
     basePrompt: string,
     patches: string[],
-    championObjective: number
-  ): Promise<TournamentCandidate[]> {
-    const candidates: TournamentCandidate[] = [];
+    championObjective: number,
+    championPromptText: string,
+  ): Promise<TournamentResult> {
+    const candidates: NQDTournamentCandidate[] = [];
 
     // Evaluate each candidate
     for (let i = 0; i < patches.length; i++) {
@@ -281,10 +318,13 @@ export class OptimizationLoopAgent {
           seedBase: env.EVAL_SEED_BASE,
           concurrency: this.config.concurrency,
         },
-        ctx
+        ctx,
       );
 
       const objective = result.success ? result.data!.report.agg.objective : 0;
+      const passRate = result.success
+        ? result.data!.report.agg.meanPassRate
+        : 0;
 
       candidates.push({
         id: `candidate-${i}`,
@@ -292,14 +332,46 @@ export class OptimizationLoopAgent {
         objective,
         isChampion: false,
         deltaVsChampion: objective - championObjective,
+        // NQD-required fields
+        promptText: composedPrompt,
+        passRate,
+        schemaValid: passRate > 0,
       });
     }
 
-    // Sort by objective (descending)
+    // Apply NQD selection if enabled, otherwise simple sort
+    if (env.NQD_ENABLED) {
+      const nqdResult = runNQDTournament(candidates, {
+        championObjective,
+        championPrompt: championPromptText,
+        constraintFitThreshold: env.NQD_CONSTRAINT_FIT_THRESHOLD,
+      });
+
+      return {
+        candidates: nqdResult.candidates,
+        winner: nqdResult.winner,
+        nqdResult,
+      };
+    }
+
+    // Fallback: simple objective sort
     candidates.sort((a, b) => b.objective - a.objective);
 
-    return candidates;
+    return {
+      candidates,
+      winner: candidates[0] ?? null,
+      nqdResult: null,
+    };
   }
+}
+
+/**
+ * Internal tournament result type.
+ */
+interface TournamentResult {
+  candidates: NQDTournamentCandidate[];
+  winner: NQDTournamentCandidate | null;
+  nqdResult: NQDTournamentResult | null;
 }
 
 // ─────────────────────────────────────────────────
@@ -313,7 +385,7 @@ export async function runOptimizationLoop(
   epics: Epic[],
   champion: { base: string; patch: string },
   config?: Partial<OptimizationConfig>,
-  options?: { enableCheckpoints?: boolean }
+  options?: { enableCheckpoints?: boolean },
 ): Promise<OptimizationState> {
   const agent = new OptimizationLoopAgent(config ?? {}, epics, options);
   const initialState = createInitialState(champion);
@@ -326,7 +398,7 @@ export async function runOptimizationLoop(
 export async function resumeOptimizationLoop(
   epics: Epic[],
   state: OptimizationState,
-  config?: Partial<OptimizationConfig>
+  config?: Partial<OptimizationConfig>,
 ): Promise<OptimizationState> {
   // Reset shouldContinue to allow continuation
   state.shouldContinue = true;
