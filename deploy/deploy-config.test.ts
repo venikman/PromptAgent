@@ -5,9 +5,9 @@
  * localhost fallbacks being used in production.
  *
  * The key issue: deploy/main.ts uses:
- *   const LLM_API_BASE_URL = Deno.env.get("LLM_API_BASE_URL") ?? "http://localhost:1234/v1";
+ *   const LLM_BASE_URL = Deno.env.get("LLM_BASE_URL") ?? "http://localhost:1234/v1";
  *
- * In production (Deno Deploy), if LLM_API_BASE_URL isn't set, it falls back
+ * In production (Deno Deploy), if LLM_BASE_URL isn't set, it falls back
  * to localhost which doesn't exist - causing runtime failures.
  *
  * @module deploy-config.test
@@ -61,11 +61,11 @@ Deno.test(
           hasLocalhostFallback[0] +
           "\n\n" +
           "This causes: 'error sending request for url (http://localhost:1234/...)'\n" +
-          "Fix: Add startup validation that throws if LLM_API_BASE_URL is not set in production.\n" +
+          "Fix: Add startup validation that throws if LLM_BASE_URL is not set in production.\n" +
           "Example:\n" +
           '  const isDeployed = !!Deno.env.get("DENO_DEPLOYMENT_ID");\n' +
-          "  if (isDeployed && !Deno.env.get('LLM_API_BASE_URL')) {\n" +
-          "    throw new Error('LLM_API_BASE_URL required in production');\n" +
+          "  if (isDeployed && !Deno.env.get('LLM_BASE_URL')) {\n" +
+          "    throw new Error('LLM_BASE_URL required in production');\n" +
           "  }",
       );
     }
@@ -77,34 +77,32 @@ Deno.test(
   async () => {
     const content = await readFile(join(DEPLOY_DIR, "main.ts"));
 
-    // In production, LLM_API_BASE_URL should be required (no silent localhost fallback)
+    // In production, LLM_BASE_URL should be required (no silent localhost fallback)
     const isDeployed = Deno.env.get("DENO_DEPLOYMENT_ID");
 
     if (isDeployed) {
       // When running on Deno Deploy, env vars must be set
-      const llmUrl = Deno.env.get("LLM_API_BASE_URL");
+      const llmUrl = Deno.env.get("LLM_BASE_URL");
       assertExists(
         llmUrl,
-        "LLM_API_BASE_URL must be set in production. " +
+        "LLM_BASE_URL must be set in production. " +
           "Configure this in Deno Deploy environment variables.",
       );
       assert(
         !llmUrl.includes("localhost"),
-        "LLM_API_BASE_URL cannot be localhost in production",
+        "LLM_BASE_URL cannot be localhost in production",
       );
     }
   },
 );
 
 Deno.test(
-  "Deploy - LLM_API_BASE_URL should not default to localhost in prod code",
+  "Deploy - LLM_BASE_URL should not default to localhost in prod code",
   async () => {
     const content = await readFile(join(DEPLOY_DIR, "main.ts"));
 
-    // Find the LLM_API_BASE_URL assignment
-    const urlAssignment = content.match(
-      /LLM_API_BASE_URL\s*=[\s\S]*?(?:;|\n\n)/,
-    );
+    // Find the LLM_BASE_URL assignment
+    const urlAssignment = content.match(/LLM_BASE_URL\s*=[\s\S]*?(?:;|\n\n)/);
 
     if (urlAssignment) {
       const assignment = urlAssignment[0];
@@ -126,9 +124,9 @@ Deno.test(
 
         assert(
           hasProductionCheck,
-          "LLM_API_BASE_URL defaults to localhost but lacks production validation. " +
+          "LLM_BASE_URL defaults to localhost but lacks production validation. " +
             "The deployed app will fail when trying to connect to localhost:1234. " +
-            "Add: if (isDeployed && !LLM_API_BASE_URL) throw new Error('LLM_API_BASE_URL required')",
+            "Add: if (isDeployed && !LLM_BASE_URL) throw new Error('LLM_BASE_URL required')",
         );
       }
     }
@@ -143,7 +141,7 @@ Deno.test("Deploy - should document required env vars", async () => {
   const envExample = await readFile(join(ROOT_DIR, ".env.example"));
 
   // These vars are used in deploy/main.ts and MUST be documented
-  const requiredVars = ["LLM_API_BASE_URL", "LLM_API_KEY", "LLM_MODEL"];
+  const requiredVars = ["LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL"];
 
   const missingDocs: string[] = [];
   for (const varName of requiredVars) {
@@ -189,7 +187,7 @@ Deno.test(
 
     if (isDeployed) {
       // In production, these must be set
-      const requiredVars = ["LLM_API_BASE_URL", "LLM_API_KEY"];
+      const requiredVars = ["LLM_BASE_URL", "LLM_API_KEY"];
 
       for (const varName of requiredVars) {
         const value = Deno.env.get(varName);

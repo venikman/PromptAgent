@@ -51,23 +51,26 @@ const scorer = createStoryDecompositionScorer();
 const isDeployed = !!Deno.env.get("DENO_DEPLOYMENT_ID");
 
 // OpenAI-compatible API (OpenRouter, LM Studio, etc.)
-const LLM_API_BASE_URL =
-  Deno.env.get("LLM_API_BASE_URL") ?? "http://localhost:1234/v1";
+// Support both LLM_BASE_URL and legacy LLM_API_BASE_URL
+const LLM_BASE_URL =
+  Deno.env.get("LLM_BASE_URL") ??
+  Deno.env.get("LLM_API_BASE_URL") ??
+  "http://localhost:1234/v1";
 const LLM_API_KEY = Deno.env.get("LLM_API_KEY") ?? "";
-const DEFAULT_MODEL = Deno.env.get("LLM_MODEL") ?? "openai/gpt-oss-120b";
+const LLM_MODEL = Deno.env.get("LLM_MODEL") ?? "openai/gpt-oss-120b";
 
 // Production validation - fail fast if config is missing
 if (isDeployed) {
-  if (!Deno.env.get("LLM_API_BASE_URL")) {
+  if (!Deno.env.get("LLM_BASE_URL") && !Deno.env.get("LLM_API_BASE_URL")) {
     throw new Error(
-      "LLM_API_BASE_URL is required in production. " +
+      "LLM_BASE_URL (or LLM_API_BASE_URL) is required in production. " +
         "Set it in Deno Deploy → Settings → Environment Variables. " +
         "Example: https://openrouter.ai/api/v1",
     );
   }
-  if (LLM_API_BASE_URL.includes("localhost")) {
+  if (LLM_BASE_URL.includes("localhost")) {
     throw new Error(
-      "LLM_API_BASE_URL cannot be localhost in production. " +
+      "LLM_BASE_URL cannot be localhost in production. " +
         "Configure a real API endpoint like OpenRouter or OpenAI.",
     );
   }
@@ -82,8 +85,8 @@ if (isDeployed) {
 // Debug: Log config on startup (key is redacted)
 console.log("[LLM Config]", {
   environment: isDeployed ? "production" : "local",
-  baseUrl: LLM_API_BASE_URL,
-  model: DEFAULT_MODEL,
+  baseUrl: LLM_BASE_URL,
+  model: LLM_MODEL,
   hasKey: !!LLM_API_KEY,
   keyPrefix: LLM_API_KEY ? LLM_API_KEY.slice(0, 10) + "..." : "(none)",
 });
@@ -381,8 +384,8 @@ Deno.serve(async (req) => {
   if (url.pathname === "/debug/config") {
     return jsonResponse({
       llm: {
-        baseUrl: LLM_API_BASE_URL,
-        model: DEFAULT_MODEL,
+        baseUrl: LLM_BASE_URL,
+        model: LLM_MODEL,
         hasKey: !!LLM_API_KEY,
         keyLength: LLM_API_KEY.length,
         keyPrefix: LLM_API_KEY ? LLM_API_KEY.slice(0, 12) + "..." : "(none)",
@@ -553,7 +556,7 @@ Deno.serve(async (req) => {
       "```",
     ].join("\n");
 
-    const model = DEFAULT_MODEL;
+    const model = LLM_MODEL;
 
     // Call LM Studio (OpenAI-compatible chat completions API)
     const requestBody = {
@@ -576,7 +579,7 @@ Deno.serve(async (req) => {
       }
 
       const upstream = await fetch(
-        `${LLM_API_BASE_URL.replace(/\/$/, "")}/chat/completions`,
+        `${LLM_BASE_URL.replace(/\/$/, "")}/chat/completions`,
         {
           method: "POST",
           headers,
@@ -776,7 +779,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "prompt is required" }, 400);
     }
 
-    const model = payload?.model?.trim() || DEFAULT_MODEL;
+    const model = payload?.model?.trim() || LLM_MODEL;
 
     // LM Studio OpenAI-compatible format
     const messages: Array<{ role: string; content: string }> = [];
@@ -802,7 +805,7 @@ Deno.serve(async (req) => {
     }
 
     const upstream = await fetch(
-      `${LLM_API_BASE_URL.replace(/\/$/, "")}/chat/completions`,
+      `${LLM_BASE_URL.replace(/\/$/, "")}/chat/completions`,
       {
         method: "POST",
         headers,
