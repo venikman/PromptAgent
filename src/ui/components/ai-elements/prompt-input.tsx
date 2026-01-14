@@ -1,4 +1,4 @@
-import type { ComponentProps } from "npm:preact@10.28.2";
+import type { ComponentProps } from "preact";
 import { cn } from "../../lib/utils.ts";
 
 export type PromptInputProps = ComponentProps<"form">;

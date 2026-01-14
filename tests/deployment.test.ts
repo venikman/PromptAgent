@@ -11,6 +11,7 @@ import { assert, assertExists } from "@std/assert";
 import { join } from "@std/path";
 
 const ROOT_DIR = join(import.meta.dirname ?? ".", "..");
+const IS_CI = Boolean(Deno.env.get("CI"));
 
 // Helper to check if file exists
 async function fileExists(path: string): Promise<boolean> {
@@ -43,6 +44,7 @@ Deno.test("Environment - should have .env.example file", async () => {
 Deno.test(
   "Environment - should have .env file for local development",
   async () => {
+    if (IS_CI) return;
     const envPath = join(ROOT_DIR, ".env");
     assert(
       await fileExists(envPath),

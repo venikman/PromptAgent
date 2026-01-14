@@ -37,17 +37,22 @@ const apiHandler = createApiHandler(apiConfig);
 const uiRootUrl = new URL("../src/ui/", import.meta.url);
 const uiRootPath = fromFileUrl(uiRootUrl);
 const uiSnapshotUrl = new URL("../src/ui/_fresh/snapshot.js", import.meta.url);
+const uiMode = "production";
+app.config.mode = uiMode;
 
 try {
   const { setBuildCache, ProdBuildCache } = await import("@fresh/core/internal");
   const snapshot = await import(uiSnapshotUrl.toString());
-  setBuildCache(app, new ProdBuildCache(uiRootPath, snapshot), "production");
+  setBuildCache(app, new ProdBuildCache(uiRootPath, snapshot), uiMode);
 } catch (err) {
-  console.error(err);
-  throw new Error(
-    "Fresh build output is missing. " +
-      "Run `deno task ui:build` before starting this server.",
+  console.warn(
+    "Fresh build output is missing. Falling back to in-memory build.",
+    err,
   );
+  const { Builder } = await import("@fresh/core/dev");
+  const builder = new Builder({ root: uiRootUrl.toString() });
+  const applySnapshot = await builder.build({ snapshot: "memory", mode: uiMode });
+  applySnapshot(app);
 }
 
 const freshHandler = app.handler();

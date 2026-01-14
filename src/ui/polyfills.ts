@@ -1,4 +1,4 @@
-import { DOMParser as LinkedomDOMParser, parseHTML } from "npm:linkedom@0.18.5";
+import { DOMParser as LinkedomDOMParser, parseHTML } from "linkedom";
 
 if (typeof globalThis.DOMParser === "undefined") {
   const DomParser = LinkedomDOMParser as unknown as typeof DOMParser;

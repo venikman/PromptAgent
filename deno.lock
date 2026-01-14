@@ -3433,6 +3433,7 @@
       "npm:@preact/signals-core@1.12.1",
       "npm:@preact/signals@2.5.1",
       "npm:ai@4.3.16",
+      "npm:linkedom@0.18.5",
       "npm:p-limit@7.2.0",
       "npm:preact@10.28.2",
       "npm:zod@4.3.5"

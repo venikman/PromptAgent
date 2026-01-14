@@ -12,6 +12,8 @@
     "@fresh/core/runtime": "jsr:@fresh/core@2.2.0/runtime",
     "@preact/signals": "npm:@preact/signals@2.5.1",
     "@preact/signals-core": "npm:@preact/signals-core@1.12.1",
+    "preact": "npm:preact@10.28.2",
+    "preact/": "npm:preact@10.28.2/",
     "react": "npm:preact@10.28.2/compat",
     "react-dom": "npm:preact@10.28.2/compat",
     "react-dom/client": "npm:preact@10.28.2/compat",
@@ -30,6 +32,7 @@
     "@mastra/evals/judge": "npm:@mastra/evals@0.14.4/judge",
     "@mastra/evals/nlp": "npm:@mastra/evals@0.14.4/nlp",
     "ai": "npm:ai@4.3.16",
+    "linkedom": "npm:linkedom@0.18.5",
     "p-limit": "npm:p-limit@7.2.0",
     "zod": "npm:zod@4.3.5"
   },

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "npm:preact@10.28.2/hooks";
-import type { ComponentChildren } from "npm:preact@10.28.2";
+import { useEffect, useMemo, useState } from "preact/hooks";
+import type { ComponentChildren } from "preact";
 import type {
   ChampionPrompt,
   Epic,
@@ -362,7 +362,7 @@ export default function Studio() {
     };
 
     poll();
-    const intervalId = window.setInterval(poll, 5000);
+    const intervalId = globalThis.setInterval(poll, 5000);
 
     return () => {
       cancelled = true;
@@ -469,7 +469,7 @@ export default function Studio() {
     };
 
     poll();
-    intervalId = window.setInterval(poll, 2500);
+    intervalId = globalThis.setInterval(poll, 2500);
 
     return () => {
       cancelled = true;

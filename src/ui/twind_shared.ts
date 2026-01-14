@@ -1,5 +1,5 @@
-import type { JSX, VNode } from "npm:preact@10.28.2";
-import { options as preactOptions } from "npm:preact@10.28.2";
+import type { JSX, VNode } from "preact";
+import { options as preactOptions } from "preact";
 import { type Configuration, setup as twSetup, type Sheet, tw } from "twind";
 
 type PreactOptions = typeof preactOptions & { __b?: (vnode: VNode) => void };
@@ -12,7 +12,7 @@ export interface Options extends Omit<Configuration, "mode" | "sheet"> {
   selfURL: string;
 }
 
-declare module "npm:preact@10.28.2" {
+declare module "preact" {
   namespace JSX {
     interface DOMAttributes<Target extends EventTarget> {
       class?: string;

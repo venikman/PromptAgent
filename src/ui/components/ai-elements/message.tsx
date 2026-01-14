@@ -1,4 +1,4 @@
-import type { ComponentChildren, ComponentProps } from "npm:preact@10.28.2";
+import type { ComponentChildren, ComponentProps } from "preact";
 import { cn } from "../../lib/utils.ts";
 
 type StreamdownProps = {
