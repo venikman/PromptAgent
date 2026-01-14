@@ -15,27 +15,57 @@ export type ModelConfig = {
   apiKey: string;
 };
 
-function getEnv(key: string, defaultValue: string): string {
-  return Deno.env.get(key) ?? defaultValue;
+function getEnv(key: string): string | undefined {
+  return Deno.env.get(key);
+}
+
+function getEnvWithFallback(
+  primaryKey: string,
+  fallbackKeys: string[],
+  defaultValue: string,
+): string {
+  const primaryValue = getEnv(primaryKey);
+  if (primaryValue) return primaryValue;
+  for (const key of fallbackKeys) {
+    const value = getEnv(key);
+    if (value) return value;
+  }
+  return defaultValue;
 }
 
 export function makeGeneratorModel(): ModelConfig {
-  const modelId = getEnv("LMSTUDIO_MODEL", "openai/gpt-oss-120b");
+  const modelId = getEnvWithFallback(
+    "LMSTUDIO_MODEL",
+    ["LLM_MODEL"],
+    "openai/gpt-oss-120b",
+  );
   return {
-    url: getEnv("LMSTUDIO_BASE_URL", "http://127.0.0.1:1234/v1"),
+    url: getEnvWithFallback(
+      "LMSTUDIO_BASE_URL",
+      ["LLM_BASE_URL", "LLM_API_BASE_URL"],
+      "http://127.0.0.1:1234/v1",
+    ),
     id: `lmstudio/${modelId}` as const,
-    apiKey: getEnv("LMSTUDIO_API_KEY", "lm-studio"),
+    apiKey: getEnvWithFallback("LMSTUDIO_API_KEY", ["LLM_API_KEY"], "lm-studio"),
   };
 }
 
 export function makeJudgeModel(): ModelConfig {
-  const judgeModel = Deno.env.get("LMSTUDIO_JUDGE_MODEL");
-  const generatorModel = getEnv("LMSTUDIO_MODEL", "openai/gpt-oss-120b");
+  const judgeModel = getEnv("LMSTUDIO_JUDGE_MODEL") ?? getEnv("LLM_JUDGE_MODEL");
+  const generatorModel = getEnvWithFallback(
+    "LMSTUDIO_MODEL",
+    ["LLM_MODEL"],
+    "openai/gpt-oss-120b",
+  );
   const modelId = judgeModel ?? generatorModel;
 
   return {
-    url: getEnv("LMSTUDIO_BASE_URL", "http://127.0.0.1:1234/v1"),
+    url: getEnvWithFallback(
+      "LMSTUDIO_BASE_URL",
+      ["LLM_BASE_URL", "LLM_API_BASE_URL"],
+      "http://127.0.0.1:1234/v1",
+    ),
     id: `lmstudio/${modelId}` as const,
-    apiKey: getEnv("LMSTUDIO_API_KEY", "lm-studio"),
+    apiKey: getEnvWithFallback("LMSTUDIO_API_KEY", ["LLM_API_KEY"], "lm-studio"),
   };
 }
