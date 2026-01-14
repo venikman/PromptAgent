@@ -9,7 +9,6 @@ import {
 
 type State = Array<string | [string, string]>;
 type SheetHydrateState = [
-  string[],
   number[],
   Set<string>,
   Map<string, string>,
@@ -40,7 +39,6 @@ const ensureStyleElement = () => {
 
 const hydrate = (options: Options, state: State) => {
   const styleEl = ensureStyleElement();
-  const normalizedRules: string[] = [];
   const rules = new Set<string>();
   const precedences: number[] = [];
   const mappings = new Map(
@@ -58,13 +56,11 @@ const hydrate = (options: Options, state: State) => {
       ? 0
       : parseInt(rule.slice(marker + 2, -2), 36);
     const normalizedPrecedence = Number.isFinite(precedence) ? precedence : 0;
-    normalizedRules.push(rawRule);
     rules.add(rawRule);
     precedences.push(normalizedPrecedence);
   }
 
   const sheetState: SheetHydrateState = [
-    normalizedRules,
     precedences,
     rules,
     mappings,
