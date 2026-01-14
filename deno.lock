@@ -3434,6 +3434,7 @@
       "npm:ai@4.3.16",
       "npm:linkedom@0.18.5",
       "npm:p-limit@7.2.0",
+      "npm:preact@10.28.2",
       "npm:zod@4.3.5"
     ]
   }
