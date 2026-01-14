@@ -8,6 +8,8 @@ import {
 } from "./twind_shared.ts";
 
 type State = Array<string | [string, string]>;
+type SheetInitCallback = Parameters<NonNullable<Sheet["init"]>>[0];
+type SheetInitState = Parameters<SheetInitCallback>[0];
 
 const readState = (): State => {
   const el = document.getElementById(STATE_ELEMENT_ID);
@@ -39,21 +41,26 @@ const hydrate = (options: Options, state: State) => {
     state.map((value) => (typeof value === "string" ? [value, value] : value)),
   );
 
-  const sheetState: unknown[] = [precedences, rules, mappings, true];
-  const target = styleEl.sheet!;
+  const target = styleEl.sheet;
+  if (!target) return;
+
   const ruleText = Array.from(target.cssRules).map((rule) => rule.cssText);
   for (const rule of ruleText) {
     const marker = rule.lastIndexOf("/*");
-    const precedence = parseInt(rule.slice(marker + 2, -2), 36);
-    const rawRule = rule.slice(0, marker);
+    const rawRule = marker === -1 ? rule : rule.slice(0, marker);
+    const precedence = marker === -1
+      ? 0
+      : parseInt(rule.slice(marker + 2, -2), 36);
+    const normalizedPrecedence = Number.isFinite(precedence) ? precedence : 0;
     rules.add(rawRule);
-    precedences.push(precedence);
+    precedences.push(normalizedPrecedence);
   }
 
+  const sheetState: SheetInitState = [precedences, rules, mappings, true];
   const sheet: Sheet = {
     target,
     insert: (rule, index) => target.insertRule(rule, index),
-    init: (cb) => cb(sheetState.shift()),
+    init: (cb) => cb(sheetState),
   };
 
   setup(options, sheet);

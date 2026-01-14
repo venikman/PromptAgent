@@ -13,11 +13,16 @@ const llmApiKeyFallback = Deno.env.get("LLM_API_KEY");
 const llmModelFallback = Deno.env.get("LLM_MODEL");
 
 const envBoolean = (defaultValue: boolean) =>
-  z.string().optional().transform((value) => {
+  z.preprocess((value) => {
     if (value === undefined) return defaultValue;
-    const normalized = value.trim().toLowerCase();
-    return normalized === "true" || normalized === "1";
-  });
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      return normalized === "true" || normalized === "1";
+    }
+    return defaultValue;
+  }, z.boolean());
 
 const EnvSchema = z.object({
   // ─────────────────────────────────────────────────
