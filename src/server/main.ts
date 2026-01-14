@@ -1,28 +1,16 @@
 import { fromFileUrl } from "@std/path";
-import { app } from "../src/ui/app.ts";
-import { env } from "../src/config.ts";
-import { createApiHandler, type ApiConfig } from "../src/server/handler.ts";
+import { Builder } from "@fresh/core/dev";
+import { app } from "../ui/app.ts";
+import { env } from "../config.ts";
+import { createApiHandler, type ApiConfig } from "./handler.ts";
 import {
   normalizePath,
   recordHttpRequest,
   startTelemetryReporter,
-} from "../src/telemetry.ts";
+} from "../telemetry.ts";
 
-// Debug: Log config on startup (key is redacted)
-console.log("[LLM Config]", {
-  baseUrl: env.LMSTUDIO_BASE_URL,
-  model: env.LMSTUDIO_MODEL,
-  hasKey: !!env.LMSTUDIO_API_KEY,
-  keyPrefix: env.LMSTUDIO_API_KEY
-    ? env.LMSTUDIO_API_KEY.slice(0, 10) + "..."
-    : "(none)",
-});
-
-// ─────────────────────────────────────────────────
-// Paths
-// ─────────────────────────────────────────────────
-const DATA_ROOT = fromFileUrl(new URL("../data", import.meta.url));
-const PROMPTS_ROOT = fromFileUrl(new URL("../prompts", import.meta.url));
+const DATA_ROOT = fromFileUrl(new URL("../../data", import.meta.url));
+const PROMPTS_ROOT = fromFileUrl(new URL("../../prompts", import.meta.url));
 
 const apiConfig: ApiConfig = {
   llmBaseUrl: env.LMSTUDIO_BASE_URL,
@@ -34,21 +22,14 @@ const apiConfig: ApiConfig = {
 
 const apiHandler = createApiHandler(apiConfig);
 
-const uiRootUrl = new URL("../src/ui/", import.meta.url);
-const uiRootPath = fromFileUrl(uiRootUrl);
-const uiSnapshotUrl = new URL("../src/ui/_fresh/snapshot.js", import.meta.url);
-
-try {
-  const { setBuildCache, ProdBuildCache } = await import("@fresh/core/internal");
-  const snapshot = await import(uiSnapshotUrl.toString());
-  setBuildCache(app, new ProdBuildCache(uiRootPath, snapshot), "production");
-} catch (err) {
-  console.error(err);
-  throw new Error(
-    "Fresh build output is missing. " +
-      "Run `deno task ui:build` before starting this server.",
-  );
-}
+const uiRootUrl = new URL("../ui/", import.meta.url);
+const builder = new Builder({ root: uiRootUrl.toString() });
+const mode = Deno.env.get("FRESH_MODE") === "development"
+  ? "development"
+  : "production";
+app.config.mode = mode;
+const applySnapshot = await builder.build({ snapshot: "memory", mode });
+applySnapshot(app);
 
 const freshHandler = app.handler();
 startTelemetryReporter(env.TELEMETRY_REPORT_INTERVAL_MS);

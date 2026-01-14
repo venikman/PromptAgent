@@ -250,49 +250,27 @@ function checkFreshUi() {
 }
 
 // ============================================================================
-// Check 6: Deploy configuration
+// Check 6: Server entrypoints
 // ============================================================================
 function checkDeployConfig() {
-  log(`\n${BOLD}Checking deploy configuration...${RESET}`);
+  log(`\n${BOLD}Checking server entrypoints...${RESET}`);
+
+  const localMainPath = join(ROOT_DIR, "src", "server", "main.ts");
+  check(
+    "Local server entry",
+    existsSync(localMainPath),
+    existsSync(localMainPath)
+      ? "src/server/main.ts present"
+      : "src/server/main.ts not found",
+  );
 
   const deployMainPath = join(ROOT_DIR, "deploy", "main.ts");
-  if (!existsSync(deployMainPath)) {
-    check("Deploy main.ts", false, "deploy/main.ts not found");
-    return;
-  }
-
-  const content = readFileSync(deployMainPath, "utf-8");
-
-  // Should use env vars, not hardcoded values
-  const usesEnvVars = content.includes("Deno.env.get");
   check(
-    "Uses environment variables",
-    usesEnvVars,
-    usesEnvVars
-      ? "API config from environment"
-      : "May have hardcoded configuration",
-  );
-
-  // Should have fallback for local
-  const hasLocalFallback = content.includes("localhost:1234") ||
-    content.includes("127.0.0.1:1234");
-  check(
-    "Local development fallback",
-    hasLocalFallback,
-    hasLocalFallback
-      ? "Has localhost fallback"
-      : "Missing localhost fallback for local dev",
-    "warning",
-  );
-
-  // Should detect deployment environment
-  const detectsDeploy = content.includes("DENO_DEPLOYMENT_ID");
-  check(
-    "Deployment detection",
-    detectsDeploy,
-    detectsDeploy
-      ? "Detects Deno Deploy environment"
-      : "Cannot distinguish local from deployed",
+    "Production server entry",
+    existsSync(deployMainPath),
+    existsSync(deployMainPath)
+      ? "deploy/main.ts present"
+      : "deploy/main.ts not found",
     "warning",
   );
 }

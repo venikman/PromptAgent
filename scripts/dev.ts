@@ -5,12 +5,12 @@
  */
 
 const cwd = new URL("..", import.meta.url).pathname;
-const watchTargets = ["deploy", "src", "src/ui"].join(",");
+const watchTargets = ["src", "src/ui"].join(",");
 
 console.log("Starting PromptAgent dev server...");
 
 const process = new Deno.Command("deno", {
-  args: ["run", "-A", `--watch=${watchTargets}`, "deploy/main.ts"],
+  args: ["run", "-A", `--watch=${watchTargets}`, "src/server/main.ts"],
   cwd,
   env: {
     ...Deno.env.toObject(),

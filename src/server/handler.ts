@@ -365,7 +365,6 @@ export function createApiHandler(config: ApiConfig) {
         keyLength: LLM_API_KEY.length,
         keyPrefix: LLM_API_KEY ? LLM_API_KEY.slice(0, 12) + "..." : "(none)",
       },
-      env: Deno.env.get("DENO_DEPLOYMENT_ID") ? "deploy" : "local",
     });
   }
 

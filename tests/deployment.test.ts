@@ -104,76 +104,6 @@ Deno.test(
 );
 
 // ─────────────────────────────────────────────────
-// Deployment Main Configuration Tests
-// ─────────────────────────────────────────────────
-
-Deno.test("Deployment - should have deploy/main.ts", async () => {
-  const deployMainPath = join(ROOT_DIR, "deploy", "main.ts");
-  assert(await fileExists(deployMainPath), "deploy/main.ts should exist");
-});
-
-Deno.test(
-  "Deployment - should use environment variables for API configuration",
-  async () => {
-    const deployMainPath = join(ROOT_DIR, "deploy", "main.ts");
-    const content = await readFileIfExists(deployMainPath);
-    if (!content) return;
-
-    // Should read from environment, not hardcode
-    assert(
-      content.match(/Deno\.env\.get\s*\(\s*["']LLM_API/),
-      "Should read LLM_API from environment",
-    );
-  },
-);
-
-Deno.test(
-  "Deployment - should have fallback for local development",
-  async () => {
-    const deployMainPath = join(ROOT_DIR, "deploy", "main.ts");
-    const content = await readFileIfExists(deployMainPath);
-    if (!content) return;
-
-    // Should have localhost fallback for local dev
-    assert(
-      content.match(/localhost:1234|127\.0\.0\.1:1234/),
-      "Should have localhost:1234 fallback",
-    );
-  },
-);
-
-Deno.test("Deployment - should detect deployment environment", async () => {
-  const deployMainPath = join(ROOT_DIR, "deploy", "main.ts");
-  const content = await readFileIfExists(deployMainPath);
-  if (!content) return;
-
-  // Should check for DENO_DEPLOYMENT_ID
-  assert(
-    content.includes("DENO_DEPLOYMENT_ID"),
-    "Should check DENO_DEPLOYMENT_ID for environment detection",
-  );
-});
-
-Deno.test(
-  "Deployment - should not have hardcoded production URLs",
-  async () => {
-    const deployMainPath = join(ROOT_DIR, "deploy", "main.ts");
-    const content = await readFileIfExists(deployMainPath);
-    if (!content) return;
-
-    // Should not hardcode production API endpoints
-    assert(
-      !content.match(/https:\/\/api\.openai\.com(?!.*example)/),
-      "Should not hardcode OpenAI production URL",
-    );
-    assert(
-      !content.match(/https:\/\/api\.anthropic\.com(?!.*example)/),
-      "Should not hardcode Anthropic production URL",
-    );
-  },
-);
-
-// ─────────────────────────────────────────────────
 // Configuration Variable Consistency Tests
 // ─────────────────────────────────────────────────
 
@@ -187,29 +117,6 @@ Deno.test(
     // src/config.ts uses LMSTUDIO_* pattern
     const srcUsesLmstudio = srcConfigContent.includes("LMSTUDIO_");
     assert(srcUsesLmstudio, "src/config.ts should use LMSTUDIO_* variables");
-  },
-);
-
-Deno.test(
-  "Config Consistency - should have matching default ports",
-  async () => {
-    const srcConfigPath = join(ROOT_DIR, "src", "config.ts");
-    const deployMainPath = join(ROOT_DIR, "deploy", "main.ts");
-
-    const srcConfigContent = await readFileIfExists(srcConfigPath);
-    const deployMainContent = await readFileIfExists(deployMainPath);
-
-    if (!srcConfigContent || !deployMainContent) return;
-
-    // Both should default to port 1234 for LM Studio
-    assert(
-      srcConfigContent.includes("1234"),
-      "src/config.ts should use port 1234",
-    );
-    assert(
-      deployMainContent.includes("1234"),
-      "deploy/main.ts should use port 1234",
-    );
   },
 );
 

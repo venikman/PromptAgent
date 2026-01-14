@@ -176,49 +176,14 @@ LMSTUDIO_MODEL=openai/gpt-oss-120b
 LMSTUDIO_JUDGE_MODEL=openai/gpt-oss-120b  # Can differ from generator
 ```
 
-## Deno Deploy (Ollama Cloud)
+## Deployment
 
-This repo uses Deno for local optimization (with LM Studio) and also includes a
-lightweight Deno Deploy API that proxies to Ollama Cloud. It lives at
-`deploy/main.ts` and exposes:
-
-- `GET /health` for a basic health check
-- `POST /generate` to proxy a `prompt` to Ollama Cloud (non-streaming)
-- `GET /` for the Fresh SSR UI
-
-### UI Demo (Fresh SSR)
-
-The UI lives in `src/ui/` and is rendered by Fresh. For Deno Deploy, run
-`deno task ui:build` (CI does this) to generate `src/ui/_fresh` before deploy.
-
-### Required Deno Deploy Environment Variables
-
-Set these in the Deno Deploy project settings:
-
-- `OLLAMA_API_KEY` (Ollama Cloud API key)
-- `OLLAMA_MODEL` (default model name for requests)
-- `OLLAMA_API_BASE_URL` (optional; defaults to `https://ollama.com/api`)
-
-### Example Request
+Build the Fresh UI and start the production server:
 
 ```bash
-curl -X POST https://<your-deploy-domain>/generate \
-  -H "Content-Type: application/json" \
-  -d '{"prompt":"Summarize this epic into 5 user stories.","model":"<your-model>"}'
+deno task ui:build
+deno run -A deploy/main.ts
 ```
-
-### GitHub Actions Deployment
-
-The workflow `.github/workflows/deploy-deno.yml` deploys on `main` pushes using
-`deployctl`. Set a GitHub repository variable:
-
-- `DENO_DEPLOY_PROJECT` (your Deno Deploy project name)
-
-If not set, it defaults to `promptagent`.
-
-Add a GitHub repository **secret** for authentication:
-
-- `DENO_DEPLOY_TOKEN` (Deno Deploy access token)
 
 ## Dependencies
 

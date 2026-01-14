@@ -177,7 +177,7 @@ Deno.test({
       if (error instanceof TypeError && error.message.includes("fetch")) {
         throw new Error(
           `Cannot connect to backend at ${backendUrl}. ` +
-            `Start the server with: cd deploy && deno run -A main.ts`,
+            `Start the server with: deno run -A src/server/main.ts`,
         );
       }
       throw error;

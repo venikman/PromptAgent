@@ -61,32 +61,6 @@ Deno.test(
   },
 );
 
-Deno.test(
-  "Naming - deploy/main.ts should support config patterns",
-  async () => {
-    const deployPath = join(ROOT_DIR, "deploy", "main.ts");
-    const content = await readFileIfExists(deployPath);
-    if (!content) return;
-
-    // Check if deploy supports both patterns for backwards compatibility
-    const hasLlmPattern = content.includes("LLM_API_");
-    const hasLmstudioPattern = content.includes("LMSTUDIO_");
-
-    // At minimum, one pattern should be supported
-    assert(
-      hasLlmPattern || hasLmstudioPattern,
-      "deploy/main.ts should support LLM_* or LMSTUDIO_* patterns",
-    );
-
-    if (hasLlmPattern && !hasLmstudioPattern) {
-      console.warn(
-        "  ⚠ deploy/main.ts uses LLM_* but src/config.ts uses LMSTUDIO_*",
-      );
-      console.warn("  Consider adding LMSTUDIO_* fallback for consistency");
-    }
-  },
-);
-
 // ─────────────────────────────────────────────────
 // Port Configuration Consistency Tests
 // ─────────────────────────────────────────────────
@@ -97,8 +71,8 @@ Deno.test("Ports - LM Studio should use port 1234", () => {
 });
 
 Deno.test("Ports - Backend server should use Deno.serve", async () => {
-  const deployPath = join(ROOT_DIR, "deploy", "main.ts");
-  const content = await readFileIfExists(deployPath);
+  const serverPath = join(ROOT_DIR, "src", "server", "main.ts");
+  const content = await readFileIfExists(serverPath);
   if (!content) return;
 
   // Should use Deno.serve (defaults to port 8000)
@@ -142,7 +116,7 @@ Deno.test("API - should have consistent API versioning", async () => {
   const content = await readFileIfExists(handlerPath);
   if (!content) return;
 
-  // Check for version prefixes - deploy uses v2 for orchestrator endpoints
+  // Check for version prefixes - v2 is used for orchestrator endpoints
   const hasV2 = content.includes('"/v2');
 
   // At minimum, v2 should exist for orchestrator API
@@ -216,7 +190,11 @@ Deno.test(
 Deno.test(
   "Readiness - should not have TODO comments in critical paths",
   async () => {
-    const criticalFiles = ["src/config.ts", "src/models.ts", "deploy/main.ts"];
+    const criticalFiles = [
+      "src/config.ts",
+      "src/models.ts",
+      "src/server/main.ts",
+    ];
 
     const filesWithTodos: string[] = [];
 

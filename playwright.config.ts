@@ -13,7 +13,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "deno run -A deploy/main.ts",
+    command: "deno run -A src/server/main.ts",
     url: "http://127.0.0.1:8000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
