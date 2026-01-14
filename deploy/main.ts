@@ -57,7 +57,9 @@ try {
   const { setBuildCache, ProdBuildCache } = await import(
     "@fresh/core/internal"
   );
-  const snapshot = await import("../src/ui/_fresh/snapshot.js");
+  type BuildSnapshot = ConstructorParameters<typeof ProdBuildCache>[1];
+  const snapshot = await import("../src/ui/_fresh/snapshot.js") as unknown as
+    BuildSnapshot;
   setBuildCache(app, new ProdBuildCache(uiRootPath, snapshot), uiMode);
   freshHandler = app.handler();
 } catch (err) {

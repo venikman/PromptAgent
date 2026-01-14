@@ -70,13 +70,15 @@ const hydrate = (options: Options, state: State) => {
     mappings,
     true,
   ];
-  const initCallbacks: Array<(value: unknown) => unknown> = [];
+  let initIndex = 0;
   const sheet: Sheet = {
     target,
     insert: (rule, index) => target.insertRule(rule, index),
     init: <T>(cb: (state?: T) => T) => {
-      const index = initCallbacks.push(cb) - 1;
-      sheetState[index] = cb(sheetState[index] as T) as SheetHydrateState[number];
+      const index = initIndex++;
+      const nextState = cb(sheetState[index] as T);
+      sheetState[index] = nextState as SheetHydrateState[number];
+      return nextState;
     },
   };
 

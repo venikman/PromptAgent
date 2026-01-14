@@ -288,7 +288,7 @@ export default function Studio() {
         const res = await fetch("/health", { signal: controller.signal });
         if (!res.ok) {
           const data = await readJson<{ error?: string }>(res).catch(
-            () => ({}),
+            () => ({ error: undefined }),
           );
           if (!cancelled) {
             setHealth({
