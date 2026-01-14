@@ -8,7 +8,13 @@ import {
 } from "./twind_shared.ts";
 
 type State = Array<string | [string, string]>;
-type SheetHydrateState = [number[], Set<string>, Map<string, string>, boolean];
+type SheetHydrateState = [
+  string[],
+  number[],
+  Set<string>,
+  Map<string, string>,
+  boolean,
+];
 
 const readState = (): State => {
   const el = document.getElementById(STATE_ELEMENT_ID);
@@ -34,6 +40,7 @@ const ensureStyleElement = () => {
 
 const hydrate = (options: Options, state: State) => {
   const styleEl = ensureStyleElement();
+  const normalizedRules: string[] = [];
   const rules = new Set<string>();
   const precedences: number[] = [];
   const mappings = new Map(
@@ -51,15 +58,26 @@ const hydrate = (options: Options, state: State) => {
       ? 0
       : parseInt(rule.slice(marker + 2, -2), 36);
     const normalizedPrecedence = Number.isFinite(precedence) ? precedence : 0;
+    normalizedRules.push(rawRule);
     rules.add(rawRule);
     precedences.push(normalizedPrecedence);
   }
 
-  const sheetState: SheetHydrateState = [precedences, rules, mappings, true];
+  const sheetState: SheetHydrateState = [
+    normalizedRules,
+    precedences,
+    rules,
+    mappings,
+    true,
+  ];
+  const initCallbacks: Array<(value: unknown) => unknown> = [];
   const sheet: Sheet = {
     target,
     insert: (rule, index) => target.insertRule(rule, index),
-    init: <T>(cb: (state?: T) => T) => cb(sheetState as unknown as T),
+    init: <T>(cb: (state?: T) => T) => {
+      const index = initCallbacks.push(cb) - 1;
+      sheetState[index] = cb(sheetState[index] as T) as SheetHydrateState[number];
+    },
   };
 
   setup(options, sheet);
