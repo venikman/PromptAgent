@@ -98,7 +98,8 @@ if (isDeployed) {
     );
   }
 } else {
-  const { Builder } = await import("@fresh/core/dev");
+  const devModule = "@fresh/core/dev";
+  const { Builder } = await import(devModule);
   const builder = new Builder({ root: uiRootUrl.toString() });
   const mode = Deno.env.get("FRESH_MODE") === "development"
     ? "development"
