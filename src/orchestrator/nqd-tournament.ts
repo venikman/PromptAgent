@@ -13,12 +13,10 @@
  */
 
 import {
-  runNQDSelection,
-  selectBestCandidate,
   type Candidate,
   type NQDArchive,
   type NQDSelectorConfig,
-  type IlluminationTelemetry,
+  runNQDSelection,
 } from "../fpf/nqd-selector.ts";
 import type { TournamentCandidate } from "./types.ts";
 import type { PromptDistReport } from "../eval.ts";
@@ -79,7 +77,7 @@ export interface NQDTournamentConfig {
  * Convert a tournament candidate to NQD candidate format.
  */
 function toNQDCandidate(
-  candidate: NQDTournamentCandidate
+  candidate: NQDTournamentCandidate,
 ): Candidate {
   return {
     id: candidate.id,
@@ -97,7 +95,7 @@ function toNQDCandidate(
  */
 function fromNQDCandidate(
   nqdCandidate: Candidate,
-  originalCandidate: NQDTournamentCandidate
+  originalCandidate: NQDTournamentCandidate,
 ): NQDTournamentCandidate {
   return {
     ...originalCandidate,
@@ -118,7 +116,7 @@ function fromNQDCandidate(
  */
 export function runNQDTournament(
   candidates: NQDTournamentCandidate[],
-  config: NQDTournamentConfig
+  config: NQDTournamentConfig,
 ): NQDTournamentResult {
   if (candidates.length === 0) {
     return {
@@ -155,7 +153,7 @@ export function runNQDTournament(
 
   // Get simple objective winner for comparison
   const simpleWinner = [...candidates].sort(
-    (a, b) => b.objective - a.objective
+    (a, b) => b.objective - a.objective,
   )[0];
 
   // Get NQD winner
@@ -171,8 +169,7 @@ export function runNQDTournament(
   }
 
   // Check if NQD changed the winner
-  const nqdChangedWinner =
-    simpleWinner !== undefined &&
+  const nqdChangedWinner = simpleWinner !== undefined &&
     winner !== null &&
     simpleWinner.id !== winner.id;
 
@@ -197,7 +194,8 @@ export function runNQDTournament(
       const aNqd = archive.paretoFront.front.find((c) => c.id === a.id);
       const bNqd = archive.paretoFront.front.find((c) => c.id === b.id);
       if (aNqd?.creativity && bNqd?.creativity) {
-        return (bNqd.creativity.useValue ?? 0) - (aNqd.creativity.useValue ?? 0);
+        return (bNqd.creativity.useValue ?? 0) -
+          (aNqd.creativity.useValue ?? 0);
       }
       return b.objective - a.objective;
     }
@@ -225,7 +223,7 @@ export function runNQDTournament(
  */
 export function selectNQDWinner(
   candidates: NQDTournamentCandidate[],
-  config: NQDTournamentConfig
+  config: NQDTournamentConfig,
 ): NQDTournamentCandidate | null {
   const result = runNQDTournament(candidates, config);
   return result.winner;
@@ -274,7 +272,7 @@ function createEmptyArchive(): NQDArchive {
 export function enrichForNQD(
   candidates: TournamentCandidate[],
   evalReports: Map<string, PromptDistReport>,
-  promptTexts: Map<string, string>
+  promptTexts: Map<string, string>,
 ): NQDTournamentCandidate[] {
   return candidates.map((candidate) => {
     const report = evalReports.get(candidate.id);
@@ -297,7 +295,7 @@ export function enrichForNQD(
  */
 export function enrichWithPrompts(
   candidates: TournamentCandidate[],
-  getPromptText: (candidateId: string, patch: string) => string
+  getPromptText: (candidateId: string, patch: string) => string,
 ): NQDTournamentCandidate[] {
   return candidates.map((candidate) => ({
     ...candidate,

@@ -9,12 +9,12 @@ import { evalPromptDistribution, flattenDistReport } from "../../eval.ts";
 import { createStoryDecompositionScorer } from "../../scorer.ts";
 import type { Epic } from "../../schema.ts";
 import type {
-  ToolContext,
-  ToolResult,
   EvaluatorInput,
   EvaluatorOutput,
+  ToolContext,
+  ToolResult,
 } from "../types.ts";
-import { successResult, failureResult } from "../types.ts";
+import { failureResult, successResult } from "../types.ts";
 
 /**
  * Execute distributional evaluation with isolated context.
@@ -26,7 +26,7 @@ import { successResult, failureResult } from "../types.ts";
  */
 export async function executeEvaluator(
   input: EvaluatorInput,
-  ctx: ToolContext
+  ctx: ToolContext,
 ): Promise<ToolResult<EvaluatorOutput>> {
   const startTime = Date.now();
 
@@ -40,6 +40,7 @@ export async function executeEvaluator(
       epics: input.epics,
       replicates: input.replicates,
       seedBase: input.seedBase,
+      maxTokens: input.maxTokens,
       concurrency: input.concurrency,
       onProgress: input.onProgress,
     });
@@ -55,11 +56,11 @@ export async function executeEvaluator(
 /**
  * Quick evaluation for a single epic (used in playground).
  */
-export async function evaluateSingleEpic(
+export function evaluateSingleEpic(
   epic: Epic,
   promptText: string,
   ctx: ToolContext,
-  options?: { seed?: number }
+  options?: { seed?: number; maxTokens?: number },
 ): Promise<ToolResult<EvaluatorOutput>> {
   return executeEvaluator(
     {
@@ -67,7 +68,8 @@ export async function evaluateSingleEpic(
       epics: [epic],
       replicates: 1,
       seedBase: options?.seed ?? Date.now(),
+      maxTokens: options?.maxTokens,
     },
-    ctx
+    ctx,
   );
 }

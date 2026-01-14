@@ -21,11 +21,6 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Build UI
-        run: |
-          deno task ui:deps
-          deno task ui:build
-
       - name: Install deployctl
         run: deno install -A --global jsr:@deno/deployctl
 
@@ -39,5 +34,5 @@ jobs:
             --exclude=node_modules \
             --exclude=.git \
             --exclude=.github \
-            --exclude=ui/node_modules \
+            --exclude=src/ui/node_modules \
             deploy/main.ts

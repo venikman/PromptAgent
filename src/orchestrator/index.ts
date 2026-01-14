@@ -10,33 +10,29 @@
 // ─────────────────────────────────────────────────
 
 export {
-  // Context & Results
-  type ToolContext,
-  type ToolResult,
-  createToolContext,
-  successResult,
-  failureResult,
-
   // Optimization State
   type ChampionPrompt,
-  type IterationResult,
-  type OptimizationState,
+  // Re-exports
+  composePrompt,
   createInitialState,
-
+  createToolContext,
   // Tool I/O Types
   type EvaluatorInput,
   type EvaluatorOutput,
+  failureResult,
+  type IterationResult,
+  type OptimizationConfig,
+  type OptimizationState,
   type PairMinerInput,
   type PatcherInput,
-
+  type PlaygroundResult,
+  successResult,
+  // Context & Results
+  type ToolContext,
+  type ToolResult,
+  type TournamentCandidate,
   // Workflow Types
   type WorkflowType,
-  type PlaygroundResult,
-  type OptimizationConfig,
-  type TournamentCandidate,
-
-  // Re-exports
-  composePrompt,
 } from "./types.ts";
 
 // ─────────────────────────────────────────────────
@@ -44,32 +40,29 @@ export {
 // ─────────────────────────────────────────────────
 
 export {
-  // KV Store
-  kvStore,
-  saveTask,
-  getTask,
-  updateTaskProgress,
-  updateTaskStatus,
-  completeTask,
-  failTask,
-  listTasksByStatus,
-  createTask,
-
-  // Checkpoints
-  saveCheckpoint,
-  getCheckpoint,
-  getLatestCheckpoint,
-  listCheckpoints,
-
+  cleanupOldCheckpoints,
   // Cleanup
   cleanupOldTasks,
-  cleanupOldCheckpoints,
-
+  completeTask,
+  createTask,
+  failTask,
+  getCheckpoint,
+  getLatestCheckpoint,
+  getTask,
+  // KV Store
+  kvStore,
+  listCheckpoints,
+  listTasksByStatus,
+  // Checkpoints
+  saveCheckpoint,
+  saveTask,
+  type SessionCheckpoint,
+  type TaskRecord,
+  type TaskStatus,
   // Types
   type TaskType,
-  type TaskStatus,
-  type TaskRecord,
-  type SessionCheckpoint,
+  updateTaskProgress,
+  updateTaskStatus,
 } from "./state/index.ts";
 
 // ─────────────────────────────────────────────────
@@ -77,16 +70,16 @@ export {
 // ─────────────────────────────────────────────────
 
 export {
-  executeEvaluator,
   evaluateSingleEpic,
+  executeEvaluator,
 } from "./tools/evaluator-tool.ts";
 
 export { executePairMiner, hasPairs } from "./tools/pair-miner-tool.ts";
 
 export {
   executePatcher,
-  hasCandidates,
   generateSinglePatch,
+  hasCandidates,
 } from "./tools/patcher-tool.ts";
 
 // ─────────────────────────────────────────────────
@@ -95,8 +88,8 @@ export {
 
 export {
   OptimizationLoopAgent,
-  runOptimizationLoop,
   resumeOptimizationLoop,
+  runOptimizationLoop,
 } from "./optimization-loop.ts";
 
 // ─────────────────────────────────────────────────
@@ -104,25 +97,23 @@ export {
 // ─────────────────────────────────────────────────
 
 export {
-  // Types
-  type OptimizationStep,
-  type EvalProgress,
-  type TournamentProgress,
-  type PatchGenProgress,
-  type OptimizationProgress,
-  type IterationSummary,
-  type OptimizationTask,
-
-  // Constants
-  STEP_LABELS,
-
+  completeTaskIteration,
   // Factory & Helpers
   createOptimizationTask,
-  updateTaskStep,
-  updateTaskEvalProgress,
-  updateTaskTournamentProgress,
-  completeTaskIteration,
+  type EvalProgress,
+  type IterationSummary,
+  type OptimizationProgress,
+  // Types
+  type OptimizationStep,
+  type OptimizationTask,
+  type PatchGenProgress,
+  // Constants
+  STEP_LABELS,
   toIterationSummary,
+  type TournamentProgress,
+  updateTaskEvalProgress,
+  updateTaskStep,
+  updateTaskTournamentProgress,
 } from "./optimization-progress.ts";
 
 // ─────────────────────────────────────────────────
@@ -130,7 +121,7 @@ export {
 // ─────────────────────────────────────────────────
 
 export {
-  Orchestrator,
   createOrchestrator,
+  Orchestrator,
   type OrchestratorConfig,
 } from "./root.ts";

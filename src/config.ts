@@ -1,5 +1,5 @@
-import "jsr:@std/dotenv/load";
-import { z } from "npm:zod@4.3.5";
+import "@std/dotenv/load";
+import { z } from "zod";
 
 /**
  * Centralized configuration with Zod validation.
@@ -15,6 +15,21 @@ const EnvSchema = z.object({
   LMSTUDIO_API_KEY: z.string().default("lm-studio"),
   LMSTUDIO_MODEL: z.string().default("openai/gpt-oss-120b"),
   LMSTUDIO_JUDGE_MODEL: z.string().optional(),
+  LLM_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(600_000).default(
+    120_000,
+  ),
+
+  // ─────────────────────────────────────────────────
+  // Telemetry
+  // ─────────────────────────────────────────────────
+  TELEMETRY_REPORT_INTERVAL_MS: z.coerce.number().int().min(5_000).max(
+    600_000,
+  ).default(60_000),
+  TELEMETRY_LOG_REQUESTS: z.coerce.boolean().default(true),
+  TELEMETRY_INCLUDE_LLM_OUTPUT: z.coerce.boolean().default(false),
+  TELEMETRY_LLM_PREVIEW_CHARS: z.coerce.number().int().min(0).max(5000).default(
+    800,
+  ),
 
   // ─────────────────────────────────────────────────
   // Generation Settings

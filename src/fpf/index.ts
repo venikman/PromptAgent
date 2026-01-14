@@ -9,91 +9,91 @@
 
 // Types
 export {
-  FormalityLevel,
-  CongruenceLevel,
-  EvaluationCriterion,
-  PHI,
+  type AssuranceTuple,
   CL_THRESHOLDS,
+  type ClaimScope,
+  CongruenceLevel,
+  type CriterionEvaluation,
+  EvaluationCriterion,
+  FormalityLevel,
+  type ImprovementPaths,
   type JudgeConfig,
   type JudgeOutput,
-  type CriterionEvaluation,
-  type ClaimScope,
-  type SourceCitationRecord,
-  type ImprovementPaths,
-  type AssuranceTuple,
+  PHI,
   type PoLLResult,
+  type SourceCitationRecord,
 } from "./types.ts";
 
 // PoLL Evaluator (core)
 export {
   evaluateWithPoLL,
-  PoLLMetric as PoLLMetricCore,
   type PoLLConfig,
+  PoLLMetric as PoLLMetricCore,
 } from "./poll.ts";
 
 // PoLL Metric Adapter (Mastra-compatible)
 export {
-  PoLLMetric,
   createPoLLMetric,
   isPoLLMetricInfo,
-  type PoLLMetricInput,
+  PoLLMetric,
   type PoLLMetricInfo,
+  type PoLLMetricInput,
 } from "./poll-metric.ts";
 
 // Assurance Tuple Extraction (for API responses)
 export {
+  type AssuranceSummary,
+  emptyAssuranceSummary,
   extractAssuranceSummary,
   extractFromPoLL,
   extractFromSingleJudge,
-  emptyAssuranceSummary,
-  type AssuranceSummary,
 } from "./assurance-extractor.ts";
 
 // Creativity Characteristics (C.17)
 export {
-  computeNovelty,
-  computeUseValue,
-  computeSurprise,
-  computeConstraintFit,
-  computeDiversityP,
-  computeCreativityProfile,
   applyCreativityGate,
   compareCreativityProfiles,
-  type CreativityProfile,
+  computeConstraintFit,
+  computeCreativityProfile,
+  computeDiversityP,
+  computeNovelty,
+  computeSurprise,
+  computeUseValue,
+  type CreativityConfig,
   type CreativityGateResult,
   type CreativityInput,
-  type CreativityConfig,
+  type CreativityProfile,
 } from "./creativity.ts";
 
 // NQD Portfolio Selector (C.18)
 export {
-  runNQDSelection,
-  selectBestCandidate,
-  isEligible,
   type Candidate,
-  type ParetoFront,
   type IlluminationTelemetry,
+  isEligible,
   type NQDArchive,
   type NQDSelectorConfig,
+  type ParetoFront,
+  runNQDSelection,
+  selectBestCandidate,
 } from "./nqd-selector.ts";
 
 // Confidence Intervals
 export {
-  mean,
-  stdDev,
-  standardError,
-  percentile,
-  wilsonInterval,
-  bootstrapInterval,
-  tInterval,
-  interJudgeInterval,
-  normalInterval,
   autoConfidenceInterval,
-  scoreWithJudgeConfidence,
-  scoreWithBootstrapConfidence,
+  bootstrapInterval,
+  type ConfidenceInterval,
   formatConfidenceInterval,
+  interJudgeInterval,
   intervalsOverlap,
   intervalWidth,
-  type ConfidenceInterval,
+  mean,
+  normalInterval,
+  percentile,
+  scoreWithBootstrapConfidence,
   type ScoreWithConfidence,
+  scoreWithJudgeConfidence,
+  standardError,
+  stdDev,
+  tInterval,
+  wilsonInterval,
 } from "./confidence-interval.ts";

@@ -10,7 +10,7 @@
  * @module install-hooks
  */
 
-import { existsSync, writeFileSync, chmodSync } from "node:fs";
+import { chmodSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT_DIR = Deno.cwd();
@@ -72,7 +72,9 @@ function installHook(name: string, content: string) {
 
   // Check if hook already exists
   if (existsSync(hookPath)) {
-    console.log(`${YELLOW}⚠ ${name} hook already exists, backing up...${RESET}`);
+    console.log(
+      `${YELLOW}⚠ ${name} hook already exists, backing up...${RESET}`,
+    );
     const backupPath = `${hookPath}.backup`;
     Deno.renameSync(hookPath, backupPath);
   }

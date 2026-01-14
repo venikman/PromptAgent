@@ -1,4 +1,4 @@
-import { z } from "npm:zod@4.3.5";
+import { z } from "zod";
 
 // ─────────────────────────────────────────────────
 // Epic Input Schema (Azure DevOps-style)

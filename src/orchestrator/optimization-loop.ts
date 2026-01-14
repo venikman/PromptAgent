@@ -15,13 +15,12 @@
 import { env } from "../config.ts";
 import type { Epic } from "../schema.ts";
 import {
+  composePrompt,
+  createInitialState,
+  createToolContext,
+  type IterationResult,
   type OptimizationConfig,
   type OptimizationState,
-  type IterationResult,
-  type TournamentCandidate,
-  createToolContext,
-  createInitialState,
-  composePrompt,
 } from "./types.ts";
 import { executeEvaluator } from "./tools/evaluator-tool.ts";
 import { executePairMiner, hasPairs } from "./tools/pair-miner-tool.ts";
@@ -29,15 +28,15 @@ import { executePatcher, hasCandidates } from "./tools/patcher-tool.ts";
 import {
   executeMetaPatcher,
   hasMetaPatches,
-  updateMutationFitness,
-  runHypermutation,
   type MetaPatchResult,
+  runHypermutation,
+  updateMutationFitness,
 } from "./tools/meta-patcher-tool.ts";
 import { saveCheckpoint } from "./state/kv-store.ts";
 import {
-  runNQDTournament,
   type NQDTournamentCandidate,
   type NQDTournamentResult,
+  runNQDTournament,
 } from "./nqd-tournament.ts";
 import { createSeedMutationPrompts } from "../meta-evolution/index.ts";
 
@@ -50,10 +49,11 @@ function defaultConfig(
 ): OptimizationConfig {
   return {
     maxIterations: overrides.maxIterations ?? env.OPT_ITERATIONS,
-    promotionThreshold:
-      overrides.promotionThreshold ?? env.OPT_PROMOTION_THRESHOLD,
+    promotionThreshold: overrides.promotionThreshold ??
+      env.OPT_PROMOTION_THRESHOLD,
     replicates: overrides.replicates ?? env.EVAL_REPLICATES,
     patchCandidates: overrides.patchCandidates ?? env.OPT_PATCH_CANDIDATES,
+    maxTokens: overrides.maxTokens,
     concurrency: overrides.concurrency ?? env.OPT_CONCURRENCY,
     onIterationStart: overrides.onIterationStart,
     onIterationEnd: overrides.onIterationEnd,
@@ -89,7 +89,7 @@ export class OptimizationLoopAgent {
    * Can resume from a previous state if provided.
    */
   async execute(initialState?: OptimizationState): Promise<OptimizationState> {
-    let state = initialState ?? createInitialState({ base: "", patch: "" });
+    const state = initialState ?? createInitialState({ base: "", patch: "" });
 
     // Initialize mutation prompts if meta-evolution enabled and not already set
     if (this.config.metaEvolutionEnabled && !state.mutationPrompts) {
@@ -171,6 +171,7 @@ export class OptimizationLoopAgent {
           epics: this.epics,
           replicates: this.config.replicates,
           seedBase: env.EVAL_SEED_BASE + state.iteration * 1000,
+          maxTokens: this.config.maxTokens,
           concurrency: this.config.concurrency,
           onProgress: this.config.onProgress,
         },
@@ -196,8 +197,8 @@ export class OptimizationLoopAgent {
           minSim: env.PAIR_MIN_SIM,
           minDelta: env.PAIR_MIN_DELTA,
           maxPairs: env.PAIR_MAX_PAIRS,
-          tieredMining:
-            this.config.tieredPairMining ?? this.config.metaEvolutionEnabled,
+          tieredMining: this.config.tieredPairMining ??
+            this.config.metaEvolutionEnabled,
         },
         pairsCtx,
       );
@@ -471,7 +472,7 @@ interface TournamentResult {
 /**
  * Create and execute an optimization loop.
  */
-export async function runOptimizationLoop(
+export function runOptimizationLoop(
   epics: Epic[],
   champion: { base: string; patch: string },
   config?: Partial<OptimizationConfig>,
@@ -485,7 +486,7 @@ export async function runOptimizationLoop(
 /**
  * Resume an optimization loop from a checkpoint.
  */
-export async function resumeOptimizationLoop(
+export function resumeOptimizationLoop(
   epics: Epic[],
   state: OptimizationState,
   config?: Partial<OptimizationConfig>,

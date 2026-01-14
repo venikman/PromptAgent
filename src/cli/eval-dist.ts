@@ -7,10 +7,10 @@
  * Usage: deno task eval:dist -- [--replicates <N>] [--output <path>]
  */
 
-import { join, dirname } from "jsr:@std/path";
+import { dirname, join } from "@std/path";
 import { epicSchema } from "../schema.ts";
 import { env } from "../config.ts";
-import { evalPromptDistribution, type PromptDistReport } from "../eval.ts";
+import { evalPromptDistribution } from "../eval.ts";
 import { composePrompt } from "../patchEngineer.ts";
 
 function parseArgs(args: string[]): { replicates?: number; output?: string } {
@@ -65,7 +65,9 @@ async function main() {
   if (!base) {
     base = await readFile("prompts/champion.md");
     if (!base) {
-      console.error("No prompt found in prompts/champion.base.md or prompts/champion.md");
+      console.error(
+        "No prompt found in prompts/champion.base.md or prompts/champion.md",
+      );
       Deno.exit(1);
     }
   }
@@ -86,7 +88,9 @@ async function main() {
     epics,
     replicates: numReplicates,
     onProgress: (done, total) => {
-      Deno.stdout.writeSync(new TextEncoder().encode(`\rProgress: ${done}/${total} runs completed`));
+      Deno.stdout.writeSync(
+        new TextEncoder().encode(`\rProgress: ${done}/${total} runs completed`),
+      );
     },
   });
 
@@ -114,7 +118,7 @@ async function main() {
       "Mean".padStart(10) +
       "P10".padStart(10) +
       "Std".padStart(10) +
-      "Discover".padStart(12)
+      "Discover".padStart(12),
   );
   console.log("─".repeat(80));
 
@@ -125,7 +129,7 @@ async function main() {
         e.meanScore.toFixed(3).padStart(10) +
         e.p10Score.toFixed(3).padStart(10) +
         e.stdScore.toFixed(3).padStart(10) +
-        `${(e.discoverabilityK * 100).toFixed(0)}%`.padStart(12)
+        `${(e.discoverabilityK * 100).toFixed(0)}%`.padStart(12),
     );
   }
   console.log("─".repeat(80));

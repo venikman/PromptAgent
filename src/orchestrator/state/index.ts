@@ -3,26 +3,26 @@
  */
 
 export {
-  kvStore,
-  saveTask,
-  getTask,
-  updateTaskProgress,
-  updateTaskStatus,
+  cleanupOldCheckpoints,
+  cleanupOldTasks,
   completeTask,
-  failTask,
-  listTasksByStatus,
   createTask,
-  saveCheckpoint,
+  failTask,
   getCheckpoint,
   getLatestCheckpoint,
+  getTask,
+  kvStore,
   listCheckpoints,
-  cleanupOldTasks,
-  cleanupOldCheckpoints,
+  listTasksByStatus,
+  saveCheckpoint,
+  saveTask,
+  updateTaskProgress,
+  updateTaskStatus,
 } from "./kv-store.ts";
 
 export type {
-  TaskType,
-  TaskStatus,
-  TaskRecord,
   SessionCheckpoint,
+  TaskRecord,
+  TaskStatus,
+  TaskType,
 } from "./kv-store.ts";

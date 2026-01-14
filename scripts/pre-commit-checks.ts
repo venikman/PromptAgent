@@ -47,8 +47,8 @@ function check(
   const icon = passed
     ? `${GREEN}✓${RESET}`
     : severity === "error"
-      ? `${RED}✗${RESET}`
-      : `${YELLOW}⚠${RESET}`;
+    ? `${RED}✗${RESET}`
+    : `${YELLOW}⚠${RESET}`;
   const color = passed ? GREEN : severity === "error" ? RED : YELLOW;
   log(`${icon} ${color}${name}${RESET}: ${message}`);
 }
@@ -156,8 +156,8 @@ function checkEnvironmentConfig() {
   // Check .env has localhost configuration
   if (existsSync(envPath)) {
     const content = readFileSync(envPath, "utf-8");
-    const hasLocalhost =
-      content.includes("localhost") || content.includes("127.0.0.1");
+    const hasLocalhost = content.includes("localhost") ||
+      content.includes("127.0.0.1");
     check(
       "Local development URL",
       hasLocalhost,
@@ -223,35 +223,28 @@ async function checkTests() {
 }
 
 // ============================================================================
-// Check 5: Vite proxy configuration
+// Check 5: Fresh UI structure
 // ============================================================================
-function checkViteProxy() {
-  log(`\n${BOLD}Checking Vite proxy...${RESET}`);
+function checkFreshUi() {
+  log(`\n${BOLD}Checking Fresh UI...${RESET}`);
 
-  const viteConfigPath = join(ROOT_DIR, "ui", "vite.config.ts");
-  if (!existsSync(viteConfigPath)) {
-    check("Vite config", false, "ui/vite.config.ts not found", "warning");
-    return;
-  }
-
-  const content = readFileSync(viteConfigPath, "utf-8");
-
-  // Check for required proxy routes (only API routes, not external URLs like /v1 for LM Studio)
-  const requiredRoutes = ["/v2", "/health", "/epics", "/champion"];
-  const missingRoutes: string[] = [];
-
-  for (const route of requiredRoutes) {
-    if (!content.includes(`"${route}"`) && !content.includes(`'${route}'`)) {
-      missingRoutes.push(route);
-    }
-  }
-
+  const routesPath = join(ROOT_DIR, "src", "ui", "routes", "index.tsx");
   check(
-    "Vite proxy routes",
-    missingRoutes.length === 0,
-    missingRoutes.length === 0
-      ? "All required routes configured"
-      : `Missing routes: ${missingRoutes.join(", ")}`,
+    "Fresh routes",
+    existsSync(routesPath),
+    existsSync(routesPath)
+      ? "Fresh routes/index.tsx present"
+      : "src/ui/routes/index.tsx not found",
+    "warning",
+  );
+
+  const appPath = join(ROOT_DIR, "src", "ui", "app.ts");
+  check(
+    "Fresh app entry",
+    existsSync(appPath),
+    existsSync(appPath)
+      ? "app.ts present"
+      : "src/ui/app.ts not found",
     "warning",
   );
 }
@@ -281,8 +274,8 @@ function checkDeployConfig() {
   );
 
   // Should have fallback for local
-  const hasLocalFallback =
-    content.includes("localhost:1234") || content.includes("127.0.0.1:1234");
+  const hasLocalFallback = content.includes("localhost:1234") ||
+    content.includes("127.0.0.1:1234");
   check(
     "Local development fallback",
     hasLocalFallback,
@@ -356,7 +349,9 @@ function checkNoDebugLogs() {
       filesWithLogs.length === 0,
       filesWithLogs.length === 0
         ? "No debug logs found"
-        : `Found in: ${filesWithLogs.slice(0, 3).join(", ")}${filesWithLogs.length > 3 ? "..." : ""}`,
+        : `Found in: ${filesWithLogs.slice(0, 3).join(", ")}${
+          filesWithLogs.length > 3 ? "..." : ""
+        }`,
       "warning",
     );
   }
@@ -374,7 +369,7 @@ async function main() {
   checkEnvironmentConfig();
   await checkTypeScript();
   await checkTests();
-  checkViteProxy();
+  checkFreshUi();
   checkDeployConfig();
   checkNoDebugLogs();
 

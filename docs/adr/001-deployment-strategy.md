@@ -1,7 +1,7 @@
 # ADR-001: Deployment Strategy
 
-**Status:** Accepted  
-**Date:** 2026-01-09  
+**Status:** Accepted\
+**Date:** 2026-01-09\
 **Decision Makers:** @venikman
 
 ## Context
@@ -47,7 +47,9 @@ The challenge is managing configuration across these environments without:
 
 ### Environment Detection (Fail-Fast)
 
-Production environments are detected via `DENO_DEPLOYMENT_ID` (automatically set by Deno Deploy). On detection, the app validates configuration and fails immediately on startup if misconfigured:
+Production environments are detected via `DENO_DEPLOYMENT_ID` (automatically set
+by Deno Deploy). On detection, the app validates configuration and fails
+immediately on startup if misconfigured:
 
 ```typescript
 const isDeployed = !!Deno.env.get("DENO_DEPLOYMENT_ID");
@@ -65,7 +67,8 @@ if (isDeployed) {
 }
 ```
 
-**Rationale:** Fail-fast on deploy prevents silent failures on user requests. Errors surface immediately in deploy logs, not 3am user complaints.
+**Rationale:** Fail-fast on deploy prevents silent failures on user requests.
+Errors surface immediately in deploy logs, not 3am user complaints.
 
 ### Environment Variables
 
@@ -76,11 +79,11 @@ if (isDeployed) {
 | `LLM_API_KEY`      | `""`                  | Yes                 |
 | `LLM_MODEL`        | `openai/gpt-oss-120b` | Recommended         |
 
-**Backwards Compatibility:** Both `LLM_BASE_URL` and `LLM_API_BASE_URL` are supported via nullish coalescing:
+**Backwards Compatibility:** Both `LLM_BASE_URL` and `LLM_API_BASE_URL` are
+supported via nullish coalescing:
 
 ```typescript
-const LLM_BASE_URL =
-  Deno.env.get("LLM_BASE_URL") ??
+const LLM_BASE_URL = Deno.env.get("LLM_BASE_URL") ??
   Deno.env.get("LLM_API_BASE_URL") ??
   "http://localhost:1234/v1";
 ```
@@ -89,7 +92,7 @@ const LLM_BASE_URL =
 
 ### 1. Build-Time Configuration
 
-**Approach:** Inject env vars at build time via Vite/esbuild.
+**Approach:** Inject env vars at build time via a static UI bundler.
 
 **Rejected because:**
 
@@ -119,7 +122,8 @@ const LLM_BASE_URL =
 
 ### 4. Branch-Based Env Vars (Deno Deploy native)
 
-**Approach:** Use Deno Deploy's branch deployments with different env vars per branch.
+**Approach:** Use Deno Deploy's branch deployments with different env vars per
+branch.
 
 **Considered viable but:**
 
@@ -133,7 +137,7 @@ const LLM_BASE_URL =
 - **Clear separation:** Staging and production are completely isolated
 - **Safe defaults:** localhost fallback only works locally, fails in production
 - **Simple workflow:** Push to branch → auto-deploy
-- **Test coverage:** `deploy-config.test.ts` catches localhost fallback issues
+- **Test coverage:** `tests/deploy/deploy-config.test.ts` catches localhost fallback issues
 - **Backwards compatible:** Legacy env var names still work
 
 ### Negative
@@ -184,5 +188,5 @@ git push -u origin staging
 - `.github/workflows/deploy-deno.yml` - Production workflow
 - `.github/workflows/deploy-staging.yml` - Staging workflow
 - `deploy/main.ts` - Server entry point with production env validation
-- `deploy/deploy-config.test.ts` - Configuration tests
+- `tests/deploy/deploy-config.test.ts` - Configuration tests
 - `.env.example` - Environment variable documentation

@@ -12,24 +12,26 @@
  * - FPF-Spec B.3: Trust & Assurance Calculus
  */
 
-import { z } from "npm:zod@4.3.5";
-import { createOpenAI } from "npm:@ai-sdk/openai@1.3.22";
-import { generateObject } from "npm:ai@4.3.16";
+import { z } from "zod";
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateObject } from "ai";
+import { env } from "../config.ts";
+import { withAiTelemetry } from "../telemetry.ts";
 
 import {
-  type JudgeConfig,
-  type JudgeOutput,
-  type CriterionEvaluation,
   type AssuranceTuple,
-  type PoLLResult,
+  CL_THRESHOLDS,
   type ClaimScope,
-  type SourceCitationRecord,
-  type ImprovementPaths,
+  CongruenceLevel,
+  type CriterionEvaluation,
   EvaluationCriterion,
   FormalityLevel,
-  CongruenceLevel,
+  type ImprovementPaths,
+  type JudgeConfig,
+  type JudgeOutput,
   PHI,
-  CL_THRESHOLDS,
+  type PoLLResult,
+  type SourceCitationRecord,
 } from "./types.ts";
 
 // ═══════════════════════════════════════════════════════════════
@@ -79,14 +81,6 @@ const VIOLATED_THRESHOLD = 0.3;
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════
 
-const sha256 = async (value: string): Promise<string> => {
-  const data = new TextEncoder().encode(value);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-};
-
 const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
 
 // ═══════════════════════════════════════════════════════════════
@@ -114,7 +108,8 @@ const buildJudgePrompt = (
   query: string,
   instructions: string,
   response: string,
-): string => `You are an expert evaluator for AI-generated user stories.
+): string =>
+  `You are an expert evaluator for AI-generated user stories.
 
 Evaluate the RESPONSE against the QUERY and INSTRUCTIONS using these criteria:
 
@@ -173,12 +168,18 @@ async function evaluateWithJudge(
 
   const prompt = buildJudgePrompt(query, instructions, response);
 
-  const result = await generateObject({
-    model: openai(judge.model),
-    schema: LLMJudgeResponseSchema,
-    prompt,
-    temperature: judge.temperature,
-  });
+  const abortSignal = AbortSignal.timeout(env.LLM_TIMEOUT_MS);
+  const result = await withAiTelemetry(
+    { name: `poll-${judge.id}`, model: judge.model },
+    () =>
+      generateObject({
+        model: openai(judge.model),
+        schema: LLMJudgeResponseSchema,
+        prompt,
+        temperature: judge.temperature,
+        abortSignal,
+      }),
+  );
 
   const latencyMs = Date.now() - startTime;
 
@@ -198,8 +199,8 @@ async function evaluateWithJudge(
   let totalWeight = 0;
 
   for (const eval_ of criteriaEvals) {
-    const weight =
-      CRITERIA_WEIGHTS[eval_.criterion as EvaluationCriterion] ?? 0.05;
+    const weight = CRITERIA_WEIGHTS[eval_.criterion as EvaluationCriterion] ??
+      0.05;
     overallScore += eval_.score * weight;
     totalWeight += weight;
   }
@@ -279,8 +280,8 @@ function computeAssuranceTuple(
     );
     return schemaEval?.score ?? 0.5;
   });
-  const avgSchemaScore =
-    schemaScores.reduce((a, b) => a + b, 0) / schemaScores.length;
+  const avgSchemaScore = schemaScores.reduce((a, b) => a + b, 0) /
+    schemaScores.length;
 
   // Map to formality level (ordinal)
   let fEff: FormalityLevel;
@@ -332,24 +333,22 @@ function computeAssuranceTuple(
 
   // 6. Generate improvement paths
   const improvementPaths: ImprovementPaths = {
-    raiseF:
-      avgSchemaScore < 0.9
-        ? ["Improve schema compliance", "Add structured JSON validation"]
-        : [],
-    raiseG:
-      gEff.totalCoverage < 1.0
-        ? ["Add coverage for more epic types", "Increase test variety"]
-        : [],
-    raiseR:
-      rRaw < 0.8
-        ? ["Address issues from lowest-scoring judge", "Improve weak criteria"]
-        : [],
-    raiseCL:
-      congruence.maxDelta > CL_THRESHOLDS.CL2
-        ? [
-            `Investigate judge disagreement (delta=${congruence.maxDelta.toFixed(3)})`,
-          ]
-        : [],
+    raiseF: avgSchemaScore < 0.9
+      ? ["Improve schema compliance", "Add structured JSON validation"]
+      : [],
+    raiseG: gEff.totalCoverage < 1.0
+      ? ["Add coverage for more epic types", "Increase test variety"]
+      : [],
+    raiseR: rRaw < 0.8
+      ? ["Address issues from lowest-scoring judge", "Improve weak criteria"]
+      : [],
+    raiseCL: congruence.maxDelta > CL_THRESHOLDS.CL2
+      ? [
+        `Investigate judge disagreement (delta=${
+          congruence.maxDelta.toFixed(3)
+        })`,
+      ]
+      : [],
   };
 
   // 7. Determine gate decision
@@ -414,7 +413,7 @@ export async function evaluateWithPoLL(
       runId,
       config.baseUrl,
       config.apiKey,
-    ),
+    )
   );
 
   const judgeOutputs = await Promise.all(judgePromises);

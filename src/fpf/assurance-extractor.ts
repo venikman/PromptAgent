@@ -10,12 +10,7 @@
  * - R (Reliability): Confidence in the claim [0,1]
  */
 
-import {
-  type AssuranceTuple,
-  type PoLLResult,
-  FormalityLevel,
-  CongruenceLevel,
-} from "./types.ts";
+import { FormalityLevel } from "./types.ts";
 import { isPoLLMetricInfo, type PoLLMetricInfo } from "./poll-metric.ts";
 import {
   isPromptAgentJudgeInfo,
@@ -83,13 +78,6 @@ const FORMALITY_NAMES: Record<FormalityLevel, string> = {
   [FormalityLevel.F3_PROOF_GRADE]: "F3 (Proof-Grade)",
 };
 
-const CONGRUENCE_NAMES: Record<CongruenceLevel, string> = {
-  [CongruenceLevel.CL0_WEAK_GUESS]: "CL0 (Weak Guess)",
-  [CongruenceLevel.CL1_PLAUSIBLE]: "CL1 (Plausible)",
-  [CongruenceLevel.CL2_VALIDATED]: "CL2 (Validated)",
-  [CongruenceLevel.CL3_VERIFIED]: "CL3 (Verified)",
-};
-
 // ═══════════════════════════════════════════════════════════════
 // EXTRACTION FUNCTIONS
 // ═══════════════════════════════════════════════════════════════
@@ -131,15 +119,14 @@ export function extractFromPoLL(info: PoLLMetricInfo): AssuranceSummary {
  * Extract assurance summary from single-judge FPF info.
  */
 export function extractFromSingleJudge(
-  info: PromptAgentJudgeInfo
+  info: PromptAgentJudgeInfo,
 ): AssuranceSummary {
   // Map single-judge to F-G-R (simplified)
-  const fLevel =
-    info.rEff !== undefined && info.rEff >= 0.7
-      ? FormalityLevel.F2_FORMALIZABLE
-      : info.rEff !== undefined && info.rEff >= 0.4
-        ? FormalityLevel.F1_STRUCTURED
-        : FormalityLevel.F0_INFORMAL;
+  const fLevel = info.rEff !== undefined && info.rEff >= 0.7
+    ? FormalityLevel.F2_FORMALIZABLE
+    : info.rEff !== undefined && info.rEff >= 0.4
+    ? FormalityLevel.F1_STRUCTURED
+    : FormalityLevel.F0_INFORMAL;
 
   return {
     formality: {
@@ -205,7 +192,9 @@ export function extractAssuranceSummary(preprocessResult: {
   // Try PoLL first (preferred)
   if (preprocessResult.pollResult?.info) {
     if (isPoLLMetricInfo(preprocessResult.pollResult.info)) {
-      return extractFromPoLL(preprocessResult.pollResult.info as PoLLMetricInfo);
+      return extractFromPoLL(
+        preprocessResult.pollResult.info as PoLLMetricInfo,
+      );
     }
   }
 
@@ -213,7 +202,7 @@ export function extractAssuranceSummary(preprocessResult: {
   if (preprocessResult.fpfJudgeResult?.info) {
     if (isPromptAgentJudgeInfo(preprocessResult.fpfJudgeResult.info)) {
       return extractFromSingleJudge(
-        preprocessResult.fpfJudgeResult.info as PromptAgentJudgeInfo
+        preprocessResult.fpfJudgeResult.info as PromptAgentJudgeInfo,
       );
     }
   }
