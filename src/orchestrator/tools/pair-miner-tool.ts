@@ -8,14 +8,13 @@
  */
 
 import {
+  type ContrastPair,
+  formatTieredPairsForPrompt,
   mineContrastivePairs,
   mineTieredContrastivePairs,
-  formatTieredPairsForPrompt,
-  type ContrastPair,
 } from "../../pairMining.ts";
-import type { FlatRun } from "../../eval.ts";
-import type { ToolContext, ToolResult, PairMinerInput } from "../types.ts";
-import { successResult, failureResult } from "../types.ts";
+import type { PairMinerInput, ToolContext, ToolResult } from "../types.ts";
+import { failureResult, successResult } from "../types.ts";
 
 /**
  * Pair miner output with optional tiered context.
@@ -37,7 +36,7 @@ export interface PairMinerOutput {
  * When tieredMining is enabled, uses CRPO-style quality tiers (HIGH/MEDIUM/LOW)
  * with multi-metric pairing and error analysis.
  */
-export async function executePairMiner(
+export function executePairMiner(
   input: PairMinerInput,
   ctx: ToolContext,
 ): Promise<ToolResult<PairMinerOutput>> {
@@ -77,13 +76,17 @@ export async function executePairMiner(
       formattedContext = formatStandardPairs(pairs);
     }
 
-    return successResult(
-      { pairs, formattedContext, tiered: !!input.tieredMining },
-      ctx,
-      startTime,
+    return Promise.resolve(
+      successResult(
+        { pairs, formattedContext, tiered: !!input.tieredMining },
+        ctx,
+        startTime,
+      ),
     );
   } catch (error) {
-    return failureResult<PairMinerOutput>(error, ctx, startTime);
+    return Promise.resolve(
+      failureResult<PairMinerOutput>(error, ctx, startTime),
+    );
   }
 }
 
@@ -97,9 +100,15 @@ function formatStandardPairs(pairs: ContrastPair[]): string {
   return pairs
     .map(
       (p, i) =>
-        `### Pair ${i + 1} (Δ=${p.delta.toFixed(3)}, sim=${p.sim.toFixed(3)})\n` +
-        `**GOOD** (score=${p.good.score.toFixed(3)}):\n${p.good.rawText.slice(0, 500)}...\n\n` +
-        `**BAD** (score=${p.bad.score.toFixed(3)}):\n${p.bad.rawText.slice(0, 500)}...`,
+        `### Pair ${i + 1} (Δ=${p.delta.toFixed(3)}, sim=${
+          p.sim.toFixed(3)
+        })\n` +
+        `**GOOD** (score=${p.good.score.toFixed(3)}):\n${
+          p.good.rawText.slice(0, 500)
+        }...\n\n` +
+        `**BAD** (score=${p.bad.score.toFixed(3)}):\n${
+          p.bad.rawText.slice(0, 500)
+        }...`,
     )
     .join("\n\n---\n\n");
 }

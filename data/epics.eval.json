@@ -21,7 +21,9 @@
       "p95 latency <= 500ms",
       "Track search events in analytics"
     ],
-    "constraints": ["Backend is Node + Postgres, no Elasticsearch in this phase"]
+    "constraints": [
+      "Backend is Node + Postgres, no Elasticsearch in this phase"
+    ]
   },
   {
     "id": "E-303",

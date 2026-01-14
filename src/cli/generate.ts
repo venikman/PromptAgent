@@ -4,7 +4,7 @@
  * Usage: deno task generate -- <EPIC_ID> [--seed <N>]
  */
 
-import { join } from "jsr:@std/path";
+import { join } from "@std/path";
 import { epicSchema } from "../schema.ts";
 import { generateStoryPack } from "../generator.ts";
 

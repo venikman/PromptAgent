@@ -7,18 +7,12 @@
  * - Tracks execution timing
  */
 
-export {
-  executeEvaluator,
-  evaluateSingleEpic,
-} from "./evaluator-tool.ts";
+export { evaluateSingleEpic, executeEvaluator } from "./evaluator-tool.ts";
 
-export {
-  executePairMiner,
-  hasPairs,
-} from "./pair-miner-tool.ts";
+export { executePairMiner, hasPairs } from "./pair-miner-tool.ts";
 
 export {
   executePatcher,
-  hasCandidates,
   generateSinglePatch,
+  hasCandidates,
 } from "./patcher-tool.ts";

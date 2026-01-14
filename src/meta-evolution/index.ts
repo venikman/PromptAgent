@@ -13,15 +13,15 @@
 
 // Types
 export type {
-  MutationType,
-  MutationPrompt,
-  TaskPrompt,
-  Population,
-  MutationResult,
+  EvolutionTelemetry,
+  GenerationStats,
   HypermutationResult,
   MetaEvolutionConfig,
-  GenerationStats,
-  EvolutionTelemetry,
+  MutationPrompt,
+  MutationResult,
+  MutationType,
+  Population,
+  TaskPrompt,
 } from "./types.ts";
 
 export { DEFAULT_META_CONFIG } from "./types.ts";
@@ -30,8 +30,8 @@ export { DEFAULT_META_CONFIG } from "./types.ts";
 export {
   createSeedMutationPrompts,
   getMutationsByType,
-  selectMutationByFitness,
   selectEliteMutations,
+  selectMutationByFitness,
 } from "./mutation-prompts.ts";
 
 // Evolution engine

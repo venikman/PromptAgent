@@ -279,7 +279,9 @@ function analyzeErrors(good: ScoredOutput, bad: ScoredOutput): string[] {
       const delta = good.subscores.coverage - bad.subscores.coverage;
       if (delta > 0.15) {
         errors.push(
-          `Low keyword coverage: ${(bad.subscores.coverage * 100).toFixed(0)}% vs ${(good.subscores.coverage * 100).toFixed(0)}%`,
+          `Low keyword coverage: ${
+            (bad.subscores.coverage * 100).toFixed(0)
+          }% vs ${(good.subscores.coverage * 100).toFixed(0)}%`,
         );
       }
     }
@@ -291,7 +293,9 @@ function analyzeErrors(good: ScoredOutput, bad: ScoredOutput): string[] {
       const delta = good.subscores.invest - bad.subscores.invest;
       if (delta > 0.15) {
         errors.push(
-          `Poor INVEST compliance: ${(bad.subscores.invest * 100).toFixed(0)}% vs ${(good.subscores.invest * 100).toFixed(0)}%`,
+          `Poor INVEST compliance: ${
+            (bad.subscores.invest * 100).toFixed(0)
+          }% vs ${(good.subscores.invest * 100).toFixed(0)}%`,
         );
       }
     }
@@ -303,7 +307,9 @@ function analyzeErrors(good: ScoredOutput, bad: ScoredOutput): string[] {
       const delta = good.subscores.criteria - bad.subscores.criteria;
       if (delta > 0.15) {
         errors.push(
-          `Weak acceptance criteria: ${(bad.subscores.criteria * 100).toFixed(0)}% vs ${(good.subscores.criteria * 100).toFixed(0)}%`,
+          `Weak acceptance criteria: ${
+            (bad.subscores.criteria * 100).toFixed(0)
+          }% vs ${(good.subscores.criteria * 100).toFixed(0)}%`,
         );
       }
     }
@@ -315,7 +321,9 @@ function analyzeErrors(good: ScoredOutput, bad: ScoredOutput): string[] {
       const delta = good.subscores.duplication - bad.subscores.duplication;
       if (delta > 0.15) {
         errors.push(
-          `Story duplication detected: ${(bad.subscores.duplication * 100).toFixed(0)}% unique vs ${(good.subscores.duplication * 100).toFixed(0)}%`,
+          `Story duplication detected: ${
+            (bad.subscores.duplication * 100).toFixed(0)
+          }% unique vs ${(good.subscores.duplication * 100).toFixed(0)}%`,
         );
       }
     }
@@ -326,7 +334,9 @@ function analyzeErrors(good: ScoredOutput, bad: ScoredOutput): string[] {
     for (const story of bad.storyPack.userStories) {
       if (story.acceptanceCriteria.length < 3) {
         errors.push(
-          `Story "${story.title.slice(0, 30)}..." has only ${story.acceptanceCriteria.length} acceptance criteria`,
+          `Story "${
+            story.title.slice(0, 30)
+          }..." has only ${story.acceptanceCriteria.length} acceptance criteria`,
         );
         break; // Only report once
       }
@@ -438,7 +448,9 @@ export function formatPairsForPrompt(pairs: ContrastPair[]): string {
     .map((p, idx) => {
       const lines: string[] = [
         `### PAIR ${idx + 1}`,
-        `Epic: ${p.epicId} | Similarity: ${p.sim.toFixed(2)} | Delta: ${p.delta.toFixed(3)}`,
+        `Epic: ${p.epicId} | Similarity: ${p.sim.toFixed(2)} | Delta: ${
+          p.delta.toFixed(3)
+        }`,
       ];
 
       // Add tiered information if available

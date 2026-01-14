@@ -17,7 +17,11 @@ import type { OptimizationState } from "../types.ts";
 // Types
 // ─────────────────────────────────────────────────
 
-export type TaskType = "evaluation" | "optimization" | "tournament" | "playground";
+export type TaskType =
+  | "evaluation"
+  | "optimization"
+  | "tournament"
+  | "playground";
 export type TaskStatus = "pending" | "running" | "completed" | "failed";
 
 export interface TaskRecord {
@@ -84,7 +88,7 @@ export async function getTask(taskId: string): Promise<TaskRecord | null> {
  */
 export async function updateTaskProgress(
   taskId: string,
-  progress: { completed: number; total: number }
+  progress: { completed: number; total: number },
 ): Promise<void> {
   const kv = await getKv();
   const task = await getTask(taskId);
@@ -100,7 +104,7 @@ export async function updateTaskProgress(
 export async function updateTaskStatus(
   taskId: string,
   status: TaskStatus,
-  options?: { result?: unknown; error?: string }
+  options?: { result?: unknown; error?: string },
 ): Promise<void> {
   const kv = await getKv();
   const task = await getTask(taskId);
@@ -130,7 +134,10 @@ export async function updateTaskStatus(
 /**
  * Complete a task with result.
  */
-export async function completeTask(taskId: string, result: unknown): Promise<void> {
+export async function completeTask(
+  taskId: string,
+  result: unknown,
+): Promise<void> {
   await updateTaskStatus(taskId, "completed", { result });
 }
 
@@ -144,7 +151,9 @@ export async function failTask(taskId: string, error: string): Promise<void> {
 /**
  * List tasks by status.
  */
-export async function listTasksByStatus(status: TaskStatus): Promise<TaskRecord[]> {
+export async function listTasksByStatus(
+  status: TaskStatus,
+): Promise<TaskRecord[]> {
   const kv = await getKv();
   const tasks: TaskRecord[] = [];
 
@@ -162,7 +171,7 @@ export async function listTasksByStatus(status: TaskStatus): Promise<TaskRecord[
  */
 export async function createTask(
   type: TaskType,
-  options?: { totalProgress?: number }
+  options?: { totalProgress?: number },
 ): Promise<TaskRecord> {
   const task: TaskRecord = {
     id: crypto.randomUUID(),
@@ -184,7 +193,7 @@ export async function createTask(
  */
 export async function saveCheckpoint(
   sessionId: string,
-  state: OptimizationState
+  state: OptimizationState,
 ): Promise<string> {
   const kv = await getKv();
   const checkpointId = crypto.randomUUID();
@@ -206,7 +215,9 @@ export async function saveCheckpoint(
 /**
  * Get a checkpoint by ID.
  */
-export async function getCheckpoint(checkpointId: string): Promise<SessionCheckpoint | null> {
+export async function getCheckpoint(
+  checkpointId: string,
+): Promise<SessionCheckpoint | null> {
   const kv = await getKv();
   const result = await kv.get<SessionCheckpoint>(["checkpoints", checkpointId]);
   return result.value;
@@ -215,7 +226,9 @@ export async function getCheckpoint(checkpointId: string): Promise<SessionCheckp
 /**
  * Get the latest checkpoint for a session.
  */
-export async function getLatestCheckpoint(sessionId: string): Promise<SessionCheckpoint | null> {
+export async function getLatestCheckpoint(
+  sessionId: string,
+): Promise<SessionCheckpoint | null> {
   const kv = await getKv();
   const entries = kv.list<string>({
     prefix: ["checkpoints:by-session", sessionId],
@@ -249,7 +262,9 @@ export async function getLatestCheckpoint(sessionId: string): Promise<SessionChe
 /**
  * List all checkpoints for a session (newest first).
  */
-export async function listCheckpoints(sessionId: string): Promise<SessionCheckpoint[]> {
+export async function listCheckpoints(
+  sessionId: string,
+): Promise<SessionCheckpoint[]> {
   const kv = await getKv();
   const checkpoints: SessionCheckpoint[] = [];
 
@@ -306,13 +321,17 @@ export async function cleanupOldTasks(olderThanMs: number): Promise<number> {
  * @param keepPerSession Number of checkpoints to keep per session
  * @returns Number of checkpoints deleted
  */
-export async function cleanupOldCheckpoints(keepPerSession: number): Promise<number> {
+export async function cleanupOldCheckpoints(
+  keepPerSession: number,
+): Promise<number> {
   const kv = await getKv();
   let deleted = 0;
 
   // Group checkpoints by session
   const sessions = new Map<string, string[]>();
-  for await (const entry of kv.list<SessionCheckpoint>({ prefix: ["checkpoints"] })) {
+  for await (
+    const entry of kv.list<SessionCheckpoint>({ prefix: ["checkpoints"] })
+  ) {
     if (entry.key.length === 2 && entry.key[0] === "checkpoints") {
       const checkpoint = entry.value;
       const existing = sessions.get(checkpoint.sessionId) ?? [];

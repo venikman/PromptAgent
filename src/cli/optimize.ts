@@ -9,14 +9,14 @@
  * Refactored to use the Orchestrator pattern (Google's 4-step framework).
  */
 
-import { join, dirname } from "jsr:@std/path";
-import { epicSchema, type Epic } from "../schema.ts";
+import { dirname, join } from "@std/path";
+import { type Epic, epicSchema } from "../schema.ts";
 import { env } from "../config.ts";
 import {
-  Orchestrator,
-  type OptimizationState,
-  type IterationResult,
   composePrompt,
+  type IterationResult,
+  type OptimizationState,
+  Orchestrator,
 } from "../orchestrator/index.ts";
 
 // ─────────────────────────────────────────────────
@@ -41,7 +41,7 @@ async function writeFile(relativePath: string, content: string): Promise<void> {
 
 async function loadEpics(): Promise<Epic[]> {
   const parsed = JSON.parse(
-    await Deno.readTextFile(join(Deno.cwd(), "data", "epics.eval.json"))
+    await Deno.readTextFile(join(Deno.cwd(), "data", "epics.eval.json")),
   ) as unknown[];
   return parsed.map((e) => epicSchema.parse(e));
 }
@@ -54,23 +54,32 @@ async function loadChampion(): Promise<{ base: string; patch: string }> {
     // Fall back to champion.md if base doesn't exist
     base = await readFile("prompts/champion.md");
     if (!base) {
-      throw new Error("No base prompt found in prompts/champion.base.md or prompts/champion.md");
+      throw new Error(
+        "No base prompt found in prompts/champion.base.md or prompts/champion.md",
+      );
     }
-    console.log("Using prompts/champion.md as base (no champion.base.md found)\n");
+    console.log(
+      "Using prompts/champion.md as base (no champion.base.md found)\n",
+    );
   }
 
   return { base, patch };
 }
 
-async function saveChampion(champion: { base: string; patch: string }): Promise<void> {
+async function saveChampion(
+  champion: { base: string; patch: string },
+): Promise<void> {
   await writeFile("prompts/champion.patch.md", champion.patch);
-  await writeFile("prompts/champion.md", composePrompt(champion.base, champion.patch));
+  await writeFile(
+    "prompts/champion.md",
+    composePrompt(champion.base, champion.patch),
+  );
 
   // Create timestamped backup
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   await writeFile(
     `prompts/versions/champion.${timestamp}.md`,
-    composePrompt(champion.base, champion.patch)
+    composePrompt(champion.base, champion.patch),
   );
 }
 
@@ -89,7 +98,11 @@ function logIterationResult(result: IterationResult): void {
   console.log(`  Candidates generated: ${result.candidatesGenerated}`);
   console.log(`  Best objective: ${result.bestCandidateObjective.toFixed(4)}`);
   console.log(`  Champion objective: ${result.championObjective.toFixed(4)}`);
-  console.log(`  Delta: ${(result.bestCandidateObjective - result.championObjective).toFixed(4)}`);
+  console.log(
+    `  Delta: ${
+      (result.bestCandidateObjective - result.championObjective).toFixed(4)
+    }`,
+  );
   console.log(`  Promoted: ${result.promoted ? "✅ Yes" : "❌ No"}`);
   console.log(`  Duration: ${(result.duration / 1000).toFixed(1)}s`);
   if (result.error) {
@@ -112,8 +125,10 @@ function logFinalState(state: OptimizationState): void {
     for (const h of state.history) {
       const status = h.promoted ? "✅" : h.pairsFound === 0 ? "◯" : "─";
       console.log(
-        `  ${status} Iter ${h.iteration}: obj=${h.championObjective.toFixed(4)} ` +
-        `pairs=${h.pairsFound} candidates=${h.candidatesGenerated}`
+        `  ${status} Iter ${h.iteration}: obj=${
+          h.championObjective.toFixed(4)
+        } ` +
+          `pairs=${h.pairsFound} candidates=${h.candidatesGenerated}`,
       );
     }
   }
@@ -148,7 +163,6 @@ export async function main(): Promise<void> {
   const orchestrator = new Orchestrator({ epics, champion });
 
   // Track progress for logging
-  let currentIteration = 0;
   let lastProgressLog = 0;
 
   // Run optimization with callbacks
@@ -164,7 +178,6 @@ export async function main(): Promise<void> {
     },
     {
       onIterationStart: (iteration) => {
-        currentIteration = iteration;
         logHeader(`Iteration ${iteration}/${env.OPT_ITERATIONS}`);
       },
       onIterationEnd: (result) => {
@@ -182,7 +195,7 @@ export async function main(): Promise<void> {
         // Log iteration result to file
         writeFile(
           `runs/iter-${result.iteration}.json`,
-          JSON.stringify(result, null, 2)
+          JSON.stringify(result, null, 2),
         ).catch((err) => {
           console.error("Failed to save iteration log:", err);
         });
@@ -192,12 +205,14 @@ export async function main(): Promise<void> {
         const now = Date.now();
         if (now - lastProgressLog > 500) {
           Deno.stdout.writeSync(
-            new TextEncoder().encode(`\r  Progress: ${completed}/${total} runs`)
+            new TextEncoder().encode(
+              `\r  Progress: ${completed}/${total} runs`,
+            ),
           );
           lastProgressLog = now;
         }
       },
-    }
+    },
   );
 
   // Save final champion if any promotions happened
@@ -208,7 +223,7 @@ export async function main(): Promise<void> {
   // Save final state
   await writeFile(
     `runs/final-state.json`,
-    JSON.stringify(finalState, null, 2)
+    JSON.stringify(finalState, null, 2),
   );
 
   // Log final summary

@@ -12,7 +12,7 @@
  * Use-Value OR Constraint-Fit gate.
  */
 
-import { z } from "npm:zod@4.3.5";
+import { z } from "zod";
 import { textSimilarity } from "../similarity.ts";
 
 // ═══════════════════════════════════════════════════════════════
@@ -132,7 +132,7 @@ const DEFAULT_CONFIG: Required<CreativityConfig> = {
  */
 export function computeNovelty(
   candidatePrompt: string,
-  referencePrompts: string[]
+  referencePrompts: string[],
 ): number {
   if (referencePrompts.length === 0) {
     return 1.0; // No references = maximally novel
@@ -162,7 +162,7 @@ export function computeNovelty(
  */
 export function computeUseValue(
   candidateObjective: number,
-  baselineObjective: number
+  baselineObjective: number,
 ): number {
   return candidateObjective - baselineObjective;
 }
@@ -200,17 +200,19 @@ export function computeSurprise(promptText: string): number {
   const uniqueRatio = uniqueWords.size / words.length;
 
   // Sentence length variance as proxy for structural diversity
-  const sentences = promptText.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  const sentences = promptText.split(/[.!?]+/).filter((s) =>
+    s.trim().length > 0
+  );
   const sentenceLengths = sentences.map(
-    (s) => s.trim().split(/\s+/).length
+    (s) => s.trim().split(/\s+/).length,
   );
 
   let lengthVariance = 0;
   if (sentenceLengths.length > 1) {
-    const mean =
-      sentenceLengths.reduce((a, b) => a + b, 0) / sentenceLengths.length;
-    const variance =
-      sentenceLengths.reduce((sum, len) => sum + (len - mean) ** 2, 0) /
+    const mean = sentenceLengths.reduce((a, b) => a + b, 0) /
+      sentenceLengths.length;
+    const variance = sentenceLengths.reduce((sum, len) =>
+      sum + (len - mean) ** 2, 0) /
       sentenceLengths.length;
     lengthVariance = Math.sqrt(variance) / mean; // Coefficient of variation
   }
@@ -235,7 +237,7 @@ export function computeSurprise(promptText: string): number {
  */
 export function computeConstraintFit(
   passRate: number,
-  schemaValid: boolean
+  schemaValid: boolean,
 ): number {
   if (!schemaValid) {
     return 0;
@@ -256,7 +258,7 @@ export function computeConstraintFit(
  */
 export function computeDiversityP(
   candidatePrompt: string,
-  portfolioPrompts: string[]
+  portfolioPrompts: string[],
 ): number {
   if (portfolioPrompts.length === 0) {
     return 1.0; // First member adds full diversity
@@ -289,18 +291,21 @@ export interface CreativityInput {
  */
 export function computeCreativityProfile(
   input: CreativityInput,
-  config: CreativityConfig = {}
+  config: CreativityConfig = {},
 ): CreativityProfile {
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
   return {
-    noveltyAtContext: computeNovelty(input.candidatePrompt, cfg.referencePrompts),
+    noveltyAtContext: computeNovelty(
+      input.candidatePrompt,
+      cfg.referencePrompts,
+    ),
     useValue: computeUseValue(input.candidateObjective, cfg.baselineObjective),
     surprise: computeSurprise(input.candidatePrompt),
     constraintFit: computeConstraintFit(input.passRate, input.schemaValid),
     diversityP: computeDiversityP(
       input.candidatePrompt,
-      input.portfolioPrompts ?? []
+      input.portfolioPrompts ?? [],
     ),
   };
 }
@@ -320,7 +325,7 @@ export function computeCreativityProfile(
  */
 export function applyCreativityGate(
   input: CreativityInput,
-  config: CreativityConfig = {}
+  config: CreativityConfig = {},
 ): CreativityGateResult {
   const cfg = { ...DEFAULT_CONFIG, ...config };
   const profile = computeCreativityProfile(input, config);
@@ -340,32 +345,48 @@ export function applyCreativityGate(
   // Generate warnings
   if (profile.noveltyAtContext > 0.7 && !eligible) {
     warnings.push(
-      `High novelty (${profile.noveltyAtContext.toFixed(2)}) but failed both gates`
+      `High novelty (${
+        profile.noveltyAtContext.toFixed(2)
+      }) but failed both gates`,
     );
   }
 
   if (profile.noveltyAtContext > 0.7 && profile.useValue < 0) {
     warnings.push(
-      `Novel prompt performs worse than baseline (Δ=${profile.useValue.toFixed(3)})`
+      `Novel prompt performs worse than baseline (Δ=${
+        profile.useValue.toFixed(3)
+      })`,
     );
   }
 
   if (profile.constraintFit < 1.0 && profile.constraintFit > 0.5) {
     warnings.push(
-      `Partial constraint fit (${profile.constraintFit.toFixed(2)}) - some runs fail schema`
+      `Partial constraint fit (${
+        profile.constraintFit.toFixed(2)
+      }) - some runs fail schema`,
     );
   }
 
   // Generate reason
   let reason: string;
   if (constraintGatePass && useValueGatePass) {
-    reason = `Passes both gates: Constraint-Fit=${profile.constraintFit.toFixed(2)}, Use-Value=+${profile.useValue.toFixed(3)}`;
+    reason = `Passes both gates: Constraint-Fit=${
+      profile.constraintFit.toFixed(2)
+    }, Use-Value=+${profile.useValue.toFixed(3)}`;
   } else if (constraintGatePass) {
-    reason = `Passes constraint gate: Constraint-Fit=${profile.constraintFit.toFixed(2)}`;
+    reason = `Passes constraint gate: Constraint-Fit=${
+      profile.constraintFit.toFixed(2)
+    }`;
   } else if (useValueGatePass) {
-    reason = `Passes use-value gate: Δ=+${profile.useValue.toFixed(3)} vs baseline`;
+    reason = `Passes use-value gate: Δ=+${
+      profile.useValue.toFixed(3)
+    } vs baseline`;
   } else {
-    reason = `Failed both gates: Constraint-Fit=${profile.constraintFit.toFixed(2)} < ${cfg.constraintFitThreshold}, Use-Value=${profile.useValue.toFixed(3)} <= ${cfg.useValueThreshold}`;
+    reason = `Failed both gates: Constraint-Fit=${
+      profile.constraintFit.toFixed(2)
+    } < ${cfg.constraintFitThreshold}, Use-Value=${
+      profile.useValue.toFixed(3)
+    } <= ${cfg.useValueThreshold}`;
   }
 
   return {
@@ -396,7 +417,7 @@ export function applyCreativityGate(
  */
 export function compareCreativityProfiles(
   a: CreativityProfile,
-  b: CreativityProfile
+  b: CreativityProfile,
 ): number {
   // 1. Constraint-Fit (binary comparison)
   const aFit = a.constraintFit >= 1.0 ? 1 : 0;

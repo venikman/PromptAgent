@@ -16,12 +16,12 @@
  * Types of mutation operators (from PromptBreeder paper).
  */
 export type MutationType =
-  | "DIRECT_MUTATION"      // LLM directly mutates the task-prompt
-  | "EDA_MUTATION"         // Estimation of Distribution Algorithm style
-  | "HYPERMUTATION"        // Mutate the mutation-prompt itself
-  | "LAMARCKIAN"           // Working solution feeds back into mutation
-  | "CROSSOVER"            // Combine elements from two prompts
-  | "ZERO_ORDER_HYPER";    // Create new mutation-prompts from scratch
+  | "DIRECT_MUTATION" // LLM directly mutates the task-prompt
+  | "EDA_MUTATION" // Estimation of Distribution Algorithm style
+  | "HYPERMUTATION" // Mutate the mutation-prompt itself
+  | "LAMARCKIAN" // Working solution feeds back into mutation
+  | "CROSSOVER" // Combine elements from two prompts
+  | "ZERO_ORDER_HYPER"; // Create new mutation-prompts from scratch
 
 /**
  * A mutation prompt that can generate task-prompt improvements.
@@ -141,8 +141,8 @@ export interface MetaEvolutionConfig {
 export const DEFAULT_META_CONFIG: MetaEvolutionConfig = {
   taskPopulationSize: 8,
   mutationPopulationSize: 4,
-  hypermutationRate: 0.1,   // 10% chance to evolve mutation-prompts
-  crossoverRate: 0.2,       // 20% chance of crossover
+  hypermutationRate: 0.1, // 10% chance to evolve mutation-prompts
+  crossoverRate: 0.2, // 20% chance of crossover
   tournamentSize: 3,
   eliteCount: 2,
   maxGenerations: 20,

@@ -10,14 +10,14 @@
  * - Full SCR audit trail
  */
 
-import { Metric, type MetricResult } from "npm:@mastra/core@0.24.9";
+import { Metric, type MetricResult } from "@mastra/core";
 import { env } from "../config.ts";
 import { evaluateWithPoLL, type PoLLConfig } from "./poll.ts";
 import {
+  CongruenceLevel,
   type JudgeConfig,
   type JudgeOutput,
   type PoLLResult,
-  CongruenceLevel,
 } from "./types.ts";
 
 // ═══════════════════════════════════════════════════════════════
@@ -129,14 +129,13 @@ export class PoLLMetric extends Metric {
     maybeResponse?: string,
   ): Promise<MetricResult> {
     // Normalize input
-    const input: PoLLMetricInput =
-      typeof inputOrQuery === "string"
-        ? {
-            query: inputOrQuery,
-            instructions: "",
-            response: maybeResponse ?? "",
-          }
-        : inputOrQuery;
+    const input: PoLLMetricInput = typeof inputOrQuery === "string"
+      ? {
+        query: inputOrQuery,
+        instructions: "",
+        response: maybeResponse ?? "",
+      }
+      : inputOrQuery;
 
     const promptId = input.promptId ?? crypto.randomUUID();
     const runId = input.runId ?? crypto.randomUUID();
