@@ -8,13 +8,6 @@ import {
 } from "./twind_shared.ts";
 
 type State = Array<string | [string, string]>;
-type SheetHydrateState = [
-  number[],
-  Set<string>,
-  Map<string, string>,
-  boolean,
-];
-
 const readState = (): State => {
   const el = document.getElementById(STATE_ELEMENT_ID);
   if (!el?.textContent) return [];
@@ -60,20 +53,31 @@ const hydrate = (options: Options, state: State) => {
     precedences.push(normalizedPrecedence);
   }
 
-  const sheetState: SheetHydrateState = [
-    precedences,
-    rules,
-    mappings,
-    true,
-  ];
-  let initIndex = 0;
+  let seededPrecedences = false;
+  let seededRules = false;
+  let seededMappings = false;
   const sheet: Sheet = {
     target,
     insert: (rule, index) => target.insertRule(rule, index),
     init: <T>(cb: (state?: T) => T) => {
-      const index = initIndex++;
-      const nextState = cb(sheetState[index] as T);
-      sheetState[index] = nextState as SheetHydrateState[number];
+      const nextState = cb(undefined);
+      if (Array.isArray(nextState) && !seededPrecedences) {
+        nextState.length = 0;
+        nextState.push(...precedences);
+        seededPrecedences = true;
+      } else if (nextState instanceof Set && !seededRules) {
+        nextState.clear();
+        for (const rule of rules) {
+          nextState.add(rule);
+        }
+        seededRules = true;
+      } else if (nextState instanceof Map && !seededMappings) {
+        nextState.clear();
+        for (const [key, value] of mappings) {
+          nextState.set(key, value);
+        }
+        seededMappings = true;
+      }
       return nextState;
     },
   };
