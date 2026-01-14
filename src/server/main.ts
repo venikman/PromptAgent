@@ -2,7 +2,7 @@ import { fromFileUrl } from "@std/path";
 import { Builder } from "@fresh/core/dev";
 import { app } from "../ui/app.ts";
 import { env } from "../config.ts";
-import { createApiHandler, type ApiConfig } from "./handler.ts";
+import { type ApiConfig, createApiHandler } from "./handler.ts";
 import {
   normalizePath,
   recordHttpRequest,

@@ -1,9 +1,16 @@
 import { virtualSheet } from "twind/sheets";
-import { STATE_ELEMENT_ID, STYLE_ELEMENT_ID, setup, type Options } from "./twind_shared.ts";
+import {
+  type Options,
+  setup,
+  STATE_ELEMENT_ID,
+  STYLE_ELEMENT_ID,
+} from "./twind_shared.ts";
 
 type MappingState = Array<string | [string, string]>;
 
-type TwindMiddleware = (ctx: { next: () => Promise<Response> }) => Promise<Response>;
+type TwindMiddleware = (
+  ctx: { next: () => Promise<Response> },
+) => Promise<Response>;
 
 const sheet = virtualSheet();
 
@@ -46,7 +53,9 @@ export const twindMiddleware = (options: Options): TwindMiddleware => {
 
     const styleTag = `<style id="${STYLE_ELEMENT_ID}">${cssText}</style>`;
     const stateTag =
-      `<script id="${STATE_ELEMENT_ID}" type="application/json">${JSON.stringify(mappings)}</script>`;
+      `<script id="${STATE_ELEMENT_ID}" type="application/json">${
+        JSON.stringify(mappings)
+      }</script>`;
 
     const updatedHtml = injectIntoHtml(html, `${styleTag}${stateTag}`);
     const headers = new Headers(res.headers);

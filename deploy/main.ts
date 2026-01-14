@@ -1,7 +1,7 @@
 import { fromFileUrl } from "@std/path";
 import { app } from "../src/ui/app.ts";
 import { env } from "../src/config.ts";
-import { createApiHandler, type ApiConfig } from "../src/server/handler.ts";
+import { type ApiConfig, createApiHandler } from "../src/server/handler.ts";
 import {
   normalizePath,
   recordHttpRequest,
@@ -34,28 +34,45 @@ const apiConfig: ApiConfig = {
 
 const apiHandler = createApiHandler(apiConfig);
 
+const isDeployed = Boolean(Deno.env.get("DENO_DEPLOYMENT_ID"));
 const uiRootUrl = new URL("../src/ui/", import.meta.url);
 const uiRootPath = fromFileUrl(uiRootUrl);
 const uiSnapshotUrl = new URL("../src/ui/_fresh/snapshot.js", import.meta.url);
 const uiMode = "production";
 app.config.mode = uiMode;
 
+let freshHandler: (req: Request) => Response | Promise<Response>;
+
 try {
-  const { setBuildCache, ProdBuildCache } = await import("@fresh/core/internal");
+  const { setBuildCache, ProdBuildCache } = await import(
+    "@fresh/core/internal"
+  );
   const snapshot = await import(uiSnapshotUrl.toString());
   setBuildCache(app, new ProdBuildCache(uiRootPath, snapshot), uiMode);
+  freshHandler = app.handler();
 } catch (err) {
-  console.warn(
-    "Fresh build output is missing. Falling back to in-memory build.",
-    err,
-  );
-  const { Builder } = await import("@fresh/core/dev");
-  const builder = new Builder({ root: uiRootUrl.toString() });
-  const applySnapshot = await builder.build({ snapshot: "memory", mode: uiMode });
-  applySnapshot(app);
+  if (isDeployed) {
+    console.warn(
+      "Fresh build output is missing in Deno Deploy; UI routes are disabled.",
+      err,
+    );
+    freshHandler = () =>
+      new Response("Fresh build output is missing.", { status: 503 });
+  } else {
+    console.warn(
+      "Fresh build output is missing. Falling back to in-memory build.",
+      err,
+    );
+    const { Builder } = await import("@fresh/core/dev");
+    const builder = new Builder({ root: uiRootUrl.toString() });
+    const applySnapshot = await builder.build({
+      snapshot: "memory",
+      mode: uiMode,
+    });
+    applySnapshot(app);
+    freshHandler = app.handler();
+  }
 }
-
-const freshHandler = app.handler();
 startTelemetryReporter(env.TELEMETRY_REPORT_INTERVAL_MS);
 
 const API_PREFIXES = [

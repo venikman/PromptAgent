@@ -1,6 +1,9 @@
 import { describe, it } from "@std/testing/bdd";
 import { expect } from "@std/expect";
-import { DEFAULT_META_CONFIG, type MutationPrompt } from "../../src/meta-evolution/types.ts";
+import {
+  DEFAULT_META_CONFIG,
+  type MutationPrompt,
+} from "../../src/meta-evolution/types.ts";
 import {
   createSeedMutationPrompts,
   getMutationsByType,

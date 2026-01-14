@@ -3,7 +3,9 @@ import { cn } from "../../lib/utils.ts";
 
 export type PromptInputProps = ComponentProps<"form">;
 
-export const PromptInput = ({ class: className, ...props }: PromptInputProps) => (
+export const PromptInput = (
+  { class: className, ...props }: PromptInputProps,
+) => (
   <form
     class={cn(
       "rounded-2xl border border-border/60 bg-white/80 shadow-sm transition focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20",
@@ -15,9 +17,9 @@ export const PromptInput = ({ class: className, ...props }: PromptInputProps) =>
 
 export type PromptInputBodyProps = ComponentProps<"div">;
 
-export const PromptInputBody = ({ class: className, ...props }: PromptInputBodyProps) => (
-  <div class={cn("px-4 py-3", className)} {...props} />
-);
+export const PromptInputBody = (
+  { class: className, ...props }: PromptInputBodyProps,
+) => <div class={cn("px-4 py-3", className)} {...props} />;
 
 export type PromptInputTextareaProps = ComponentProps<"textarea">;
 

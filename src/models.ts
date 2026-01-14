@@ -46,12 +46,17 @@ export function makeGeneratorModel(): ModelConfig {
       "http://127.0.0.1:1234/v1",
     ),
     id: `lmstudio/${modelId}` as const,
-    apiKey: getEnvWithFallback("LMSTUDIO_API_KEY", ["LLM_API_KEY"], "lm-studio"),
+    apiKey: getEnvWithFallback(
+      "LMSTUDIO_API_KEY",
+      ["LLM_API_KEY"],
+      "lm-studio",
+    ),
   };
 }
 
 export function makeJudgeModel(): ModelConfig {
-  const judgeModel = getEnv("LMSTUDIO_JUDGE_MODEL") ?? getEnv("LLM_JUDGE_MODEL");
+  const judgeModel = getEnv("LMSTUDIO_JUDGE_MODEL") ??
+    getEnv("LLM_JUDGE_MODEL");
   const generatorModel = getEnvWithFallback(
     "LMSTUDIO_MODEL",
     ["LLM_MODEL"],
@@ -66,6 +71,10 @@ export function makeJudgeModel(): ModelConfig {
       "http://127.0.0.1:1234/v1",
     ),
     id: `lmstudio/${modelId}` as const,
-    apiKey: getEnvWithFallback("LMSTUDIO_API_KEY", ["LLM_API_KEY"], "lm-studio"),
+    apiKey: getEnvWithFallback(
+      "LMSTUDIO_API_KEY",
+      ["LLM_API_KEY"],
+      "lm-studio",
+    ),
   };
 }

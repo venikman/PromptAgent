@@ -186,7 +186,12 @@ export const recordHttpRequest = (params: {
   status: number;
   durationMs: number;
 }) => {
-  recordHistogram(httpMetrics, params.key, params.durationMs, params.status >= 500);
+  recordHistogram(
+    httpMetrics,
+    params.key,
+    params.durationMs,
+    params.status >= 500,
+  );
 };
 
 const aiKey = (params: { name: string; model?: string }) =>
@@ -297,7 +302,9 @@ export const withAiTelemetry = async <T>(
   }
 };
 
-const buildSnapshot = (options?: { includeAiResponses?: boolean }): TelemetrySnapshot => {
+const buildSnapshot = (
+  options?: { includeAiResponses?: boolean },
+): TelemetrySnapshot => {
   const now = Date.now();
   const includeAiResponses = options?.includeAiResponses ?? true;
   return {

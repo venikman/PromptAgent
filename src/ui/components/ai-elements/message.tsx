@@ -24,7 +24,9 @@ export const Message = ({ class: className, from, ...props }: MessageProps) => (
 
 export type MessageContentProps = ComponentProps<"div">;
 
-export const MessageContent = ({ class: className, ...props }: MessageContentProps) => (
+export const MessageContent = (
+  { class: className, ...props }: MessageContentProps,
+) => (
   <div
     class={cn(
       "flex w-fit max-w-full min-w-0 flex-col gap-2 overflow-hidden text-sm",
@@ -38,7 +40,9 @@ export const MessageContent = ({ class: className, ...props }: MessageContentPro
 
 export type MessageResponseProps = StreamdownProps;
 
-export const MessageResponse = ({ className, ...props }: MessageResponseProps) => {
+export const MessageResponse = (
+  { className, ...props }: MessageResponseProps,
+) => {
   const mergedClassName = cn(
     "size-full whitespace-pre-wrap [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
     className,

@@ -85,13 +85,16 @@ const gateTone = (decision: string) => {
   }
 };
 
-const StoryCard = ({ story, index }: { story: StoryPack["userStories"][number]; index: number }) => (
+const StoryCard = (
+  { story, index }: { story: StoryPack["userStories"][number]; index: number },
+) => (
   <div class="rounded-2xl border border-border/60 bg-white/80 p-4 shadow-sm">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <p class="text-sm font-semibold text-foreground">
         {index + 1}. {story.title}
       </p>
-      {typeof story.ado.fields["Microsoft.VSTS.Scheduling.StoryPoints"] === "number" && (
+      {typeof story.ado.fields["Microsoft.VSTS.Scheduling.StoryPoints"] ===
+          "number" && (
         <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
           {story.ado.fields["Microsoft.VSTS.Scheduling.StoryPoints"]} pts
         </span>
@@ -136,22 +139,28 @@ const PlaygroundResultView = ({ result }: { result: PlaygroundResponse }) => {
         </div>
       )}
 
-      {storyPack ? (
-        <div class="space-y-3">
-          {storyPack.userStories.map((story, index) => (
-            <StoryCard key={`${story.title}-${index}`} story={story} index={index} />
-          ))}
-        </div>
-      ) : (
-        <div class="rounded-2xl border border-border/60 bg-white/80 p-4 text-xs text-muted-foreground">
-          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Raw output
-          </p>
-          <pre class="mt-2 whitespace-pre-wrap text-xs text-foreground/80">
+      {storyPack
+        ? (
+          <div class="space-y-3">
+            {storyPack.userStories.map((story, index) => (
+              <StoryCard
+                key={`${story.title}-${index}`}
+                story={story}
+                index={index}
+              />
+            ))}
+          </div>
+        )
+        : (
+          <div class="rounded-2xl border border-border/60 bg-white/80 p-4 text-xs text-muted-foreground">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Raw output
+            </p>
+            <pre class="mt-2 whitespace-pre-wrap text-xs text-foreground/80">
             {rawText || "No output returned."}
-          </pre>
-        </div>
-      )}
+            </pre>
+          </div>
+        )}
     </div>
   );
 };
@@ -209,7 +218,9 @@ export default function Studio() {
   const [demoMode, setDemoMode] = useState(true);
   const [telemetry, setTelemetry] = useState<TelemetrySnapshot | null>(null);
   const [promptOverride, setPromptOverride] = useState("");
-  const [playgroundResult, setPlaygroundResult] = useState<PlaygroundResponse | null>(
+  const [playgroundResult, setPlaygroundResult] = useState<
+    PlaygroundResponse | null
+  >(
     null,
   );
   const [playgroundLoading, setPlaygroundLoading] = useState(false);
@@ -221,7 +232,9 @@ export default function Studio() {
     patchCandidates: 4,
     metaEvolutionEnabled: false,
   });
-  const [optimizationTask, setOptimizationTask] = useState<OptimizationTask | null>(
+  const [optimizationTask, setOptimizationTask] = useState<
+    OptimizationTask | null
+  >(
     null,
   );
   const [optimizationError, setOptimizationError] = useState("");
@@ -269,7 +282,9 @@ export default function Studio() {
       try {
         const res = await fetch("/health", { signal: controller.signal });
         if (!res.ok) {
-          const data = await readJson<{ error?: string }>(res).catch(() => ({}));
+          const data = await readJson<{ error?: string }>(res).catch(
+            () => ({}),
+          );
           if (!cancelled) {
             setHealth({
               status: "error",
@@ -420,7 +435,12 @@ export default function Studio() {
       });
 
       const data = await readJson<
-        { taskId: string; status: OptimizationTask["status"]; config?: Record<string, unknown>; error?: string }
+        {
+          taskId: string;
+          status: OptimizationTask["status"];
+          config?: Record<string, unknown>;
+          error?: string;
+        }
       >(res);
       if (!res.ok) {
         throw new Error(data.error || `HTTP ${res.status}`);
@@ -462,7 +482,9 @@ export default function Studio() {
         }
       } catch (err) {
         if (!cancelled) {
-          setOptimizationError(err instanceof Error ? err.message : String(err));
+          setOptimizationError(
+            err instanceof Error ? err.message : String(err),
+          );
         }
         if (intervalId) clearInterval(intervalId);
       }
@@ -477,12 +499,11 @@ export default function Studio() {
     };
   }, [optimizationTask?.taskId]);
 
-  const healthBadgeTone =
-    health.status === "ok"
-      ? "bg-emerald-500/10 text-emerald-700"
-      : health.status === "error"
-      ? "bg-rose-500/10 text-rose-700"
-      : "bg-slate-400/10 text-slate-700";
+  const healthBadgeTone = health.status === "ok"
+    ? "bg-emerald-500/10 text-emerald-700"
+    : health.status === "error"
+    ? "bg-rose-500/10 text-rose-700"
+    : "bg-slate-400/10 text-slate-700";
 
   return (
     <div class="relative min-h-screen overflow-hidden">
@@ -509,7 +530,9 @@ export default function Studio() {
               </p>
             </div>
             <div class="flex flex-col gap-4 rounded-2xl border border-white/70 bg-white/80 p-4 text-sm shadow-lg">
-              <div class={`flex items-center gap-2 rounded-full px-3 py-1 ${healthBadgeTone}`}>
+              <div
+                class={`flex items-center gap-2 rounded-full px-3 py-1 ${healthBadgeTone}`}
+              >
                 <span class="h-2 w-2 rounded-full bg-current" />
                 <span class="font-medium">
                   {health.status === "loading" && "Checking API"}
@@ -517,7 +540,9 @@ export default function Studio() {
                   {health.status === "error" && "API error"}
                 </span>
               </div>
-              <div class={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${inFlightTone}`}>
+              <div
+                class={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${inFlightTone}`}
+              >
                 <span class="h-2 w-2 rounded-full bg-current" />
                 <span>{inFlightLabel}</span>
               </div>
@@ -579,15 +604,15 @@ export default function Studio() {
                     setSelectedEpicId(target.value);
                   }}
                 >
-                  {epics.length === 0 ? (
-                    <option value="">No epics available</option>
-                  ) : (
-                    epics.map((epic) => (
-                      <option key={epic.id} value={epic.id}>
-                        {epic.id} - {epic.title}
-                      </option>
-                    ))
-                  )}
+                  {epics.length === 0
+                    ? <option value="">No epics available</option>
+                    : (
+                      epics.map((epic) => (
+                        <option key={epic.id} value={epic.id}>
+                          {epic.id} - {epic.title}
+                        </option>
+                      ))
+                    )}
                 </select>
               </div>
 
@@ -605,7 +630,8 @@ export default function Studio() {
                     <PromptInputTextarea
                       value={promptOverride}
                       onInput={(event) => {
-                        const target = event.currentTarget as HTMLTextAreaElement;
+                        const target = event
+                          .currentTarget as HTMLTextAreaElement;
                         setPromptOverride(target.value);
                       }}
                     />
@@ -793,9 +819,9 @@ export default function Studio() {
                   </p>
                 </div>
                 <div class="text-xs text-slate-500">
-                  Iteration {optimizationTask.progress?.iteration ?? 0} of
-                  {" "}
-                  {optimizationTask.progress?.maxIterations ?? optConfig.maxIterations}
+                  Iteration {optimizationTask.progress?.iteration ?? 0} of{" "}
+                  {optimizationTask.progress?.maxIterations ??
+                    optConfig.maxIterations}
                 </div>
               </div>
 
@@ -805,7 +831,10 @@ export default function Studio() {
                     Champion objective
                   </p>
                   <p class="text-lg font-semibold text-slate-900">
-                    {formatNumber(optimizationTask.progress?.championObjective, 3)}
+                    {formatNumber(
+                      optimizationTask.progress?.championObjective,
+                      3,
+                    )}
                   </p>
                 </div>
                 <div>

@@ -36,8 +36,16 @@ body {
   color: hsl(var(--foreground));
   background-color: hsl(var(--background));
   background-image:
-    radial-gradient(circle at 10% 10%, hsl(var(--accent) / 0.12), transparent 55%),
-    radial-gradient(circle at 90% 20%, hsl(var(--primary) / 0.15), transparent 60%),
+    radial-gradient(
+      circle at 10% 10%,
+      hsl(var(--accent) / 0.12),
+      transparent 55%
+    ),
+    radial-gradient(
+    circle at 90% 20%,
+    hsl(var(--primary) / 0.15),
+    transparent 60%
+  ),
     linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
   background-attachment: fixed;
 }

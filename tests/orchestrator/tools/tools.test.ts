@@ -5,7 +5,10 @@
  */
 
 import { assertEquals, assertExists, assertGreater } from "@std/assert";
-import { executePairMiner, hasPairs } from "../../../src/orchestrator/tools/pair-miner-tool.ts";
+import {
+  executePairMiner,
+  hasPairs,
+} from "../../../src/orchestrator/tools/pair-miner-tool.ts";
 import {
   executeMetaPatcher,
   hasMetaPatches,

@@ -1,10 +1,10 @@
 import type { Sheet } from "twind";
 import twindConfig from "./twind.config.ts";
 import {
+  type Options,
+  setup,
   STATE_ELEMENT_ID,
   STYLE_ELEMENT_ID,
-  setup,
-  type Options,
 } from "./twind_shared.ts";
 
 type State = Array<string | [string, string]>;

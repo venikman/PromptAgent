@@ -242,9 +242,7 @@ function checkFreshUi() {
   check(
     "Fresh app entry",
     existsSync(appPath),
-    existsSync(appPath)
-      ? "app.ts present"
-      : "src/ui/app.ts not found",
+    existsSync(appPath) ? "app.ts present" : "src/ui/app.ts not found",
     "warning",
   );
 }

@@ -234,7 +234,9 @@ const safeStringify = (value: unknown): string => {
   return String(value);
 };
 
-const parseStoryPack = (value: unknown): { storyPack: StoryPack | null; error?: ValidationFailure } => {
+const parseStoryPack = (
+  value: unknown,
+): { storyPack: StoryPack | null; error?: ValidationFailure } => {
   const parsed = storyPackSchema.safeParse(value);
   if (parsed.success) {
     return { storyPack: parsed.data };
@@ -277,7 +279,9 @@ export async function generateStoryPack(
   let storyPack: StoryPack | null = null;
   let rawText = "";
   let error: string | undefined;
-  let usage: { prompt?: number; completion?: number; total?: number } | undefined;
+  let usage:
+    | { prompt?: number; completion?: number; total?: number }
+    | undefined;
   let endedAt = startedAt;
   const steps: ExecutionTrace["steps"] = [];
 

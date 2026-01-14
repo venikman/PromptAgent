@@ -30,8 +30,10 @@ deno task ui:start                   # Run Fresh UI server
 
 ## Code Style (Functional)
 
-- Prefer pure functions and immutable data; avoid in-place mutation and shared state.
-- Use `const` and expression-based transforms (`map`, `reduce`, `filter`) over imperative loops.
+- Prefer pure functions and immutable data; avoid in-place mutation and shared
+  state.
+- Use `const` and expression-based transforms (`map`, `reduce`, `filter`) over
+  imperative loops.
 - Avoid classes; favor functions + plain data.
 
 ## Architecture
