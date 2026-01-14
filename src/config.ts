@@ -7,13 +7,20 @@ import { z } from "zod";
  * Fail-fast on startup if any env var is invalid/out-of-range.
  */
 
+const llmBaseUrlFallback = Deno.env.get("LLM_BASE_URL") ??
+  Deno.env.get("LLM_API_BASE_URL");
+const llmApiKeyFallback = Deno.env.get("LLM_API_KEY");
+const llmModelFallback = Deno.env.get("LLM_MODEL");
+
 const EnvSchema = z.object({
   // ─────────────────────────────────────────────────
   // LM Studio / Model Configuration
   // ─────────────────────────────────────────────────
-  LMSTUDIO_BASE_URL: z.string().url().default("http://127.0.0.1:1234/v1"),
-  LMSTUDIO_API_KEY: z.string().default("lm-studio"),
-  LMSTUDIO_MODEL: z.string().default("openai/gpt-oss-120b"),
+  LMSTUDIO_BASE_URL: z.string().url().default(
+    llmBaseUrlFallback ?? "http://127.0.0.1:1234/v1",
+  ),
+  LMSTUDIO_API_KEY: z.string().default(llmApiKeyFallback ?? "lm-studio"),
+  LMSTUDIO_MODEL: z.string().default(llmModelFallback ?? "openai/gpt-oss-120b"),
   LMSTUDIO_JUDGE_MODEL: z.string().optional(),
   LLM_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(600_000).default(
     120_000,
