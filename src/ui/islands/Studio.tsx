@@ -67,6 +67,11 @@ const formatMs = (value?: number) => {
   return `${Math.round(value / 1000)}s`;
 };
 
+const parsePositiveInt = (value: string, fallback: number) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : fallback;
+};
+
 const wrapCodeBlock = (value: string) => `~~~text\n${value}\n~~~`;
 const DEMO_MAX_TOKENS = 1200;
 
@@ -739,7 +744,10 @@ export default function Studio() {
                   const target = event.currentTarget as HTMLInputElement;
                   setOptConfig((current) => ({
                     ...current,
-                    maxIterations: Number(target.value),
+                    maxIterations: parsePositiveInt(
+                      target.value,
+                      current.maxIterations,
+                    ),
                   }));
                 }}
               />
@@ -755,7 +763,10 @@ export default function Studio() {
                   const target = event.currentTarget as HTMLInputElement;
                   setOptConfig((current) => ({
                     ...current,
-                    replicates: Number(target.value),
+                    replicates: parsePositiveInt(
+                      target.value,
+                      current.replicates,
+                    ),
                   }));
                 }}
               />
@@ -771,7 +782,10 @@ export default function Studio() {
                   const target = event.currentTarget as HTMLInputElement;
                   setOptConfig((current) => ({
                     ...current,
-                    patchCandidates: Number(target.value),
+                    patchCandidates: parsePositiveInt(
+                      target.value,
+                      current.patchCandidates,
+                    ),
                   }));
                 }}
               />

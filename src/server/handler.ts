@@ -1577,12 +1577,20 @@ export function createApiHandler(config: ApiConfig) {
                     updateTaskEvalProgress(task, { completed, total });
                   } else if (task.progress.step === "tournament") {
                     // During tournament, update tournament progress
-                    const candidateIdx = Math.floor(
-                      completed / (total / (config.patchCandidates + 1)),
+                    const totalCandidates = config.patchCandidates + 1;
+                    const runsPerCandidate = total > 0
+                      ? total / totalCandidates
+                      : 1;
+                    const rawCandidateIdx = Math.floor(
+                      completed / runsPerCandidate,
+                    );
+                    const candidateIdx = Math.min(
+                      Math.max(rawCandidateIdx, 0),
+                      config.patchCandidates,
                     );
                     updateTaskTournamentProgress(task, {
                       candidateIdx,
-                      totalCandidates: config.patchCandidates + 1,
+                      totalCandidates,
                       runsCompleted: completed,
                       totalRuns: total,
                     });
