@@ -48,6 +48,7 @@ export {
   failTask,
   getCheckpoint,
   getLatestCheckpoint,
+  getOptimizationTask,
   getTask,
   // KV Store
   kvStore,
@@ -55,6 +56,7 @@ export {
   listTasksByStatus,
   // Checkpoints
   saveCheckpoint,
+  saveOptimizationTask,
   saveTask,
   type SessionCheckpoint,
   type TaskRecord,

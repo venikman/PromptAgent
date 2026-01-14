@@ -17,6 +17,7 @@ import {
   createOptimizationTask,
   createTask,
   failTask,
+  getOptimizationTask,
   getTask,
   type IterationResult,
   kvStore,
@@ -24,6 +25,7 @@ import {
   type OptimizationTask,
   Orchestrator,
   runOptimizationLoop,
+  saveOptimizationTask,
   updateTaskEvalProgress,
   updateTaskProgress,
   updateTaskStep,
@@ -121,6 +123,8 @@ const tournamentTasks = new Map<string, TournamentTask>();
 // ─────────────────────────────────────────────────
 
 const optimizationTasks = new Map<string, OptimizationTask>();
+const optimizationTaskLastPersisted = new Map<string, number>();
+const OPTIMIZATION_PERSIST_INTERVAL_MS = 2_000;
 const TASK_TTL_MS = 60 * 60 * 1000;
 const TASK_CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
 let taskCleanupScheduled = false;
@@ -140,6 +144,30 @@ const cleanupOldTasks = <T extends { completedAt?: string }>(
   }
 };
 
+const persistOptimizationTask = async (
+  task: OptimizationTask,
+  force = false,
+) => {
+  const now = Date.now();
+  if (!force) {
+    const lastPersisted = optimizationTaskLastPersisted.get(task.id) ?? 0;
+    if (now - lastPersisted < OPTIMIZATION_PERSIST_INTERVAL_MS) {
+      return;
+    }
+  }
+  optimizationTaskLastPersisted.set(task.id, now);
+  await saveOptimizationTask(task);
+};
+
+const queuePersistOptimizationTask = (
+  task: OptimizationTask,
+  force = false,
+) => {
+  void persistOptimizationTask(task, force).catch((err) => {
+    console.warn("Failed to persist optimization task", err);
+  });
+};
+
 const scheduleTaskCleanup = () => {
   if (taskCleanupScheduled) return;
   taskCleanupScheduled = true;
@@ -147,6 +175,11 @@ const scheduleTaskCleanup = () => {
     cleanupOldTasks(evalTasks, TASK_TTL_MS);
     cleanupOldTasks(tournamentTasks, TASK_TTL_MS);
     cleanupOldTasks(optimizationTasks, TASK_TTL_MS);
+    for (const taskId of optimizationTaskLastPersisted.keys()) {
+      if (!optimizationTasks.has(taskId)) {
+        optimizationTaskLastPersisted.delete(taskId);
+      }
+    }
   }, TASK_CLEANUP_INTERVAL_MS);
 };
 
@@ -1533,12 +1566,14 @@ export function createApiHandler(config: ApiConfig) {
         // Create streaming optimization task
         const task = createOptimizationTask(taskId, config);
         optimizationTasks.set(taskId, task);
+        queuePersistOptimizationTask(task, true);
 
         const startTime = Date.now();
 
         // Run optimization in background with detailed progress callbacks
         (async () => {
           task.status = "running";
+          queuePersistOptimizationTask(task, true);
           let iterationStartTime = startTime;
 
           try {
@@ -1561,6 +1596,7 @@ export function createApiHandler(config: ApiConfig) {
                   updateTaskStep(task, "evaluating_champion", {
                     totalElapsed: Date.now() - startTime,
                   });
+                  queuePersistOptimizationTask(task);
                 },
 
                 onIterationEnd: (result: IterationResult) => {
@@ -1568,6 +1604,7 @@ export function createApiHandler(config: ApiConfig) {
                   task.progress.totalElapsed = Date.now() - startTime;
                   task.progress.iterationElapsed = Date.now() -
                     iterationStartTime;
+                  queuePersistOptimizationTask(task);
                 },
 
                 // Evaluation progress callback
@@ -1596,6 +1633,7 @@ export function createApiHandler(config: ApiConfig) {
                     });
                   }
                   task.progress.totalElapsed = Date.now() - startTime;
+                  queuePersistOptimizationTask(task);
                 },
               },
               { enableCheckpoints: true },
@@ -1617,11 +1655,13 @@ export function createApiHandler(config: ApiConfig) {
               championPatch: finalState.championPrompt.patch,
               history: task.progress.history,
             };
+            queuePersistOptimizationTask(task, true);
           } catch (err) {
             task.status = "failed";
             task.error = err instanceof Error ? err.message : String(err);
             task.completedAt = new Date().toISOString();
             updateTaskStep(task, "failed");
+            queuePersistOptimizationTask(task, true);
           }
         })();
 
@@ -1640,7 +1680,13 @@ export function createApiHandler(config: ApiConfig) {
           return jsonResponse({ error: "Invalid task ID" }, 400);
         }
 
-        const task = optimizationTasks.get(taskId);
+        let task = optimizationTasks.get(taskId);
+        if (!task) {
+          task = await getOptimizationTask(taskId) ?? undefined;
+          if (task) {
+            optimizationTasks.set(taskId, task);
+          }
+        }
 
         if (!task) {
           return jsonResponse({ error: "Task not found" }, 404);

@@ -7,11 +7,13 @@
  * Key schema:
  * - ["tasks", taskId] → TaskRecord
  * - ["tasks:by-status", status, taskId] → taskId (index)
+ * - ["optimization-tasks", taskId] → OptimizationTask
  * - ["checkpoints", checkpointId] → SessionCheckpoint
  * - ["checkpoints:by-session", sessionId, checkpointId] → checkpointId (index)
  */
 
 import type { OptimizationState } from "../types.ts";
+import type { OptimizationTask } from "../optimization-progress.ts";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -182,6 +184,27 @@ export async function createTask(
   };
   await saveTask(task);
   return task;
+}
+
+/**
+ * Save a streaming optimization task.
+ */
+export async function saveOptimizationTask(
+  task: OptimizationTask,
+): Promise<void> {
+  const kv = await getKv();
+  await kv.set(["optimization-tasks", task.id], task);
+}
+
+/**
+ * Get a streaming optimization task by ID.
+ */
+export async function getOptimizationTask(
+  taskId: string,
+): Promise<OptimizationTask | null> {
+  const kv = await getKv();
+  const result = await kv.get<OptimizationTask>(["optimization-tasks", taskId]);
+  return result.value;
 }
 
 // ─────────────────────────────────────────────────
@@ -383,6 +406,8 @@ export const kvStore = {
   failTask,
   listTasksByStatus,
   createTask,
+  saveOptimizationTask,
+  getOptimizationTask,
 
   // Checkpoint management
   saveCheckpoint,
