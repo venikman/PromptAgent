@@ -8,8 +8,7 @@ import {
 } from "./twind_shared.ts";
 
 type State = Array<string | [string, string]>;
-type SheetInitCallback = Parameters<NonNullable<Sheet["init"]>>[0];
-type SheetInitState = Parameters<SheetInitCallback>[0];
+type SheetHydrateState = [number[], Set<string>, Map<string, string>, boolean];
 
 const readState = (): State => {
   const el = document.getElementById(STATE_ELEMENT_ID);
@@ -56,11 +55,11 @@ const hydrate = (options: Options, state: State) => {
     precedences.push(normalizedPrecedence);
   }
 
-  const sheetState: SheetInitState = [precedences, rules, mappings, true];
+  const sheetState: SheetHydrateState = [precedences, rules, mappings, true];
   const sheet: Sheet = {
     target,
     insert: (rule, index) => target.insertRule(rule, index),
-    init: (cb) => cb(sheetState),
+    init: <T>(cb: (state?: T) => T) => cb(sheetState as unknown as T),
   };
 
   setup(options, sheet);
