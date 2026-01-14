@@ -11,14 +11,14 @@
  * 4. Illumination: Report-only telemetry (NEVER in dominance)
  */
 
-import { z } from "npm:zod@4.3.5";
+import { z } from "zod";
 import {
-  type CreativityProfile,
-  type CreativityGateResult,
   applyCreativityGate,
   compareCreativityProfiles,
   type CreativityConfig,
+  type CreativityGateResult,
   type CreativityInput,
+  type CreativityProfile,
 } from "./creativity.ts";
 
 // ═══════════════════════════════════════════════════════════════
@@ -198,7 +198,7 @@ function computeParetoFront(candidates: Candidate[]): {
 
 function computeIllumination(
   front: Candidate[],
-  allEligible: Candidate[]
+  allEligible: Candidate[],
 ): IlluminationTelemetry {
   if (front.length === 0) {
     return {
@@ -220,26 +220,23 @@ function computeIllumination(
   const novelties = front
     .map((c) => c.creativity?.noveltyAtContext ?? 0)
     .filter((n) => n > 0);
-  const avgNovelty =
-    novelties.length > 0
-      ? novelties.reduce((a, b) => a + b, 0) / novelties.length
-      : 0;
+  const avgNovelty = novelties.length > 0
+    ? novelties.reduce((a, b) => a + b, 0) / novelties.length
+    : 0;
 
   // Average diversity
   const diversities = front
     .map((c) => c.creativity?.diversityP ?? 0)
     .filter((d) => d > 0);
-  const avgDiversity =
-    diversities.length > 0
-      ? diversities.reduce((a, b) => a + b, 0) / diversities.length
-      : 0;
+  const avgDiversity = diversities.length > 0
+    ? diversities.reduce((a, b) => a + b, 0) / diversities.length
+    : 0;
 
   // Objective spread
   const objectives = front.map((c) => c.objective);
-  const objectiveSpread =
-    objectives.length > 1
-      ? Math.max(...objectives) - Math.min(...objectives)
-      : 0;
+  const objectiveSpread = objectives.length > 1
+    ? Math.max(...objectives) - Math.min(...objectives)
+    : 0;
 
   return {
     coverage,
@@ -318,7 +315,7 @@ const DEFAULT_NQD_CONFIG: Required<NQDSelectorConfig> = {
  */
 export function runNQDSelection(
   candidates: Candidate[],
-  config: NQDSelectorConfig = {}
+  config: NQDSelectorConfig = {},
 ): NQDArchive {
   const cfg = { ...DEFAULT_NQD_CONFIG, ...config };
 
@@ -336,7 +333,9 @@ export function runNQDSelection(
       candidateObjective: candidate.objective,
       passRate: candidate.passRate,
       schemaValid: candidate.schemaValid,
-      portfolioPrompts: portfolioPrompts.filter((p) => p !== candidate.promptText),
+      portfolioPrompts: portfolioPrompts.filter((p) =>
+        p !== candidate.promptText
+      ),
     };
 
     const gateResult = applyCreativityGate(input, cfg);
@@ -362,7 +361,9 @@ export function runNQDSelection(
   let prunedFront = front;
   if (front.length > cfg.maxFrontSize) {
     prunedFront = [...front]
-      .sort((a, b) => (b.creativity?.useValue ?? 0) - (a.creativity?.useValue ?? 0))
+      .sort((a, b) =>
+        (b.creativity?.useValue ?? 0) - (a.creativity?.useValue ?? 0)
+      )
       .slice(0, cfg.maxFrontSize);
   }
 
@@ -403,7 +404,7 @@ export function runNQDSelection(
  */
 export function selectBestCandidate(
   candidates: Candidate[],
-  config: NQDSelectorConfig = {}
+  config: NQDSelectorConfig = {},
 ): Candidate | null {
   const archive = runNQDSelection(candidates, config);
   return archive.selectedWinner;
@@ -414,7 +415,7 @@ export function selectBestCandidate(
  */
 export function isEligible(
   candidate: Candidate,
-  config: NQDSelectorConfig = {}
+  config: NQDSelectorConfig = {},
 ): boolean {
   const cfg = { ...DEFAULT_NQD_CONFIG, ...config };
 

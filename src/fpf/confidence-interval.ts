@@ -123,8 +123,8 @@ export function mean(values: number[]): number {
 export function stdDev(values: number[]): number {
   if (values.length < 2) return 0;
   const m = mean(values);
-  const variance =
-    values.reduce((sum, v) => sum + (v - m) ** 2, 0) / (values.length - 1);
+  const variance = values.reduce((sum, v) => sum + (v - m) ** 2, 0) /
+    (values.length - 1);
   return Math.sqrt(variance);
 }
 
@@ -148,7 +148,8 @@ export function percentile(sortedValues: number[], p: number): number {
   const upper = Math.ceil(index);
   const fraction = index - lower;
 
-  return sortedValues[lower]! * (1 - fraction) + sortedValues[upper]! * fraction;
+  return sortedValues[lower]! * (1 - fraction) +
+    sortedValues[upper]! * fraction;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -188,8 +189,8 @@ export function wilsonInterval(
 
   const denominator = 1 + z2 / n;
   const center = (p + z2 / (2 * n)) / denominator;
-  const margin =
-    (z / denominator) * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n));
+  const margin = (z / denominator) *
+    Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n));
 
   return {
     estimate: p,
@@ -476,7 +477,9 @@ export function scoreWithBootstrapConfidence(
  */
 export function formatConfidenceInterval(ci: ConfidenceInterval): string {
   const pct = Math.round(ci.level * 100);
-  return `${ci.estimate.toFixed(3)} [${ci.lower.toFixed(3)}, ${ci.upper.toFixed(3)}] (${pct}% CI, n=${ci.n}, ${ci.method})`;
+  return `${ci.estimate.toFixed(3)} [${ci.lower.toFixed(3)}, ${
+    ci.upper.toFixed(3)
+  }] (${pct}% CI, n=${ci.n}, ${ci.method})`;
 }
 
 /**

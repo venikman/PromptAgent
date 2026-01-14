@@ -27,7 +27,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .cache
 *.tsbuildinfo
 .vite/
-ui/.vite/
+src/ui/.vite/
+src/ui/_fresh/
+playwright-report/
+test-results/
 
 # IntelliJ based IDEs
 .idea

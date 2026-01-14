@@ -10,9 +10,10 @@
  * 3. Focus on patterns that distinguish GOOD from BAD outputs
  */
 
-import { Agent } from "npm:@mastra/core@0.24.9/agent";
+import { Agent } from "@mastra/core/agent";
 import { makeJudgeModel } from "./models.ts";
 import { env } from "./config.ts";
+import { withAiTelemetry } from "./telemetry.ts";
 
 // ─────────────────────────────────────────────────
 // Agent Definition
@@ -76,9 +77,14 @@ export type GeneratePatchParams = {
  * Returns the raw patch text (no markdown fences).
  */
 export async function generatePatchCandidate(
-  params: GeneratePatchParams
+  params: GeneratePatchParams,
 ): Promise<string> {
-  const { basePrompt, currentPatch, pairsContext, temperature = env.OPT_PATCH_TEMPERATURE } = params;
+  const {
+    basePrompt,
+    currentPatch,
+    pairsContext,
+    temperature = env.OPT_PATCH_TEMPERATURE,
+  } = params;
 
   const prompt = [
     "## BASE PROMPT (do not rewrite)",
@@ -102,12 +108,21 @@ export async function generatePatchCandidate(
     "Output ONLY the patch text, no explanations.",
   ].join("\n");
 
-  const response = await promptPatchEngineerAgent.generate(prompt, {
-    modelSettings: {
-      temperature,
-      maxOutputTokens: 1024,
+  const abortSignal = AbortSignal.timeout(env.LLM_TIMEOUT_MS);
+  const response = await withAiTelemetry(
+    {
+      name: "patch-engineer",
+      model: env.LMSTUDIO_JUDGE_MODEL ?? env.LMSTUDIO_MODEL,
     },
-  });
+    () =>
+      promptPatchEngineerAgent.generate(prompt, {
+        modelSettings: {
+          temperature,
+          maxOutputTokens: 1024,
+        },
+        abortSignal,
+      }),
+  );
 
   // Clean up the response (remove any markdown fences if present)
   let patch = response.text ?? "";
@@ -130,14 +145,17 @@ export async function generatePatchCandidate(
  */
 export async function generatePatchCandidates(
   params: Omit<GeneratePatchParams, "temperature">,
-  count: number = env.OPT_PATCH_CANDIDATES
+  count: number = env.OPT_PATCH_CANDIDATES,
 ): Promise<string[]> {
   const candidates: string[] = [];
 
   for (let i = 0; i < count; i++) {
     // Vary temperature slightly for diversity (base ± 0.1)
     const tempVariation = (i - count / 2) * 0.05;
-    const temperature = Math.max(0.1, Math.min(1.5, env.OPT_PATCH_TEMPERATURE + tempVariation));
+    const temperature = Math.max(
+      0.1,
+      Math.min(1.5, env.OPT_PATCH_TEMPERATURE + tempVariation),
+    );
 
     const patch = await generatePatchCandidate({ ...params, temperature });
 

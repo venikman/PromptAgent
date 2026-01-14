@@ -13,10 +13,10 @@
  * and helps identify prompts that are reliably good vs "lucky once".
  */
 
-import pLimit from "npm:p-limit@7.2.0";
+import pLimit from "p-limit";
 import { env } from "./config.ts";
 import type { Epic, StoryPack } from "./schema.ts";
-import { generateStoryPack, type GenerateResult } from "./generator.ts";
+import { type GenerateResult, generateStoryPack } from "./generator.ts";
 import { createStoryDecompositionScorer } from "./scorer.ts";
 
 // ─────────────────────────────────────────────────
@@ -38,7 +38,10 @@ function std(xs: number[]): number {
 function percentile(xs: number[], p: number): number {
   if (xs.length === 0) return 0;
   const sorted = [...xs].sort((a, b) => a - b);
-  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor(p * (sorted.length - 1))));
+  const idx = Math.min(
+    sorted.length - 1,
+    Math.max(0, Math.floor(p * (sorted.length - 1))),
+  );
   return sorted[idx]!;
 }
 
@@ -116,6 +119,8 @@ export type EvalPromptDistributionParams = {
   replicates?: number;
   /** Override base seed (default: env.EVAL_SEED_BASE) */
   seedBase?: number;
+  /** Override max tokens per generation (default: env.GEN_MAX_TOKENS) */
+  maxTokens?: number;
   /** Concurrency for parallel evaluation (default: env.OPT_CONCURRENCY) */
   concurrency?: number;
   /** Progress callback */
@@ -123,7 +128,7 @@ export type EvalPromptDistributionParams = {
 };
 
 export async function evalPromptDistribution(
-  params: EvalPromptDistributionParams
+  params: EvalPromptDistributionParams,
 ): Promise<PromptDistReport> {
   const replicates = params.replicates ?? env.EVAL_REPLICATES;
   const seedBase = params.seedBase ?? env.EVAL_SEED_BASE;
@@ -146,7 +151,10 @@ export async function evalPromptDistribution(
 
       return limit(async (): Promise<DistRun> => {
         // Generate story pack with specific seed
-        const gen = await generateStoryPack(epic, params.promptText, { seed });
+        const gen = await generateStoryPack(epic, params.promptText, {
+          seed,
+          maxTokens: params.maxTokens,
+        });
 
         let score = 0;
         if (gen.storyPack && !gen.error) {
@@ -196,7 +204,10 @@ export async function evalPromptDistribution(
       p10Score: percentile(scores, 0.1),
       stdScore: std(scores),
       passRate,
-      discoverabilityK: approxDiscoverability(passRate, env.DISCOVERABILITY_TRIES),
+      discoverabilityK: approxDiscoverability(
+        passRate,
+        env.DISCOVERABILITY_TRIES,
+      ),
     });
   }
 
@@ -208,10 +219,9 @@ export async function evalPromptDistribution(
 
   // Composite objective: favor reliability + tail quality, penalize variance
   // Weights tuned for balance between "works reliably" and "works well"
-  const objective =
-    0.45 * meanPassRate +          // 45% weight on first-pass success
-    0.35 * meanOfMeans +           // 35% weight on average quality
-    0.20 * meanP10 -               // 20% weight on worst-case quality
+  const objective = 0.45 * meanPassRate + // 45% weight on first-pass success
+    0.35 * meanOfMeans + // 35% weight on average quality
+    0.20 * meanP10 - // 20% weight on worst-case quality
     env.EVAL_STD_LAMBDA * meanStd - // Penalty for inconsistency
     env.EVAL_FAIL_PENALTY * (1 - meanPassRate); // Extra penalty for failures
 

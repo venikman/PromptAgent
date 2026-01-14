@@ -6,12 +6,9 @@
  */
 
 import type { Epic, StoryPack } from "../schema.ts";
-import type { PromptDistReport, FlatRun } from "../eval.ts";
+import type { FlatRun, PromptDistReport } from "../eval.ts";
 import type { ContrastPair } from "../pairMining.ts";
-import type {
-  IlluminationTelemetry,
-  ParetoFront,
-} from "../fpf/nqd-selector.ts";
+import type { IlluminationTelemetry } from "../fpf/nqd-selector.ts";
 import type { MutationPrompt } from "../meta-evolution/types.ts";
 
 // Re-export composePrompt from patchEngineer
@@ -205,6 +202,7 @@ export interface EvaluatorInput {
   epics: Epic[];
   replicates: number;
   seedBase: number;
+  maxTokens?: number;
   concurrency?: number;
   onProgress?: (completed: number, total: number) => void;
 }
@@ -280,6 +278,8 @@ export interface OptimizationConfig {
   replicates: number;
   /** Number of patch candidates to generate */
   patchCandidates: number;
+  /** Override max tokens per generation */
+  maxTokens?: number;
   /** Concurrency for parallel evaluation */
   concurrency?: number;
   /** Callback when iteration starts */

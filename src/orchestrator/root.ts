@@ -12,20 +12,20 @@
  */
 
 import { env } from "../config.ts";
-import type { Epic, StoryPack } from "../schema.ts";
+import type { Epic } from "../schema.ts";
 import { generateStoryPack } from "../generator.ts";
 import { createStoryDecompositionScorer } from "../scorer.ts";
 import {
+  type ChampionPrompt,
+  composePrompt,
+  createInitialState,
+  createToolContext,
+  type EvaluatorInput,
+  type EvaluatorOutput,
+  type IterationResult,
   type OptimizationConfig,
   type OptimizationState,
   type PlaygroundResult,
-  type EvaluatorInput,
-  type EvaluatorOutput,
-  type ChampionPrompt,
-  type IterationResult,
-  createToolContext,
-  createInitialState,
-  composePrompt,
 } from "./types.ts";
 import { executeEvaluator } from "./tools/evaluator-tool.ts";
 import { OptimizationLoopAgent } from "./optimization-loop.ts";
@@ -66,21 +66,21 @@ export class Orchestrator {
       promptOverride?: string;
       seed?: number;
       temperature?: number;
-    }
+      maxTokens?: number;
+    },
   ): Promise<PlaygroundResult> {
     const epic = this.config.epics.find((e) => e.id === epicId);
     if (!epic) {
       throw new Error(`Epic not found: ${epicId}`);
     }
 
-    const prompt =
-      options?.promptOverride ??
+    const prompt = options?.promptOverride ??
       composePrompt(this.config.champion.base, this.config.champion.patch);
 
     const result = await generateStoryPack(epic, prompt, {
       seed: options?.seed,
       temperature: options?.temperature ?? env.GEN_TEMPERATURE,
-      maxTokens: env.GEN_MAX_TOKENS,
+      maxTokens: options?.maxTokens ?? env.GEN_MAX_TOKENS,
     });
 
     // Score the result if generation succeeded
@@ -123,12 +123,11 @@ export class Orchestrator {
    * Returns detailed per-epic and aggregate metrics.
    */
   async runEvaluation(
-    params: Partial<EvaluatorInput> & { promptText?: string }
+    params: Partial<EvaluatorInput> & { promptText?: string },
   ): Promise<EvaluatorOutput> {
     const ctx = createToolContext();
 
-    const promptText =
-      params.promptText ??
+    const promptText = params.promptText ??
       composePrompt(this.config.champion.base, this.config.champion.patch);
 
     const result = await executeEvaluator(
@@ -137,10 +136,11 @@ export class Orchestrator {
         epics: params.epics ?? this.config.epics,
         replicates: params.replicates ?? env.EVAL_REPLICATES,
         seedBase: params.seedBase ?? env.EVAL_SEED_BASE,
+        maxTokens: params.maxTokens,
         concurrency: params.concurrency ?? env.OPT_CONCURRENCY,
         onProgress: params.onProgress,
       },
-      ctx
+      ctx,
     );
 
     if (!result.success) {
@@ -157,26 +157,28 @@ export class Orchestrator {
   /**
    * Run full optimization loop with tournament selection.
    */
-  async runOptimization(
+  runOptimization(
     config?: Partial<OptimizationConfig>,
     callbacks?: {
       onIterationStart?: (iteration: number) => void;
       onIterationEnd?: (result: IterationResult) => void;
       onProgress?: (completed: number, total: number) => void;
-    }
+    },
   ): Promise<OptimizationState> {
     const loopAgent = new OptimizationLoopAgent(
       {
         maxIterations: config?.maxIterations ?? env.OPT_ITERATIONS,
-        promotionThreshold: config?.promotionThreshold ?? env.OPT_PROMOTION_THRESHOLD,
+        promotionThreshold: config?.promotionThreshold ??
+          env.OPT_PROMOTION_THRESHOLD,
         replicates: config?.replicates ?? env.EVAL_REPLICATES,
         patchCandidates: config?.patchCandidates ?? env.OPT_PATCH_CANDIDATES,
         concurrency: config?.concurrency ?? env.OPT_CONCURRENCY,
+        maxTokens: config?.maxTokens,
         onIterationStart: callbacks?.onIterationStart,
         onIterationEnd: callbacks?.onIterationEnd,
         onProgress: callbacks?.onProgress,
       },
-      this.config.epics
+      this.config.epics,
     );
 
     const initialState = createInitialState(this.config.champion);
@@ -187,14 +189,14 @@ export class Orchestrator {
   /**
    * Resume optimization from a saved state.
    */
-  async resumeOptimization(
+  resumeOptimization(
     state: OptimizationState,
     config?: Partial<OptimizationConfig>,
     callbacks?: {
       onIterationStart?: (iteration: number) => void;
       onIterationEnd?: (result: IterationResult) => void;
       onProgress?: (completed: number, total: number) => void;
-    }
+    },
   ): Promise<OptimizationState> {
     // Reset continuation flags
     state.shouldContinue = true;
@@ -203,15 +205,17 @@ export class Orchestrator {
     const loopAgent = new OptimizationLoopAgent(
       {
         maxIterations: config?.maxIterations ?? env.OPT_ITERATIONS,
-        promotionThreshold: config?.promotionThreshold ?? env.OPT_PROMOTION_THRESHOLD,
+        promotionThreshold: config?.promotionThreshold ??
+          env.OPT_PROMOTION_THRESHOLD,
         replicates: config?.replicates ?? env.EVAL_REPLICATES,
         patchCandidates: config?.patchCandidates ?? env.OPT_PATCH_CANDIDATES,
         concurrency: config?.concurrency ?? env.OPT_CONCURRENCY,
+        maxTokens: config?.maxTokens,
         onIterationStart: callbacks?.onIterationStart,
         onIterationEnd: callbacks?.onIterationEnd,
         onProgress: callbacks?.onProgress,
       },
-      this.config.epics
+      this.config.epics,
     );
 
     return loopAgent.execute(state);

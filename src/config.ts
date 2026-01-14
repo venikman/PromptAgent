@@ -1,5 +1,5 @@
-import "jsr:@std/dotenv/load";
-import { z } from "npm:zod@4.3.5";
+import "@std/dotenv/load";
+import { z } from "zod";
 
 /**
  * Centralized configuration with Zod validation.
@@ -7,14 +7,53 @@ import { z } from "npm:zod@4.3.5";
  * Fail-fast on startup if any env var is invalid/out-of-range.
  */
 
+const llmBaseUrlFallback = Deno.env.get("LLM_BASE_URL") ??
+  Deno.env.get("LLM_API_BASE_URL");
+const llmApiKeyFallback = Deno.env.get("LLM_API_KEY");
+const llmModelFallback = Deno.env.get("LLM_MODEL");
+
+const envBoolean = (defaultValue: boolean) =>
+  z.preprocess((value) => {
+    if (value === undefined) return defaultValue;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      return normalized === "true" || normalized === "1";
+    }
+    return defaultValue;
+  }, z.boolean());
+
 const EnvSchema = z.object({
   // ─────────────────────────────────────────────────
   // LM Studio / Model Configuration
   // ─────────────────────────────────────────────────
-  LMSTUDIO_BASE_URL: z.string().url().default("http://127.0.0.1:1234/v1"),
-  LMSTUDIO_API_KEY: z.string().default("lm-studio"),
-  LMSTUDIO_MODEL: z.string().default("openai/gpt-oss-120b"),
+  LMSTUDIO_BASE_URL: z.string().url().default(
+    llmBaseUrlFallback ?? "http://127.0.0.1:1234/v1",
+  ),
+  LMSTUDIO_API_KEY: z.string().default(llmApiKeyFallback ?? "lm-studio"),
+  LMSTUDIO_MODEL: z.string().default(llmModelFallback ?? "openai/gpt-oss-120b"),
   LMSTUDIO_JUDGE_MODEL: z.string().optional(),
+  LLM_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(600_000).default(
+    120_000,
+  ),
+
+  // ─────────────────────────────────────────────────
+  // Telemetry
+  // ─────────────────────────────────────────────────
+  TELEMETRY_REPORT_INTERVAL_MS: z.coerce.number().int().min(5_000).max(
+    600_000,
+  ).default(60_000),
+  TELEMETRY_LOG_REQUESTS: envBoolean(true),
+  TELEMETRY_INCLUDE_LLM_OUTPUT: envBoolean(false),
+  TELEMETRY_LLM_PREVIEW_CHARS: z.coerce.number().int().min(0).max(5000).default(
+    800,
+  ),
+
+  // ─────────────────────────────────────────────────
+  // CORS
+  // ─────────────────────────────────────────────────
+  CORS_ALLOWED_ORIGINS: z.string().default(""),
 
   // ─────────────────────────────────────────────────
   // Generation Settings
@@ -81,7 +120,7 @@ const EnvSchema = z.object({
   // Based on arXiv 2404.18796 + FPF B.3 Trust Calculus
   // ─────────────────────────────────────────────────
   /** Enable PoLL (3-judge panel) instead of single judge */
-  POLL_ENABLED: z.coerce.boolean().default(true),
+  POLL_ENABLED: envBoolean(true),
 
   /** Number of judges in the panel (default: 3 per PoLL paper) */
   POLL_NUM_JUDGES: z.coerce.number().int().min(2).max(7).default(3),
@@ -124,7 +163,7 @@ const EnvSchema = z.object({
   // Multi-objective Pareto selection for tournament
   // ─────────────────────────────────────────────────
   /** Enable NQD selection in optimizer tournament */
-  NQD_ENABLED: z.coerce.boolean().default(true),
+  NQD_ENABLED: envBoolean(true),
 
   /** Constraint-fit threshold for eligibility (1.0 = perfect schema compliance) */
   NQD_CONSTRAINT_FIT_THRESHOLD: z.coerce.number().min(0).max(1).default(1.0),

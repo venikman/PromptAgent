@@ -1,6 +1,10 @@
-import { Metric, type MetricResult } from "npm:@mastra/core@0.24.9";
-import { MastraAgentJudge } from "npm:@mastra/evals@0.14.4/judge";
-import { z } from "npm:zod@4.3.5";
+import { Metric, type MetricResult } from "@mastra/core";
+import { MastraAgentJudge } from "@mastra/evals/judge";
+import { z } from "zod";
+import { env } from "../config.ts";
+import { withAiTelemetry } from "../telemetry.ts";
+
+type MastraJudgeModel = ConstructorParameters<typeof MastraAgentJudge>[2];
 
 export type GateDecision = "abstain" | "pass" | "degrade" | "block";
 type GateProfile = "Lite" | "Core" | "SafetyCritical";
@@ -46,7 +50,7 @@ const ExecutionTraceSchema = z.object({
         .optional(),
       startedAt: z.string().optional(),
       endedAt: z.string().optional(),
-    })
+    }),
   ),
 });
 
@@ -123,10 +127,14 @@ const PromptAgentJudgeInfoSchema = z.object({
 export type PromptAgentJudgeInfo = z.infer<typeof PromptAgentJudgeInfoSchema>;
 
 export const isPromptAgentJudgeInfo = (
-  value: unknown
-): value is PromptAgentJudgeInfo => PromptAgentJudgeInfoSchema.safeParse(value).success;
+  value: unknown,
+): value is PromptAgentJudgeInfo =>
+  PromptAgentJudgeInfoSchema.safeParse(value).success;
 
-const buildTraceDigest = (trace: ExecutionTrace, maxSteps = MAX_TRACE_DIGEST_STEPS): string => {
+const buildTraceDigest = (
+  trace: ExecutionTrace,
+  maxSteps = MAX_TRACE_DIGEST_STEPS,
+): string => {
   const steps = trace.steps.slice(0, maxSteps).map((s) => {
     const tu = s.tokenUsage?.total ?? null;
     return {
@@ -145,7 +153,7 @@ const buildTraceDigest = (trace: ExecutionTrace, maxSteps = MAX_TRACE_DIGEST_STE
       steps,
     },
     null,
-    2
+    2,
   );
 };
 
@@ -201,8 +209,7 @@ const scoringMethod = (args: {
 
   const eff = args.efficiency ?? NEUTRAL_EFFICIENCY_SCORE; // neutral if unknown
 
-  const base =
-    w.correctness * args.subscores.correctness +
+  const base = w.correctness * args.subscores.correctness +
     w.completeness * args.subscores.completeness +
     w.processQuality * args.subscores.processQuality +
     w.efficiency * eff;
@@ -211,7 +218,10 @@ const scoringMethod = (args: {
   return clamp01(base * args.rEff);
 };
 
-const generateJudgePrompt = (input: PromptAgentJudgeInput, traceDigest: string | null) => {
+const generateJudgePrompt = (
+  input: PromptAgentJudgeInput,
+  traceDigest: string | null,
+) => {
   const traceSection = traceDigest
     ? `Execution trace digest (partial):\n${traceDigest}`
     : `Execution trace digest: MISSING`;
@@ -254,7 +264,7 @@ Judge Work, not plans. Prefer evidence from the run trace.
 Be conservative when evidence is missing: do not over-score.
 `.trim();
 
-    super("PromptAgentFPFJudge", INSTRUCTIONS, model as any);
+    super("PromptAgentFPFJudge", INSTRUCTIONS, model as MastraJudgeModel);
     this.phi = opts?.phi ?? defaultPhi;
   }
 
@@ -262,7 +272,9 @@ Be conservative when evidence is missing: do not over-score.
     decision: GateDecision;
     checks: Array<{ kind: string; decision: GateDecision; rationale: string }>;
   } {
-    const checks: Array<{ kind: string; decision: GateDecision; rationale: string }> = [];
+    const checks: Array<
+      { kind: string; decision: GateDecision; rationale: string }
+    > = [];
 
     // GateCheck: evidence completeness (trace presence)
     if (!input.trace) {
@@ -270,7 +282,8 @@ Be conservative when evidence is missing: do not over-score.
       checks.push({
         kind: "EvidenceCompleteness.TracePresent",
         decision: d,
-        rationale: "Missing execution trace; cannot bind judgement to Work evidence.",
+        rationale:
+          "Missing execution trace; cannot bind judgement to Work evidence.",
       });
     } else {
       checks.push({
@@ -295,7 +308,10 @@ Be conservative when evidence is missing: do not over-score.
       });
     }
 
-    const decision = checks.map((c) => c.decision).reduce(joinGateDecision, "abstain");
+    const decision = checks.map((c) => c.decision).reduce(
+      joinGateDecision,
+      "abstain",
+    );
     return { decision, checks };
   }
 
@@ -349,9 +365,22 @@ Be conservative when evidence is missing: do not over-score.
 
     const prompt = generateJudgePrompt(input, traceDigest);
 
-    const llm = await this.agent.generate(prompt, {
-      structuredOutput: { schema: LLMSubscoresSchema },
-    });
+    const abortSignal = AbortSignal.timeout(env.LLM_TIMEOUT_MS);
+    const llm = await withAiTelemetry(
+      {
+        name: "fpf-judge",
+        model: env.LMSTUDIO_JUDGE_MODEL ?? env.LMSTUDIO_MODEL,
+      },
+      () =>
+        this.agent.generate(prompt, {
+          structuredOutput: {
+            schema: LLMSubscoresSchema,
+            jsonPromptInjection: true,
+            errorStrategy: "strict",
+          },
+          abortSignal,
+        }),
+    );
 
     const parsed = LLMSubscoresSchema.safeParse(llm.object);
     if (!parsed.success) {
@@ -381,18 +410,21 @@ Be conservative when evidence is missing: do not over-score.
       ? Math.min(...input.bridges.map((b) => b.cl))
       : DEFAULT_CL_MIN_NO_BRIDGE; // No bridges reported: assume no transport penalty (pristine reliability).
 
-    const rRaw = Math.min(subscores.correctness, subscores.safety, subscores.processQuality);
+    const rRaw = Math.min(
+      subscores.correctness,
+      subscores.safety,
+      subscores.processQuality,
+    );
     const rEff = clamp01(Math.max(0, rRaw - this.phi(clMin)));
 
     const score = scoringMethod({ subscores, efficiency, rEff });
 
     // Map to FPF-style status (simple default).
-    const status =
-      score >= SATISFIED_SCORE_THRESHOLD
-        ? "satisfied"
-        : score <= VIOLATED_SCORE_THRESHOLD
-          ? "violated"
-          : "inconclusive";
+    const status = score >= SATISFIED_SCORE_THRESHOLD
+      ? "satisfied"
+      : score <= VIOLATED_SCORE_THRESHOLD
+      ? "violated"
+      : "inconclusive";
 
     return {
       score,
@@ -421,22 +453,21 @@ export class PromptAgentFPFMetric extends Metric {
     this.judge = new PromptAgentFPFJudge(model, opts);
   }
 
-  async measure(input: PromptAgentJudgeInput): Promise<MetricResult>;
-  async measure(input: string, output: string): Promise<MetricResult>;
-  async measure(
+  measure(input: PromptAgentJudgeInput): Promise<MetricResult>;
+  measure(input: string, output: string): Promise<MetricResult>;
+  measure(
     input: PromptAgentJudgeInput | string,
-    output?: string
+    output?: string,
   ): Promise<MetricResult> {
-    const payload =
-      typeof input === "string"
-        ? {
-            query: input,
-            instructions: "",
-            response: output ?? "",
-            bridges: [],
-            gateProfile: "Core" as const,
-          }
-        : input;
+    const payload = typeof input === "string"
+      ? {
+        query: input,
+        instructions: "",
+        response: output ?? "",
+        bridges: [],
+        gateProfile: "Core" as const,
+      }
+      : input;
 
     return this.judge.evaluate(payload);
   }

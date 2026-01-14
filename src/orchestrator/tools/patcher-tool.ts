@@ -8,8 +8,8 @@
 import { generatePatchCandidates } from "../../patchEngineer.ts";
 import { formatPairsForPrompt } from "../../pairMining.ts";
 import type { ContrastPair } from "../../pairMining.ts";
-import type { ToolContext, ToolResult, PatcherInput } from "../types.ts";
-import { successResult, failureResult } from "../types.ts";
+import type { PatcherInput, ToolContext, ToolResult } from "../types.ts";
+import { failureResult, successResult } from "../types.ts";
 
 /**
  * Execute patch generation with isolated context.
@@ -19,7 +19,7 @@ import { successResult, failureResult } from "../types.ts";
  */
 export async function executePatcher(
   input: PatcherInput,
-  ctx: ToolContext
+  ctx: ToolContext,
 ): Promise<ToolResult<string[]>> {
   const startTime = Date.now();
 
@@ -34,7 +34,7 @@ export async function executePatcher(
         currentPatch: input.currentPatch,
         pairsContext,
       },
-      input.candidateCount
+      input.candidateCount,
     );
 
     return successResult(candidates, ctx, startTime);
@@ -57,7 +57,7 @@ export async function generateSinglePatch(
   basePrompt: string,
   currentPatch: string,
   pairs: ContrastPair[],
-  ctx: ToolContext
+  ctx: ToolContext,
 ): Promise<ToolResult<string>> {
   const result = await executePatcher(
     {
@@ -67,7 +67,7 @@ export async function generateSinglePatch(
       candidateCount: 1,
       temperature: 0.6,
     },
-    ctx
+    ctx,
   );
 
   if (!result.success) {

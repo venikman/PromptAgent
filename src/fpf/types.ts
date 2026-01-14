@@ -7,7 +7,7 @@
  * - C.18: NQD-CAL
  */
 
-import { z } from "npm:zod@4.3.5";
+import { z } from "zod";
 
 // ═══════════════════════════════════════════════════════════════
 // FORMALITY LEVEL (Ordinal - NEVER average)
@@ -15,10 +15,10 @@ import { z } from "npm:zod@4.3.5";
 // ═══════════════════════════════════════════════════════════════
 
 export enum FormalityLevel {
-  F0_INFORMAL = 0,      // Freeform prose, no structure
-  F1_STRUCTURED = 1,    // Structured narrative (sections, bullets)
-  F2_FORMALIZABLE = 2,  // Schema-compliant, machine-readable
-  F3_PROOF_GRADE = 3,   // Formally verified structure
+  F0_INFORMAL = 0, // Freeform prose, no structure
+  F1_STRUCTURED = 1, // Structured narrative (sections, bullets)
+  F2_FORMALIZABLE = 2, // Schema-compliant, machine-readable
+  F3_PROOF_GRADE = 3, // Formally verified structure
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -27,10 +27,10 @@ export enum FormalityLevel {
 // ═══════════════════════════════════════════════════════════════
 
 export enum CongruenceLevel {
-  CL0_WEAK_GUESS = 0,       // High disagreement, Φ = 0.30
-  CL1_PLAUSIBLE = 1,        // Moderate agreement, Φ = 0.15
-  CL2_VALIDATED = 2,        // Strong agreement, Φ = 0.05
-  CL3_VERIFIED = 3,         // Near-unanimous, Φ = 0.00
+  CL0_WEAK_GUESS = 0, // High disagreement, Φ = 0.30
+  CL1_PLAUSIBLE = 1, // Moderate agreement, Φ = 0.15
+  CL2_VALIDATED = 2, // Strong agreement, Φ = 0.05
+  CL3_VERIFIED = 3, // Near-unanimous, Φ = 0.00
 }
 
 /**
@@ -48,9 +48,9 @@ export const PHI: Record<CongruenceLevel, number> = {
  * CL thresholds based on max inter-judge delta
  */
 export const CL_THRESHOLDS = {
-  CL3: 0.10,  // < 0.10 delta → CL3 (verified)
-  CL2: 0.25,  // < 0.25 delta → CL2 (validated)
-  CL1: 0.40,  // < 0.40 delta → CL1 (plausible)
+  CL3: 0.10, // < 0.10 delta → CL3 (verified)
+  CL2: 0.25, // < 0.25 delta → CL2 (validated)
+  CL1: 0.40, // < 0.40 delta → CL1 (plausible)
   // >= 0.40 → CL0 (weak guess)
 };
 
@@ -172,7 +172,7 @@ export const SourceCitationRecordSchema = z.object({
   clEdges: z.array(z.nativeEnum(CongruenceLevel)),
 
   // Computation record
-  wlnkCutset: z.array(z.string()),  // Which nodes capped F/G/R
+  wlnkCutset: z.array(z.string()), // Which nodes capped F/G/R
   phiApplied: z.number(),
   evidencePins: z.array(EvidencePinSchema),
 

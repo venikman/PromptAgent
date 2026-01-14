@@ -120,7 +120,11 @@ export function cosine(a: Float32Array, b: Float32Array): number {
 /**
  * Compute similarity between two texts directly.
  */
-export function textSimilarity(textA: string, textB: string, dim = 512): number {
+export function textSimilarity(
+  textA: string,
+  textB: string,
+  dim = 512,
+): number {
   const vecA = hashVector(textA, dim);
   const vecB = hashVector(textB, dim);
   return cosine(vecA, vecB);

@@ -11,19 +11,18 @@
  * - Supports hypermutation (evolving the mutation prompts themselves)
  */
 
-import { Agent } from "npm:@mastra/core@0.24.9/agent";
+import { Agent } from "@mastra/core/agent";
 import { makeJudgeModel } from "../../models.ts";
 import { formatPairsForPrompt } from "../../pairMining.ts";
-import type { ContrastPair } from "../../pairMining.ts";
-import type { ToolContext, ToolResult, PatcherInput } from "../types.ts";
-import { successResult, failureResult } from "../types.ts";
+import type { PatcherInput, ToolContext, ToolResult } from "../types.ts";
+import { failureResult, successResult } from "../types.ts";
+import { env } from "../../config.ts";
+import { withAiTelemetry } from "../../telemetry.ts";
 import {
-  type MutationPrompt,
-  type TaskPrompt,
   createSeedMutationPrompts,
-  selectMutationByFitness,
-  selectEliteMutations,
   getMutationsByType,
+  type MutationPrompt,
+  selectMutationByFitness,
 } from "../../meta-evolution/index.ts";
 
 // ═══════════════════════════════════════════════════════════════
@@ -60,7 +59,8 @@ export interface MetaPatcherOutput {
 const metaPatchAgent = new Agent({
   id: "meta-patch-agent",
   name: "Meta Patch Agent",
-  instructions: `You are a prompt optimization expert. Follow the mutation instructions exactly.
+  instructions:
+    `You are a prompt optimization expert. Follow the mutation instructions exactly.
 Output ONLY the patch text, no explanations or markdown fences.
 Keep patches short (10-15 lines of rules) and focused on the specific improvement suggested.`,
   model: makeJudgeModel(),
@@ -85,12 +85,16 @@ async function applyMutationForPatch(
 
   // For Lamarckian mutations, include working example
   if (mutation.type === "LAMARCKIAN" && workingExample) {
-    mutationContext = `${mutationContext}\n\n## WORKING EXAMPLE (high-scoring output)\n${workingExample.slice(0, 1500)}`;
+    mutationContext =
+      `${mutationContext}\n\n## WORKING EXAMPLE (high-scoring output)\n${
+        workingExample.slice(0, 1500)
+      }`;
   }
 
   // For EDA mutations, emphasize the patterns in pairs
   if (mutation.type === "EDA_MUTATION") {
-    mutationContext = `${mutationContext}\n\nAnalyze the statistical patterns in the pairs below.`;
+    mutationContext =
+      `${mutationContext}\n\nAnalyze the statistical patterns in the pairs below.`;
   }
 
   const fullPrompt = `
@@ -110,12 +114,21 @@ Output ONLY the new patch text (10-15 lines of rules).
 `.trim();
 
   try {
-    const response = await metaPatchAgent.generate(fullPrompt, {
-      modelSettings: {
-        temperature: 0.7,
-        maxOutputTokens: 512,
+    const abortSignal = AbortSignal.timeout(env.LLM_TIMEOUT_MS);
+    const response = await withAiTelemetry(
+      {
+        name: "meta-patcher",
+        model: env.LMSTUDIO_JUDGE_MODEL ?? env.LMSTUDIO_MODEL,
       },
-    });
+      () =>
+        metaPatchAgent.generate(fullPrompt, {
+          modelSettings: {
+            temperature: 0.7,
+            maxOutputTokens: 512,
+          },
+          abortSignal,
+        }),
+    );
 
     let patch = response.text?.trim() ?? "";
 
@@ -233,8 +246,8 @@ export function updateMutationFitness(
 
     // Exponential moving average for success rate
     const alpha = 0.3;
-    mutation.successRate =
-      alpha * (improved ? 1 : 0) + (1 - alpha) * mutation.successRate;
+    mutation.successRate = alpha * (improved ? 1 : 0) +
+      (1 - alpha) * mutation.successRate;
     mutation.fitness = mutation.successRate;
   }
 
@@ -267,18 +280,27 @@ export async function runHypermutation(
     hyperMutations[Math.floor(Math.random() * hyperMutations.length)]!;
 
   // Apply hypermutation
-  let prompt = hyperMutation.text
+  const prompt = hyperMutation.text
     .replace("{MUTATION_PROMPT}", weakest.text)
     .replace("{SUCCESS_RATE}", (weakest.successRate * 100).toFixed(0))
     .replace("{USAGE_COUNT}", String(weakest.usageCount));
 
   try {
-    const response = await metaPatchAgent.generate(prompt, {
-      modelSettings: {
-        temperature: 0.8,
-        maxOutputTokens: 512,
+    const abortSignal = AbortSignal.timeout(env.LLM_TIMEOUT_MS);
+    const response = await withAiTelemetry(
+      {
+        name: "meta-hypermutation",
+        model: env.LMSTUDIO_JUDGE_MODEL ?? env.LMSTUDIO_MODEL,
       },
-    });
+      () =>
+        metaPatchAgent.generate(prompt, {
+          modelSettings: {
+            temperature: 0.8,
+            maxOutputTokens: 512,
+          },
+          abortSignal,
+        }),
+    );
 
     const newMutationText = response.text?.trim();
     if (newMutationText && newMutationText.length > 30) {

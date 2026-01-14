@@ -1,24 +1,23 @@
-import type { MetricResult } from "npm:@mastra/core@0.24.9";
-import { createScorer } from "npm:@mastra/core@0.24.9/scores";
-import { KeywordCoverageMetric } from "npm:@mastra/evals@0.14.4/nlp";
-import { z } from "npm:zod@4.3.5";
+import type { MetricResult } from "@mastra/core";
+import { createScorer } from "@mastra/core/scores";
+import { KeywordCoverageMetric } from "@mastra/evals/nlp";
+import { z } from "zod";
 import { env } from "./config.ts";
 import type { Epic, StoryPack } from "./schema.ts";
 import { storyPackSchema } from "./schema.ts";
 import { makeJudgeModel } from "./models.ts";
 import {
-  PromptAgentFPFMetric,
   type Bridge,
-  type PromptAgentJudgeInput,
   isPromptAgentJudgeInfo,
+  PromptAgentFPFMetric,
+  type PromptAgentJudgeInput,
 } from "./judge/promptagent-fpf-judge.ts";
 import {
-  PoLLMetric,
-  isPoLLMetricInfo,
-  type PoLLMetricInfo,
-  interJudgeInterval,
-  formatConfidenceInterval,
   type ConfidenceInterval,
+  interJudgeInterval,
+  isPoLLMetricInfo,
+  PoLLMetric,
+  type PoLLMetricInfo,
 } from "./fpf/index.ts";
 
 type ScorerInput = Epic;
@@ -69,8 +68,7 @@ export function createStoryDecompositionScorer() {
       const input = run.input!;
       const epicText = `${input.title}\n\n${input.description}`;
       const rawText = run.output.rawText ?? "";
-      const instructions =
-        run.output.instructions ??
+      const instructions = run.output.instructions ??
         "Generate Azure DevOps user stories that satisfy the epic and the provided schema.";
 
       const parsed = storyPackSchema.safeParse(run.output.storyPack);
@@ -200,16 +198,14 @@ export function createStoryDecompositionScorer() {
       if (gateDecision === "block") return 0;
 
       // Story count scoring: 4-8 is optimal
-      const countScore =
-        p.storyCount >= 4 && p.storyCount <= 8
-          ? 1
-          : p.storyCount === 3 || p.storyCount === 9
-            ? 0.7
-            : 0.4;
+      const countScore = p.storyCount >= 4 && p.storyCount <= 8
+        ? 1
+        : p.storyCount === 3 || p.storyCount === 9
+        ? 0.7
+        : 0.4;
 
       // Weighted composite score
-      const heuristicScore =
-        HEURISTIC_WEIGHTS.coverage * p.coverageScore +
+      const heuristicScore = HEURISTIC_WEIGHTS.coverage * p.coverageScore +
         HEURISTIC_WEIGHTS.invest * a.invest +
         HEURISTIC_WEIGHTS.acceptanceCriteria * a.acceptanceCriteria +
         HEURISTIC_WEIGHTS.duplication * a.duplication +
@@ -217,19 +213,17 @@ export function createStoryDecompositionScorer() {
 
       // Use PoLL R_eff (WLNK-aggregated) when available, else single-judge FPF
       // PoLL's R_eff already incorporates the congruence penalty (Φ)
-      const judgeScore =
-        pollInfo?.rEff ??
+      const judgeScore = pollInfo?.rEff ??
         (typeof p.fpfJudgeResult?.score === "number"
           ? p.fpfJudgeResult.score
           : null);
 
       const gatePenalty = gateDecision === "degrade" ? DEGRADE_GATE_PENALTY : 1;
 
-      const blendedScore =
-        judgeScore === null
-          ? heuristicScore // Judge failed: fall back to heuristics without downweighting
-          : HEURISTIC_SCORE_WEIGHT * heuristicScore +
-            FPF_SCORE_WEIGHT * judgeScore;
+      const blendedScore = judgeScore === null
+        ? heuristicScore // Judge failed: fall back to heuristics without downweighting
+        : HEURISTIC_SCORE_WEIGHT * heuristicScore +
+          FPF_SCORE_WEIGHT * judgeScore;
 
       const score = clamp01(blendedScore * gatePenalty);
 
@@ -252,8 +246,8 @@ export function createStoryDecompositionScorer() {
         ? maybeFpfInfo
         : undefined;
 
-      const gateDecision =
-        pollInfo?.gateDecision ?? fpfInfo?.gateDecision ?? "abstain";
+      const gateDecision = pollInfo?.gateDecision ?? fpfInfo?.gateDecision ??
+        "abstain";
       const fpfSubscores = fpfInfo?.subscores;
 
       // Build reason parts
@@ -270,7 +264,9 @@ export function createStoryDecompositionScorer() {
       // Add PoLL-specific info when available (takes precedence)
       if (pollInfo) {
         reasonParts.push(
-          `poll={judges:${pollInfo.numJudges},CL:${pollInfo.congruenceLevelName},delta:${pollInfo.maxInterJudgeDelta.toFixed(3)}}`,
+          `poll={judges:${pollInfo.numJudges},CL:${pollInfo.congruenceLevelName},delta:${
+            pollInfo.maxInterJudgeDelta.toFixed(3)
+          }}`,
           `rEff=${pollInfo.rEff.toFixed(3)}`,
           `rRaw=${pollInfo.rRaw.toFixed(3)}`,
         );
@@ -278,13 +274,19 @@ export function createStoryDecompositionScorer() {
         // Add confidence interval if available
         if (p.scoreConfidence) {
           reasonParts.push(
-            `CI95=[${p.scoreConfidence.lower.toFixed(3)},${p.scoreConfidence.upper.toFixed(3)}]`,
+            `CI95=[${p.scoreConfidence.lower.toFixed(3)},${
+              p.scoreConfidence.upper.toFixed(3)
+            }]`,
           );
         }
       } else if (fpfSubscores) {
         // Fallback to single-judge FPF info
         reasonParts.push(
-          `fpf={corr:${fpfSubscores.correctness?.toFixed(3) ?? "?"},comp:${fpfSubscores.completeness?.toFixed(3) ?? "?"},proc:${fpfSubscores.processQuality?.toFixed(3) ?? "?"},safe:${fpfSubscores.safety?.toFixed(3) ?? "?"}}`,
+          `fpf={corr:${fpfSubscores.correctness?.toFixed(3) ?? "?"},comp:${
+            fpfSubscores.completeness?.toFixed(3) ?? "?"
+          },proc:${fpfSubscores.processQuality?.toFixed(3) ?? "?"},safe:${
+            fpfSubscores.safety?.toFixed(3) ?? "?"
+          }}`,
         );
         if (fpfInfo && typeof fpfInfo.rEff === "number") {
           reasonParts.push(`rEff=${fpfInfo.rEff.toFixed(3)}`);

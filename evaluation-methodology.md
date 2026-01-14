@@ -24,7 +24,8 @@ Objective = 0.45 × passRate
 
 The UI might not be clearly showing:
 
-1. **What each metric means** - the statistical reasoning behind p10, discoverability
+1. **What each metric means** - the statistical reasoning behind p10,
+   discoverability
 2. **How weights are applied** - the 45/35/20 split
 3. **Trace execution details** - token usage, timing per step
 
@@ -34,13 +35,16 @@ Would you like me to:
 2. **Create a "methodology" documentation page?**
 3. **Add visual indicators showing what each score component contributes?**
 
-`★ Insight ─────────────────────────────────────`
-**Yes! PromptAgent follows a research-backed methodology from paper 2507.22133**
+`★ Insight ─────────────────────────────────────` **Yes! PromptAgent follows a
+research-backed methodology from paper 2507.22133**
 
-This is a proper academic approach to prompt optimization, not ad-hoc tuning. The system implements three key techniques from the literature:
+This is a proper academic approach to prompt optimization, not ad-hoc tuning.
+The system implements three key techniques from the literature:
 
-1. **Distributional Evaluation** - treats prompt quality as a statistical distribution, not a single number
-2. **Contrastive Pair Mining** - inspired by OPRO (Optimization by PROmpting) from DeepMind
+1. **Distributional Evaluation** - treats prompt quality as a statistical
+   distribution, not a single number
+2. **Contrastive Pair Mining** - inspired by OPRO (Optimization by PROmpting)
+   from DeepMind
 3. **Patch-based Evolution** - additive improvements rather than full rewrites
    `─────────────────────────────────────────────────`
 
@@ -130,21 +134,25 @@ Base Prompt (fixed) + Patch (evolves) = Final Prompt
 
 ## What's Missing in the UI?
 
-The methodology **is implemented** but may not be **visible** in the UI. Would you like me to:
+The methodology **is implemented** but may not be **visible** in the UI. Would
+you like me to:
 
 1. **Add a "Methodology" panel** explaining the approach to users?
 2. **Show distribution stats** (p10, std, discoverability) more clearly?
 3. **Visualize contrastive pairs** that drove improvements?
 4. **Add paper reference** with links to the research?
 
-`★ Insight ─────────────────────────────────────`
-**Great news: Your methodology is well-aligned with current research!**
-The 2024-2025 research landscape has evolved, but PromptAgent's core approaches remain valid. The key developments are:
+`★ Insight ─────────────────────────────────────` **Great news: Your methodology
+is well-aligned with current research!** The 2024-2025 research landscape has
+evolved, but PromptAgent's core approaches remain valid. The key developments
+are:
 
-1. **Contrastive methods are now mainstream** - Your pair mining approach is validated by multiple 2024-2025 papers
-2. **Ensemble judges (PoLL) outperform single judges** - This is a significant opportunity for improvement
-3. **PhaseEvo/PromptBreeder add meta-evolution** - Could enhance your patch generation
-   `─────────────────────────────────────────────────`
+1. **Contrastive methods are now mainstream** - Your pair mining approach is
+   validated by multiple 2024-2025 papers
+2. **Ensemble judges (PoLL) outperform single judges** - This is a significant
+   opportunity for improvement
+3. **PhaseEvo/PromptBreeder add meta-evolution** - Could enhance your patch
+   generation `─────────────────────────────────────────────────`
 
 # Research Findings: PromptAgent Methodology Audit
 
@@ -170,11 +178,15 @@ The 2024-2025 research landscape has evolved, but PromptAgent's core approaches 
 
 ### Latest Research (2024-2025)
 
-**[ReliableEval](https://arxiv.org/html/2505.22169)** (May 2025) confirms your approach:
+**[ReliableEval](https://arxiv.org/html/2505.22169)** (May 2025) confirms your
+approach:
 
-> "Evaluation of LLMs requires stochastic evaluation over the spectrum of perturbations via a method of moments analysis (expected value, variance, etc.)"
-> **[PromptEval](https://arxiv.org/pdf/2405.17202)** (2024) validates multi-run evaluation:
-> "Our method can produce accurate performance distribution and quantile estimates at the cost of 2-4 single-prompt evaluations"
+> "Evaluation of LLMs requires stochastic evaluation over the spectrum of
+> perturbations via a method of moments analysis (expected value, variance,
+> etc.)" **[PromptEval](https://arxiv.org/pdf/2405.17202)** (2024) validates
+> multi-run evaluation: "Our method can produce accurate performance
+> distribution and quantile estimates at the cost of 2-4 single-prompt
+> evaluations"
 
 ### 🔧 Recommended Enhancement
 
@@ -195,13 +207,17 @@ cosine_sim > 0.86 AND score_delta > 0.15
 
 ### Latest Research (2024-2025)
 
-**[CRPO - Contrastive Reasoning Prompt Optimization](https://arxiv.org/html/2509.02093)** (Oct 2025):
+**[CRPO - Contrastive Reasoning Prompt Optimization](https://arxiv.org/html/2509.02093)**
+(Oct 2025):
 
-> "Multi-metric variant integrates the strongest exemplars along helpfulness, correctness, coherence, complexity, and verbosity"
-> **[LCP - Learning from Contrastive Prompts](https://arxiv.org/html/2409.15199v1)** (2024):
-> "Achieves win rate of over 76% versus OPRO by contrasting good and bad prompts while learning from error cases"
-> **[Paper 2507.22133](https://arxiv.org/html/2507.22133)** (your reference) is still valid:
-> "Contrastive pairs exhibit subtle differences that can guide an LLM to produce more successful prompts"
+> "Multi-metric variant integrates the strongest exemplars along helpfulness,
+> correctness, coherence, complexity, and verbosity"
+> **[LCP - Learning from Contrastive Prompts](https://arxiv.org/html/2409.15199v1)**
+> (2024): "Achieves win rate of over 76% versus OPRO by contrasting good and bad
+> prompts while learning from error cases"
+> **[Paper 2507.22133](https://arxiv.org/html/2507.22133)** (your reference) is
+> still valid: "Contrastive pairs exhibit subtle differences that can guide an
+> LLM to produce more successful prompts"
 
 ### 🔧 Recommended Enhancement
 
@@ -224,9 +240,11 @@ cosine_sim > 0.86 AND score_delta > 0.15
 
 **[PromptBreeder](https://dl.acm.org/doi/10.5555/3692070.3692611)** (ICML 2024):
 
-> "Not just improving task-prompts, but also improving the mutation-prompts that improve these task-prompts" (self-referential)
+> "Not just improving task-prompts, but also improving the mutation-prompts that
+> improve these task-prompts" (self-referential)
 > **[PhaseEvo](https://openreview.net/pdf?id=u8BO0NFF21)** (Feb 2024):
-> "Two-phase strategy: global mutations to find promising regions, then focused semantic mutations and gradient-based refinements"
+> "Two-phase strategy: global mutations to find promising regions, then focused
+> semantic mutations and gradient-based refinements"
 > **[EvoPrompt](https://github.com/beeevita/EvoPrompt)** (ICLR 2024):
 > "Significantly outperforms human-engineered prompts, up to 25% on BBH"
 > **[Tournament of Prompts](https://arxiv.org/html/2506.00178v1)** (June 2025):
@@ -254,14 +272,17 @@ cosine_sim > 0.86 AND score_delta > 0.15
 
 **[PoLL - Panel of LLM Evaluators](https://arxiv.org/abs/2404.18796)** (2024):
 
-> "Panel of smaller models outperforms single large judge, exhibits less intra-model bias, and is 7x less expensive"
-> **[Prometheus 2](https://arxiv.org/abs/2405.01535)** (May 2024):
-> "Open-source evaluator that scores highest correlation with humans among all tested open evaluator LMs"
-> **[SE-Jury](https://arxiv.org/html/2505.20854v2)** (ASE 2025):
-> "First LLM-as-Ensemble-Judge metric with five distinct evaluation strategies as independent judges"
-> **[Survey on LLM-as-a-Judge](https://arxiv.org/abs/2411.15594)** (Nov 2024) best practices:
-> "Criteria decomposition - each evaluation monitors a single criteria"
-> "Chain-of-Thought reasoning significantly improves evaluation quality"
+> "Panel of smaller models outperforms single large judge, exhibits less
+> intra-model bias, and is 7x less expensive"
+> **[Prometheus 2](https://arxiv.org/abs/2405.01535)** (May 2024): "Open-source
+> evaluator that scores highest correlation with humans among all tested open
+> evaluator LMs" **[SE-Jury](https://arxiv.org/html/2505.20854v2)** (ASE 2025):
+> "First LLM-as-Ensemble-Judge metric with five distinct evaluation strategies
+> as independent judges"
+> **[Survey on LLM-as-a-Judge](https://arxiv.org/abs/2411.15594)** (Nov 2024)
+> best practices: "Criteria decomposition - each evaluation monitors a single
+> criteria" "Chain-of-Thought reasoning significantly improves evaluation
+> quality"
 
 ### 🔧 Recommended Enhancement (HIGH PRIORITY)
 
@@ -279,7 +300,8 @@ cosine_sim > 0.86 AND score_delta > 0.15
 
 ### Multi-Agent Optimization
 
-**[MARS](https://arxiv.org/html/2502.02533v1)** (March 2025) and **Prochemy** (March 2025):
+**[MARS](https://arxiv.org/html/2502.02533v1)** (March 2025) and **Prochemy**
+(March 2025):
 
 > "Multi-agent Socratic dialogue + planner-driven decomposition"
 
@@ -287,7 +309,8 @@ cosine_sim > 0.86 AND score_delta > 0.15
 
 **[DSPy + TextGrad](https://medium.com/@adnanmasood/beyond-prompt-engineering-how-llm-optimization-frameworks-like-textgrad-and-dspy-are-building-the-6790d3bf0b34)**:
 
-> "DSPy for compile-time pipeline optimization, TextGrad for test-time refinement"
+> "DSPy for compile-time pipeline optimization, TextGrad for test-time
+> refinement"
 
 ---
 
@@ -335,18 +358,27 @@ Would you like me to:
 2. **Add tiered contrastive pair mining** - quick win?
 3. **Create a detailed implementation plan** for all changes?
 
-I want you to usi FPF to come up with evaluator for you proeject. So we would have custon uniqui, basedon SOTA mete-mate evaluateors. before we wil mae a choce with which new method to adotp
+I want you to usi FPF to come up with evaluator for you proeject. So we would
+have custon uniqui, basedon SOTA mete-mate evaluateors. before we wil mae a
+choce with which new method to adotp
 
 1. Primary Request and Intent:
    - User initially asked about monitoring methodology clarity in the UI demo
    - User wanted to understand if the project follows an established methodology
-   - User requested research into latest SOTA methods (2024-2025) for each optimization component before making updates
-   - **Most Recent Request**: User provided the FPF-Spec (First Principles Framework) document and wants to use FPF to design a custom, unique evaluator for PromptAgent based on SOTA meta-evaluation methods. This should be done BEFORE deciding which new method to adopt from the research findings.
+   - User requested research into latest SOTA methods (2024-2025) for each
+     optimization component before making updates
+   - **Most Recent Request**: User provided the FPF-Spec (First Principles
+     Framework) document and wants to use FPF to design a custom, unique
+     evaluator for PromptAgent based on SOTA meta-evaluation methods. This
+     should be done BEFORE deciding which new method to adopt from the research
+     findings.
 
 2. Key Technical Concepts:
    - **Paper 2507.22133**: Research methodology currently implemented
-   - **Distributional Evaluation**: Running prompts R times, computing mean/p10/std/passRate/discoverability
-   - **Contrastive Pair Mining**: OPRO-style finding semantic nearest neighbors with quality delta
+   - **Distributional Evaluation**: Running prompts R times, computing
+     mean/p10/std/passRate/discoverability
+   - **Contrastive Pair Mining**: OPRO-style finding semantic nearest neighbors
+     with quality delta
    - **Prompt Patch Optimization**: Additive patches only, no full rewrites
    - **SOTA Research Findings (2024-2025)**:
      - ReliableEval, PromptEval (distributional)
@@ -355,7 +387,8 @@ I want you to usi FPF to come up with evaluator for you proeject. So we would ha
      - PoLL (Panel of LLM judges - 7x cheaper, less bias)
      - Prometheus 2 (open-source evaluator LLM)
      - SE-Jury (ensemble judges)
-   - **FPF (First Principles Framework)**: Comprehensive specification for transdisciplinary methods including:
+   - **FPF (First Principles Framework)**: Comprehensive specification for
+     transdisciplinary methods including:
      - F-G-R Trust & Assurance Calculus (Formality-Scope-Reliability)
      - Holonic composition
      - Evidence Graph patterns
@@ -365,7 +398,8 @@ I want you to usi FPF to come up with evaluator for you proeject. So we would ha
 3. Files and Code Sections:
    - `/Users/stas-studio/Developer/PromptAgent/src/eval.ts`
      - Core distributional evaluation implementation
-     - Contains: `EpicDistResult`, `PromptDistReport`, objective function with weights (0.45 passRate + 0.35 meanOfMeans + 0.20 meanP10)
+     - Contains: `EpicDistResult`, `PromptDistReport`, objective function with
+       weights (0.45 passRate + 0.35 meanOfMeans + 0.20 meanP10)
    - `/Users/stas-studio/Developer/PromptAgent/src/pairMining.ts`
      - Contrastive pair mining (OPRO-style)
      - Finds pairs with `cosine_sim > 0.86 AND score_delta > 0.15`
@@ -376,7 +410,8 @@ I want you to usi FPF to come up with evaluator for you proeject. So we would ha
    - `/Users/stas-studio/Downloads/FPF-Spec (7) (1).md`
      - FPF specification document (40,000+ lines)
      - Just started reading (first 500 lines)
-     - Contains patterns for: Holonic Foundation, Role Taxonomy, Transformer Constitution, Trust Calculus, Evidence Graph, etc.
+     - Contains patterns for: Holonic Foundation, Role Taxonomy, Transformer
+       Constitution, Trust Calculus, Evidence Graph, etc.
 
 4. Errors and fixes:
    - No code errors encountered
@@ -391,10 +426,15 @@ I want you to usi FPF to come up with evaluator for you proeject. So we would ha
      - LOW: Confidence intervals, tournament/Elo selection
 
 6. All user messages:
-   - "I was trying demo with UI and I have realized that data not clear and how we measing it. DO we follw some emthodfor motniorign ?"
+   - "I was trying demo with UI and I have realized that data not clear and how
+     we measing it. DO we follw some emthodfor motniorign ?"
    - "are we follwong any method for optimized system?"
-   - "befor update, cna we check if your method are sstill good? fo each part dserach fornew discovrerisee / reserch / publicatoins"
-   - "[@FPF-Spec%20(7)%20(1).md](<file:///Users/stas-studio/Downloads/FPF-Spec%20(7)%20(1).md>) I want you to usi FPF to come up with evaluator for you proeject. So we would have custon uniqui, basedon SOTA mete-mate evaluateors. before we wil mae a choce with which new method to adotp"
+   - "befor update, cna we check if your method are sstill good? fo each part
+     dserach fornew discovrerisee / reserch / publicatoins"
+   - "[@FPF-Spec%20(7)%20(1).md](file:///Users/stas-studio/Downloads/FPF-Spec%20(7)%20(1).md)
+     I want you to usi FPF to come up with evaluator for you proeject. So we
+     would have custon uniqui, basedon SOTA mete-mate evaluateors. before we wil
+     mae a choce with which new method to adotp"
 
 7. Pending Tasks:
    - Read and understand the FPF specification thoroughly
@@ -402,42 +442,61 @@ I want you to usi FPF to come up with evaluator for you proeject. So we would ha
    - The evaluator should be unique, based on SOTA meta-evaluation methods
    - This should be completed BEFORE deciding which new research method to adopt
 
-8. Current Work:
-   I had just started reading the FPF-Spec document (`/Users/stas-studio/Downloads/FPF-Spec (7) (1).md`) to understand the framework's principles for designing a custom evaluator. The user's explicit request was:
+8. Current Work: I had just started reading the FPF-Spec document
+   (`/Users/stas-studio/Downloads/FPF-Spec (7) (1).md`) to understand the
+   framework's principles for designing a custom evaluator. The user's explicit
+   request was:
 
-   > "I want you to usi FPF to come up with evaluator for you proeject. So we would have custon uniqui, basedon SOTA mete-mate evaluateors. before we wil mae a choce with which new method to adotp"
+   > "I want you to usi FPF to come up with evaluator for you proeject. So we
+   > would have custon uniqui, basedon SOTA mete-mate evaluateors. before we wil
+   > mae a choce with which new method to adotp"
 
-   I read the first 500 lines of the FPF spec which covers the Table of Contents and Part A - Kernel Architecture Cluster introduction. Key patterns identified include:
+   I read the first 500 lines of the FPF spec which covers the Table of Contents
+   and Part A - Kernel Architecture Cluster introduction. Key patterns
+   identified include:
    - Trust & Assurance Calculus (F-G-R)
    - Evidence Graph patterns
    - MM-CHR (Measurement & Metrics)
    - Creativity-CHR
    - Role-Method-Work alignment
 
-9. Optional Next Step:
-   Continue reading the FPF specification, particularly focusing on sections relevant to evaluation:
+9. Optional Next Step: Continue reading the FPF specification, particularly
+   focusing on sections relevant to evaluation:
    - B.3 Trust & Assurance Calculus (F-G-R)
    - C.16 MM-CHR (Measurement & Metrics Characterization)
    - C.17 Creativity-CHR
-   - A.10 Evidence Graph Referring
-     Then design a custom FPF-based evaluator that incorporates the research findings (PoLL, contrastive pairs, meta-evolution) structured according to FPF principles..
-     Please continue the conversation from where we left it off without asking the user any further questions. Continue with the last task that you were asked to work on.
+   - A.10 Evidence Graph Referring Then design a custom FPF-based evaluator that
+     incorporates the research findings (PoLL, contrastive pairs,
+     meta-evolution) structured according to FPF principles.. Please continue
+     the conversation from where we left it off without asking the user any
+     further questions. Continue with the last task that you were asked to work
+     on.
 
-`★Insight ─────────────────────────────────────`
-**FPF-Based Meta-Evaluator Design Principles:**
+`★Insight ─────────────────────────────────────` **FPF-Based Meta-Evaluator
+Design Principles:**
 
-1. **F-G-R Trust Calculus** - The core innovation is treating prompt evaluation as an _assurance problem_. Instead of a single score, we compute `⟨F_eff, G_eff, R_eff⟩` tuples where:
+1. **F-G-R Trust Calculus** - The core innovation is treating prompt evaluation
+   as an _assurance problem_. Instead of a single score, we compute
+   `⟨F_eff, G_eff, R_eff⟩` tuples where:
    - **F (Formality)**: Ordinal scale - how structured/formal the prompt is
    - **G (ClaimScope)**: Coverage - what epic types the prompt reliably handles
-   - **R (Reliability)**: Ratio [0,1] - evidence-backed confidence, _penalized_ by integration quality (CL)
-2. **Weakest-Link Aggregation (WLNK)** - FPF's key insight: `R_eff = max(0, min(R_i) - Φ(CL_min))`. This prevents "trust inflation" where averaging hides weak components. Your current implementation already partially does this with `p10` (10th percentile), but FPF formalizes it.
-3. **NQD Portfolio Selection** - Instead of returning a single "best" prompt, return Pareto fronts. `Illumination` (coverage metrics) is _report-only telemetry_, never part of dominance - this prevents gaming coverage at the expense of quality.
+   - **R (Reliability)**: Ratio [0,1] - evidence-backed confidence, _penalized_
+     by integration quality (CL)
+2. **Weakest-Link Aggregation (WLNK)** - FPF's key insight:
+   `R_eff = max(0, min(R_i) - Φ(CL_min))`. This prevents "trust inflation" where
+   averaging hides weak components. Your current implementation already
+   partially does this with `p10` (10th percentile), but FPF formalizes it.
+3. **NQD Portfolio Selection** - Instead of returning a single "best" prompt,
+   return Pareto fronts. `Illumination` (coverage metrics) is _report-only
+   telemetry_, never part of dominance - this prevents gaming coverage at the
+   expense of quality.
 
 ## Summary: FPF-Based Meta-Evaluator for PromptAgent
 
 ### What Makes It Unique
 
-The evaluator synthesizes **multiple SOTA approaches** under a single rigorous framework:
+The evaluator synthesizes **multiple SOTA approaches** under a single rigorous
+framework:
 
 | Component            | SOTA Method          | FPF Principle                     |
 | -------------------- | -------------------- | --------------------------------- |
@@ -484,7 +543,8 @@ The evaluator synthesizes **multiple SOTA approaches** under a single rigorous f
 
 ### Why This Matters
 
-Your current implementation has the right intuition (distributional evaluation, p10 for worst-case), but FPF provides:
+Your current implementation has the right intuition (distributional evaluation,
+p10 for worst-case), but FPF provides:
 
 - **Formal justification** for why `min` aggregation is correct (WLNK)
 - **Scale discipline** that prevents averaging ordinals (INVEST is ordinal!)
@@ -505,4 +565,7 @@ Your current implementation has the right intuition (distributional evaluation, 
 
 rance claim
 
-This gives you a **unique, defensible, SOTA meta-evaluator** before deciding which specific new method (PoLL, Prometheus, PhaseEvo, etc.) to adopt - because the FPF framework can accommodate any of them while maintaining measurement integrity.
+This gives you a **unique, defensible, SOTA meta-evaluator** before deciding
+which specific new method (PoLL, Prometheus, PhaseEvo, etc.) to adopt - because
+the FPF framework can accommodate any of them while maintaining measurement
+integrity.

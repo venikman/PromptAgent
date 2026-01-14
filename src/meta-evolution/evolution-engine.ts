@@ -10,25 +10,24 @@
  * but also the prompts that generate improvements.
  */
 
-import { Agent } from "npm:@mastra/core@0.24.9/agent";
+import { Agent } from "@mastra/core/agent";
 import { makeJudgeModel } from "../models.ts";
-import { composePrompt } from "../patchEngineer.ts";
+import { env } from "../config.ts";
+import { withAiTelemetry } from "../telemetry.ts";
 import {
-  type MutationPrompt,
-  type TaskPrompt,
-  type Population,
-  type MutationResult,
-  type HypermutationResult,
-  type MetaEvolutionConfig,
-  type GenerationStats,
-  type EvolutionTelemetry,
   DEFAULT_META_CONFIG,
+  type EvolutionTelemetry,
+  type GenerationStats,
+  type MetaEvolutionConfig,
+  type MutationPrompt,
+  type Population,
+  type TaskPrompt,
 } from "./types.ts";
 import {
   createSeedMutationPrompts,
-  selectMutationByFitness,
-  selectEliteMutations,
   getMutationsByType,
+  selectEliteMutations,
+  selectMutationByFitness,
 } from "./mutation-prompts.ts";
 
 // ═══════════════════════════════════════════════════════════════
@@ -38,7 +37,8 @@ import {
 const metaAgent = new Agent({
   id: "meta-evolution-agent",
   name: "Meta Evolution Agent",
-  instructions: `You are a meta-optimization agent that improves prompts and the prompts that improve prompts.
+  instructions:
+    `You are a meta-optimization agent that improves prompts and the prompts that improve prompts.
 Follow the mutation prompt instructions exactly. Output ONLY what is requested, no explanations.`,
   model: makeJudgeModel(),
 });
@@ -56,7 +56,7 @@ async function applyMutation(
   context: {
     pairsContext?: string;
     workingExample?: string;
-  }
+  },
 ): Promise<string | null> {
   let prompt = mutation.text;
 
@@ -71,19 +71,32 @@ async function applyMutation(
 Base: ${taskPrompt.base.slice(0, 500)}...
 Patch: ${taskPrompt.patch || "(none)"}
 
-${context.pairsContext ? `## CONTRASTIVE PAIRS\n${context.pairsContext.slice(0, 2000)}` : ""}
+${
+    context.pairsContext
+      ? `## CONTRASTIVE PAIRS\n${context.pairsContext.slice(0, 2000)}`
+      : ""
+  }
 
 ## MUTATION TASK
 ${prompt}
 `.trim();
 
   try {
-    const response = await metaAgent.generate(fullPrompt, {
-      modelSettings: {
-        temperature: 0.7,
-        maxOutputTokens: 512,
+    const abortSignal = AbortSignal.timeout(env.LLM_TIMEOUT_MS);
+    const response = await withAiTelemetry(
+      {
+        name: "meta-mutation",
+        model: env.LMSTUDIO_JUDGE_MODEL ?? env.LMSTUDIO_MODEL,
       },
-    });
+      () =>
+        metaAgent.generate(fullPrompt, {
+          modelSettings: {
+            temperature: 0.7,
+            maxOutputTokens: 512,
+          },
+          abortSignal,
+        }),
+    );
 
     const result = response.text?.trim();
     if (!result || result.length < 10) {
@@ -101,7 +114,7 @@ ${prompt}
  */
 async function applyHypermutation(
   hyperMutation: MutationPrompt,
-  targetMutation: MutationPrompt
+  targetMutation: MutationPrompt,
 ): Promise<string | null> {
   let prompt = hyperMutation.text;
 
@@ -112,12 +125,21 @@ async function applyHypermutation(
     .replace("{USAGE_COUNT}", String(targetMutation.usageCount));
 
   try {
-    const response = await metaAgent.generate(prompt, {
-      modelSettings: {
-        temperature: 0.8, // Higher temp for meta-creativity
-        maxOutputTokens: 512,
+    const abortSignal = AbortSignal.timeout(env.LLM_TIMEOUT_MS);
+    const response = await withAiTelemetry(
+      {
+        name: "meta-hypermutation",
+        model: env.LMSTUDIO_JUDGE_MODEL ?? env.LMSTUDIO_MODEL,
       },
-    });
+      () =>
+        metaAgent.generate(prompt, {
+          modelSettings: {
+            temperature: 0.8, // Higher temp for meta-creativity
+            maxOutputTokens: 512,
+          },
+          abortSignal,
+        }),
+    );
 
     const result = response.text?.trim();
     if (!result || result.length < 20) {
@@ -136,7 +158,7 @@ async function applyHypermutation(
 async function applyCrossover(
   crossoverMutation: MutationPrompt,
   parentA: TaskPrompt,
-  parentB: TaskPrompt
+  parentB: TaskPrompt,
 ): Promise<string | null> {
   let prompt = crossoverMutation.text;
 
@@ -147,12 +169,21 @@ async function applyCrossover(
     .replace("{FITNESS_B}", parentB.fitness.toFixed(3));
 
   try {
-    const response = await metaAgent.generate(prompt, {
-      modelSettings: {
-        temperature: 0.6,
-        maxOutputTokens: 512,
+    const abortSignal = AbortSignal.timeout(env.LLM_TIMEOUT_MS);
+    const response = await withAiTelemetry(
+      {
+        name: "meta-crossover",
+        model: env.LMSTUDIO_JUDGE_MODEL ?? env.LMSTUDIO_MODEL,
       },
-    });
+      () =>
+        metaAgent.generate(prompt, {
+          modelSettings: {
+            temperature: 0.6,
+            maxOutputTokens: 512,
+          },
+          abortSignal,
+        }),
+    );
 
     const result = response.text?.trim();
     if (!result || result.length < 10) {
@@ -190,7 +221,7 @@ export class MetaEvolutionEngine {
   constructor(
     basePrompt: string,
     initialPatch: string = "",
-    config: Partial<MetaEvolutionConfig> = {}
+    config: Partial<MetaEvolutionConfig> = {},
   ) {
     this.config = { ...DEFAULT_META_CONFIG, ...config };
 
@@ -254,7 +285,7 @@ export class MetaEvolutionEngine {
     }
 
     const bestPrompt = this.population.taskPrompts.find(
-      (t) => t.id === this.population.bestTaskPromptId
+      (t) => t.id === this.population.bestTaskPromptId,
     )!;
 
     return {
@@ -271,7 +302,9 @@ export class MetaEvolutionEngine {
   /**
    * Run a single generation of evolution.
    */
-  private async runGeneration(context: EvolutionContext): Promise<GenerationStats> {
+  private async runGeneration(
+    context: EvolutionContext,
+  ): Promise<GenerationStats> {
     let mutationsApplied = 0;
     let successfulMutations = 0;
     let hypermutations = 0;
@@ -297,18 +330,22 @@ export class MetaEvolutionEngine {
         const otherParent = this.tournamentSelect([parent.id]);
         const crossoverMutation = getMutationsByType(
           this.population.mutationPrompts,
-          "CROSSOVER"
+          "CROSSOVER",
         )[0];
 
         if (crossoverMutation) {
           const newPatch = await applyCrossover(
             crossoverMutation,
             parent,
-            otherParent
+            otherParent,
           );
 
           if (newPatch) {
-            const newTask = this.createTaskPrompt(parent, newPatch, crossoverMutation.id);
+            const newTask = this.createTaskPrompt(
+              parent,
+              newPatch,
+              crossoverMutation.id,
+            );
             newTask.fitness = await context.evaluateFitness(newTask);
             newTaskPrompts.push(newTask);
             crossovers++;
@@ -316,13 +353,15 @@ export class MetaEvolutionEngine {
             // Update crossover mutation fitness
             this.updateMutationFitness(
               crossoverMutation,
-              newTask.fitness > Math.max(parent.fitness, otherParent.fitness)
+              newTask.fitness > Math.max(parent.fitness, otherParent.fitness),
             );
           }
         }
       } else {
         // Standard mutation
-        const mutation = selectMutationByFitness(this.population.mutationPrompts);
+        const mutation = selectMutationByFitness(
+          this.population.mutationPrompts,
+        );
         const newPatch = await applyMutation(mutation, parent, context);
 
         if (newPatch) {
@@ -331,7 +370,8 @@ export class MetaEvolutionEngine {
           newTaskPrompts.push(newTask);
           mutationsApplied++;
 
-          const improved = newTask.fitness > parent.fitness + this.config.improvementThreshold;
+          const improved =
+            newTask.fitness > parent.fitness + this.config.improvementThreshold;
           if (improved) {
             successfulMutations++;
           }
@@ -349,17 +389,22 @@ export class MetaEvolutionEngine {
     }
 
     // Replace population
-    this.population.taskPrompts = newTaskPrompts.slice(0, this.config.taskPopulationSize);
+    this.population.taskPrompts = newTaskPrompts.slice(
+      0,
+      this.config.taskPopulationSize,
+    );
     this.updateBest();
 
     // Calculate stats
     const fitnesses = this.population.taskPrompts.map((t) => t.fitness);
     const meanFitness = fitnesses.reduce((a, b) => a + b, 0) / fitnesses.length;
     const fitnessStd = Math.sqrt(
-      fitnesses.reduce((sum, f) => sum + (f - meanFitness) ** 2, 0) / fitnesses.length
+      fitnesses.reduce((sum, f) => sum + (f - meanFitness) ** 2, 0) /
+        fitnesses.length,
     );
 
-    const bestMutation = selectEliteMutations(this.population.mutationPrompts, 1)[0];
+    const bestMutation =
+      selectEliteMutations(this.population.mutationPrompts, 1)[0];
 
     return {
       generation: this.population.generation,
@@ -382,21 +427,27 @@ export class MetaEvolutionEngine {
   private async runHypermutation(): Promise<void> {
     const hyperMutations = getMutationsByType(
       this.population.mutationPrompts,
-      "HYPERMUTATION"
+      "HYPERMUTATION",
     );
 
     if (hyperMutations.length === 0) return;
 
     // Select a low-performing mutation to improve
     const sortedMutations = [...this.population.mutationPrompts]
-      .filter((m) => m.type !== "HYPERMUTATION" && m.type !== "ZERO_ORDER_HYPER")
+      .filter((m) =>
+        m.type !== "HYPERMUTATION" && m.type !== "ZERO_ORDER_HYPER"
+      )
       .sort((a, b) => a.fitness - b.fitness);
 
     const targetMutation = sortedMutations[0];
     if (!targetMutation) return;
 
-    const hyperMutation = hyperMutations[Math.floor(Math.random() * hyperMutations.length)]!;
-    const newMutationText = await applyHypermutation(hyperMutation, targetMutation);
+    const hyperMutation =
+      hyperMutations[Math.floor(Math.random() * hyperMutations.length)]!;
+    const newMutationText = await applyHypermutation(
+      hyperMutation,
+      targetMutation,
+    );
 
     if (newMutationText) {
       // Create evolved mutation
@@ -413,7 +464,7 @@ export class MetaEvolutionEngine {
 
       // Replace the worst mutation
       const worstIdx = this.population.mutationPrompts.findIndex(
-        (m) => m.id === sortedMutations[0]?.id
+        (m) => m.id === sortedMutations[0]?.id,
       );
       if (worstIdx >= 0) {
         this.population.mutationPrompts[worstIdx] = evolvedMutation;
@@ -426,7 +477,7 @@ export class MetaEvolutionEngine {
    */
   private tournamentSelect(excludeIds: string[] = []): TaskPrompt {
     const eligible = this.population.taskPrompts.filter(
-      (t) => !excludeIds.includes(t.id)
+      (t) => !excludeIds.includes(t.id),
     );
 
     if (eligible.length === 0) {
@@ -434,7 +485,10 @@ export class MetaEvolutionEngine {
     }
 
     // Random tournament
-    const tournamentSize = Math.min(this.config.tournamentSize, eligible.length);
+    const tournamentSize = Math.min(
+      this.config.tournamentSize,
+      eligible.length,
+    );
     const tournament: TaskPrompt[] = [];
 
     for (let i = 0; i < tournamentSize; i++) {
@@ -460,7 +514,7 @@ export class MetaEvolutionEngine {
   private createTaskPrompt(
     parent: TaskPrompt,
     patch: string,
-    mutationId: string
+    mutationId: string,
   ): TaskPrompt {
     return {
       id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -476,11 +530,15 @@ export class MetaEvolutionEngine {
   /**
    * Update mutation fitness based on success.
    */
-  private updateMutationFitness(mutation: MutationPrompt, success: boolean): void {
+  private updateMutationFitness(
+    mutation: MutationPrompt,
+    success: boolean,
+  ): void {
     mutation.usageCount++;
     // Exponential moving average for success rate
     const alpha = 0.3;
-    mutation.successRate = alpha * (success ? 1 : 0) + (1 - alpha) * mutation.successRate;
+    mutation.successRate = alpha * (success ? 1 : 0) +
+      (1 - alpha) * mutation.successRate;
     mutation.fitness = mutation.successRate;
   }
 
@@ -501,7 +559,7 @@ export class MetaEvolutionEngine {
    */
   getBestPrompt(): TaskPrompt | undefined {
     return this.population.taskPrompts.find(
-      (t) => t.id === this.population.bestTaskPromptId
+      (t) => t.id === this.population.bestTaskPromptId,
     );
   }
 
@@ -520,7 +578,7 @@ export class MetaEvolutionEngine {
 /**
  * Run meta-evolution on a prompt.
  */
-export async function runMetaEvolution(
+export function runMetaEvolution(
   basePrompt: string,
   initialPatch: string,
   evaluateFitness: (prompt: TaskPrompt) => Promise<number>,
@@ -529,7 +587,7 @@ export async function runMetaEvolution(
     pairsContext?: string;
     workingExample?: string;
     onProgress?: (generation: number, bestFitness: number) => void;
-  }
+  },
 ): Promise<EvolutionTelemetry> {
   const engine = new MetaEvolutionEngine(basePrompt, initialPatch, config);
   return engine.evolve({

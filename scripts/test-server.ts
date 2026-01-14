@@ -4,7 +4,8 @@
  * Usage: deno run -A scripts/test-server.ts
  */
 
-const LLM_API_BASE_URL = Deno.env.get("LLM_API_BASE_URL") ?? "http://localhost:1234/v1";
+const LLM_API_BASE_URL = Deno.env.get("LLM_API_BASE_URL") ??
+  "http://localhost:1234/v1";
 const LLM_API_KEY = Deno.env.get("LLM_API_KEY") ?? "";
 
 const json = (data: unknown, status = 200) =>
@@ -32,7 +33,10 @@ Deno.serve({ port: 8000 }, async (req) => {
         models: data.data ?? data,
       });
     } catch (err) {
-      return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+      return json(
+        { error: err instanceof Error ? err.message : String(err) },
+        500,
+      );
     }
   }
 
@@ -42,7 +46,9 @@ Deno.serve({ port: 8000 }, async (req) => {
     const message = body.message ?? "Hello!";
 
     try {
-      const headers: Record<string, string> = { "content-type": "application/json" };
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+      };
       if (LLM_API_KEY) headers["authorization"] = `Bearer ${LLM_API_KEY}`;
 
       const res = await fetch(`${LLM_API_BASE_URL}/chat/completions`, {
@@ -61,7 +67,10 @@ Deno.serve({ port: 8000 }, async (req) => {
         model: data.model,
       });
     } catch (err) {
-      return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+      return json(
+        { error: err instanceof Error ? err.message : String(err) },
+        500,
+      );
     }
   }
 
@@ -71,7 +80,8 @@ Deno.serve({ port: 8000 }, async (req) => {
       endpoints: {
         "GET /health": "Health check",
         "GET /model": "List available models from LM Studio",
-        "POST /chat": "Test chat completion { message: string, model?: string }",
+        "POST /chat":
+          "Test chat completion { message: string, model?: string }",
       },
       config: {
         LLM_API_BASE_URL,

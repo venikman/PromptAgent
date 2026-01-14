@@ -1,0 +1,56 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+:root {
+  --font-sans: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+
+  --background: 30 40% 97%;
+  --foreground: 222 24% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 24% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 24% 12%;
+  --primary: 16 86% 46%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 210 32% 92%;
+  --secondary-foreground: 222 24% 12%;
+  --muted: 28 18% 92%;
+  --muted-foreground: 220 12% 44%;
+  --accent: 192 70% 40%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 74% 50%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 220 20% 88%;
+  --input: 220 20% 88%;
+  --ring: 16 86% 46%;
+  --radius: 1rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+  background-image:
+    radial-gradient(
+      circle at 10% 10%,
+      hsl(var(--accent) / 0.12),
+      transparent 55%
+    ),
+    radial-gradient(
+    circle at 90% 20%,
+    hsl(var(--primary) / 0.15),
+    transparent 60%
+  ),
+    linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
+  background-attachment: fixed;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
