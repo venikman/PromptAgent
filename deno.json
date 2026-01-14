@@ -53,6 +53,7 @@
     "lint": "deno lint",
     "fmt": "deno fmt",
     "fmt:check": "deno fmt --check",
+    "ui:build": "deno run -A scripts/ui-build.ts",
     "ui:dev": "cd src/ui && deno run -A --watch=static/,routes/,islands/ main.ts",
     "ui:start": "cd src/ui && deno run -A main.ts"
   },

@@ -28,6 +28,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 *.tsbuildinfo
 .vite/
 src/ui/.vite/
+src/ui/_fresh/
 playwright-report/
 test-results/
 

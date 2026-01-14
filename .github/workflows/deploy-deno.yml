@@ -24,6 +24,9 @@ jobs:
       - name: Install deployctl
         run: deno install -A --global jsr:@deno/deployctl
 
+      - name: Build Fresh UI
+        run: deno task ui:build
+
       - name: Deploy to Deno Deploy
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}

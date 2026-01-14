@@ -188,8 +188,8 @@ lightweight Deno Deploy API that proxies to Ollama Cloud. It lives at
 
 ### UI Demo (Fresh SSR)
 
-The UI lives in `src/ui/` and is rendered by Fresh. No separate build step is
-required for Deno Deploy.
+The UI lives in `src/ui/` and is rendered by Fresh. For Deno Deploy, run
+`deno task ui:build` (CI does this) to generate `src/ui/_fresh` before deploy.
 
 ### Required Deno Deploy Environment Variables
 
