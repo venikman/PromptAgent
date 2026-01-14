@@ -5,58 +5,47 @@
     "jsr:@deno/loader@~0.3.10": "0.3.11",
     "jsr:@fresh/build-id@1": "1.0.1",
     "jsr:@fresh/core@2.2.0": "2.2.0",
-    "jsr:@luca/esbuild-deno-loader@0.11.0": "0.11.0",
-    "jsr:@std/assert@*": "1.0.16",
-    "jsr:@std/assert@1": "1.0.16",
     "jsr:@std/assert@^1.0.14": "1.0.16",
     "jsr:@std/assert@^1.0.15": "1.0.16",
-    "jsr:@std/bytes@^1.0.2": "1.0.6",
+    "jsr:@std/assert@^1.0.16": "1.0.16",
     "jsr:@std/bytes@^1.0.6": "1.0.6",
-    "jsr:@std/cli@^1.0.18": "1.0.25",
+    "jsr:@std/cli@^1.0.25": "1.0.25",
     "jsr:@std/dotenv@*": "0.225.6",
     "jsr:@std/dotenv@0.225.6": "0.225.6",
     "jsr:@std/encoding@^1.0.10": "1.0.10",
-    "jsr:@std/encoding@^1.0.5": "1.0.10",
-    "jsr:@std/expect@*": "1.0.17",
-    "jsr:@std/expect@1": "1.0.17",
+    "jsr:@std/expect@^1.0.17": "1.0.17",
     "jsr:@std/fmt@^1.0.8": "1.0.8",
     "jsr:@std/fs@^1.0.19": "1.0.21",
-    "jsr:@std/html@^1.0.4": "1.0.4",
+    "jsr:@std/fs@^1.0.21": "1.0.21",
     "jsr:@std/html@^1.0.5": "1.0.5",
-    "jsr:@std/http@*": "1.0.17",
-    "jsr:@std/http@1": "1.0.17",
     "jsr:@std/http@^1.0.21": "1.0.23",
+    "jsr:@std/http@^1.0.23": "1.0.23",
     "jsr:@std/internal@^1.0.10": "1.0.12",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/json@^1.0.2": "1.0.2",
     "jsr:@std/jsonc@^1.0.2": "1.0.2",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
-    "jsr:@std/net@^1.0.4": "1.0.6",
-    "jsr:@std/path@*": "1.1.4",
-    "jsr:@std/path@1": "1.1.4",
-    "jsr:@std/path@^1.0.6": "1.1.4",
-    "jsr:@std/path@^1.1.0": "1.1.4",
+    "jsr:@std/net@^1.0.6": "1.0.6",
     "jsr:@std/path@^1.1.1": "1.1.4",
     "jsr:@std/path@^1.1.2": "1.1.4",
     "jsr:@std/path@^1.1.4": "1.1.4",
     "jsr:@std/semver@^1.0.6": "1.0.7",
-    "jsr:@std/streams@^1.0.9": "1.0.16",
-    "jsr:@std/testing@*": "1.0.16",
-    "jsr:@std/testing@1": "1.0.16",
+    "jsr:@std/streams@^1.0.16": "1.0.16",
+    "jsr:@std/testing@^1.0.16": "1.0.16",
     "jsr:@std/uuid@^1.0.9": "1.1.0",
-    "npm:@ai-sdk/openai@1.3.22": "1.3.22_zod@4.3.5",
+    "npm:@ai-sdk/openai@^2.0.89": "2.0.89_zod@4.3.5",
     "npm:@mastra/core@0.24.9": "0.24.9_zod@4.3.5_ai@4.3.19__zod@4.3.5__react@18.3.1_@opentelemetry+api@1.9.0_@opentelemetry+core@2.0.1__@opentelemetry+api@1.9.0_hono@4.11.3",
-    "npm:@mastra/evals@0.14.4": "0.14.4_@mastra+core@0.24.9__zod@4.3.5__ai@4.3.19___zod@4.3.5___react@18.3.1__@opentelemetry+api@1.9.0__@opentelemetry+core@2.0.1___@opentelemetry+api@1.9.0__hono@4.11.3_ai@4.3.16__zod@4.3.5__react@18.3.1_zod@4.3.5",
+    "npm:@mastra/evals@0.14.4": "0.14.4_@mastra+core@0.24.9__zod@4.3.5__ai@4.3.19___zod@4.3.5___react@18.3.1__@opentelemetry+api@1.9.0__@opentelemetry+core@2.0.1___@opentelemetry+api@1.9.0__hono@4.11.3_ai@5.0.121__zod@4.3.5_zod@4.3.5",
     "npm:@opentelemetry/api@^1.9.0": "1.9.0",
     "npm:@playwright/test@1.57.0": "1.57.0",
     "npm:@preact/signals-core@1.12.1": "1.12.1",
     "npm:@preact/signals@2.5.1": "2.5.1_preact@10.28.2",
     "npm:@preact/signals@^2.2.1": "2.5.1_preact@10.28.2",
-    "npm:ai@4.3.16": "4.3.16_zod@4.3.5_react@18.3.1",
+    "npm:ai@^5.0.121": "5.0.121_zod@4.3.5",
     "npm:esbuild-wasm@~0.25.11": "0.25.12",
     "npm:esbuild@0.25.7": "0.25.7",
     "npm:esbuild@~0.25.5": "0.25.7",
-    "npm:linkedom@0.18.5": "0.18.5",
+    "npm:linkedom@0.18.12": "0.18.12",
     "npm:p-limit@7.2.0": "7.2.0",
     "npm:preact-render-to-string@^6.6.3": "6.6.5_preact@10.28.2",
     "npm:preact@10.28.2": "10.28.2",
@@ -79,7 +68,7 @@
     "@fresh/build-id@1.0.1": {
       "integrity": "12a2ec25fd52ae9ec68c26848a5696cd1c9b537f7c983c7e56e4fb1e7e816c20",
       "dependencies": [
-        "jsr:@std/encoding@^1.0.10"
+        "jsr:@std/encoding"
       ]
     },
     "@fresh/core@2.2.0": {
@@ -87,10 +76,10 @@
       "dependencies": [
         "jsr:@deno/esbuild-plugin",
         "jsr:@fresh/build-id",
-        "jsr:@std/encoding@^1.0.10",
+        "jsr:@std/encoding",
         "jsr:@std/fmt",
-        "jsr:@std/fs",
-        "jsr:@std/html@^1.0.5",
+        "jsr:@std/fs@^1.0.19",
+        "jsr:@std/html",
         "jsr:@std/http@^1.0.21",
         "jsr:@std/jsonc",
         "jsr:@std/media-types",
@@ -104,14 +93,6 @@
         "npm:preact-render-to-string",
         "npm:preact@^10.27.0",
         "npm:preact@^10.27.2"
-      ]
-    },
-    "@luca/esbuild-deno-loader@0.11.0": {
-      "integrity": "c05a989aa7c4ee6992a27be5f15cfc5be12834cab7ff84cabb47313737c51a2c",
-      "dependencies": [
-        "jsr:@std/bytes@^1.0.2",
-        "jsr:@std/encoding@^1.0.5",
-        "jsr:@std/path@^1.0.6"
       ]
     },
     "@std/assert@1.0.16": {
@@ -148,29 +129,21 @@
         "jsr:@std/path@^1.1.4"
       ]
     },
-    "@std/html@1.0.4": {
-      "integrity": "eff3497c08164e6ada49b7f81a28b5108087033823153d065e3f89467dd3d50e"
-    },
     "@std/html@1.0.5": {
       "integrity": "4e2d693f474cae8c16a920fa5e15a3b72267b94b84667f11a50c6dd1cb18d35e"
-    },
-    "@std/http@1.0.17": {
-      "integrity": "98aec8ab4080d95c21f731e3008f69c29c5012d12f1b4e553f85935db601569f",
-      "dependencies": [
-        "jsr:@std/cli",
-        "jsr:@std/encoding@^1.0.10",
-        "jsr:@std/fmt",
-        "jsr:@std/html@^1.0.4",
-        "jsr:@std/media-types",
-        "jsr:@std/net",
-        "jsr:@std/path@^1.1.0",
-        "jsr:@std/streams"
-      ]
     },
     "@std/http@1.0.23": {
       "integrity": "6634e9e034c589bf35101c1b5ee5bbf052a5987abca20f903e58bdba85c80dee",
       "dependencies": [
-        "jsr:@std/encoding@^1.0.10"
+        "jsr:@std/cli",
+        "jsr:@std/encoding",
+        "jsr:@std/fmt",
+        "jsr:@std/fs@^1.0.21",
+        "jsr:@std/html",
+        "jsr:@std/media-types",
+        "jsr:@std/net",
+        "jsr:@std/path@^1.1.4",
+        "jsr:@std/streams"
       ]
     },
     "@std/internal@1.0.12": {
@@ -213,7 +186,7 @@
     "@std/uuid@1.1.0": {
       "integrity": "6268db2ccf172849c9be80763354ca305d49ef4af41fe995623d44fcc3f7457c",
       "dependencies": [
-        "jsr:@std/bytes@^1.0.6"
+        "jsr:@std/bytes"
       ]
     }
   },
@@ -242,7 +215,16 @@
       "dependencies": [
         "@ai-sdk/provider@2.0.0",
         "@ai-sdk/provider-utils@3.0.17_zod@4.3.5",
-        "@vercel/oidc",
+        "@vercel/oidc@3.0.5",
+        "zod@4.3.5"
+      ]
+    },
+    "@ai-sdk/gateway@2.0.27_zod@4.3.5": {
+      "integrity": "sha512-8hbezMsGa0crSt7/DKjkYL1UbbJJW/UFxTfhmf5qcIeYeeWG4dTNmm+DWbUdIsTaWvp59KC4eeC9gYXBbTHd7w==",
+      "dependencies": [
+        "@ai-sdk/provider@2.0.1",
+        "@ai-sdk/provider-utils@3.0.20_zod@4.3.5",
+        "@vercel/oidc@3.1.0",
         "zod@4.3.5"
       ]
     },
@@ -270,19 +252,19 @@
         "zod@4.3.5"
       ]
     },
-    "@ai-sdk/openai@1.3.22_zod@4.3.5": {
-      "integrity": "sha512-QwA+2EkG0QyjVR+7h6FE7iOu2ivNqAVMm9UJZkVxxTk5OIq5fFJDTEI/zICEMuHImTTXR2JjsL6EirJ28Jc4cw==",
-      "dependencies": [
-        "@ai-sdk/provider@1.1.3",
-        "@ai-sdk/provider-utils@2.2.8_zod@4.3.5",
-        "zod@4.3.5"
-      ]
-    },
     "@ai-sdk/openai@2.0.53_zod@4.3.5": {
       "integrity": "sha512-GIkR3+Fyif516ftXv+YPSPstnAHhcZxNoR2s8uSHhQ1yBT7I7aQYTVwpjAuYoT3GR+TeP50q7onj2/nDRbT2FQ==",
       "dependencies": [
         "@ai-sdk/provider@2.0.0",
         "@ai-sdk/provider-utils@3.0.12_zod@4.3.5",
+        "zod@4.3.5"
+      ]
+    },
+    "@ai-sdk/openai@2.0.89_zod@4.3.5": {
+      "integrity": "sha512-4+qWkBCbL9HPKbgrUO/F2uXZ8GqrYxHa8SWEYIzxEJ9zvWw3ISr3t1/27O1i8MGSym+PzEyHBT48EV4LAwWaEw==",
+      "dependencies": [
+        "@ai-sdk/provider@2.0.1",
+        "@ai-sdk/provider-utils@3.0.20_zod@4.3.5",
         "zod@4.3.5"
       ]
     },
@@ -322,6 +304,15 @@
         "zod@4.3.5"
       ]
     },
+    "@ai-sdk/provider-utils@3.0.20_zod@4.3.5": {
+      "integrity": "sha512-iXHVe0apM2zUEzauqJwqmpC37A5rihrStAih5Ks+JE32iTe4LZ58y17UGBjpQQTCRw9YxMeo2UFLxLpBluyvLQ==",
+      "dependencies": [
+        "@ai-sdk/provider@2.0.1",
+        "@standard-schema/spec",
+        "eventsource-parser",
+        "zod@4.3.5"
+      ]
+    },
     "@ai-sdk/provider@1.1.3": {
       "integrity": "sha512-qZMxYJ0qqX/RfnuIaab+zp8UAeJn/ygXXAffR5I4N0n1IrvA6qBsjc8hXLmBiMV2zoXlifkacF7sEFnYnjBcqg==",
       "dependencies": [
@@ -330,6 +321,12 @@
     },
     "@ai-sdk/provider@2.0.0": {
       "integrity": "sha512-6o7Y2SeO9vFKB8lArHXehNuusnpddKPk7xqL7T2/b+OvXMRIXUO1rR4wcv1hAFUAT9avGZshty3Wlua/XA7TvA==",
+      "dependencies": [
+        "json-schema"
+      ]
+    },
+    "@ai-sdk/provider@2.0.1": {
+      "integrity": "sha512-KCUwswvsC5VsW2PWFqF8eJgSCu5Ysj7m1TxiHTVA6g7k360bk0RNQENT8KTMAYEs+8fWPD3Uu4dEmzGHc+jGng==",
       "dependencies": [
         "json-schema"
       ]
@@ -582,11 +579,11 @@
         "zod-to-json-schema"
       ]
     },
-    "@mastra/evals@0.14.4_@mastra+core@0.24.9__zod@4.3.5__ai@4.3.19___zod@4.3.5___react@18.3.1__@opentelemetry+api@1.9.0__@opentelemetry+core@2.0.1___@opentelemetry+api@1.9.0__hono@4.11.3_ai@4.3.16__zod@4.3.5__react@18.3.1_zod@4.3.5": {
+    "@mastra/evals@0.14.4_@mastra+core@0.24.9__zod@4.3.5__ai@4.3.19___zod@4.3.5___react@18.3.1__@opentelemetry+api@1.9.0__@opentelemetry+core@2.0.1___@opentelemetry+api@1.9.0__hono@4.11.3_ai@5.0.121__zod@4.3.5_zod@4.3.5": {
       "integrity": "sha512-vDV1vvrwqr4enxpg5eTw09UQ1AKAwA/UTh8xEjzNvhYb6XYrf5cjQrEIM5k195Z+q0TcR64//f+bZri6IGX5LQ==",
       "dependencies": [
         "@mastra/core",
-        "ai@4.3.16_zod@4.3.5_react@18.3.1",
+        "ai@5.0.121_zod@4.3.5",
         "compromise",
         "fs-extra",
         "keyword-extractor",
@@ -1543,6 +1540,9 @@
     "@vercel/oidc@3.0.5": {
       "integrity": "sha512-fnYhv671l+eTTp48gB4zEsTW/YtRgRPnkI2nT7x6qw5rkI1Lq2hTmQIpHPgyThI0znLK+vX2n9XxKdXZ7BUbbw=="
     },
+    "@vercel/oidc@3.1.0": {
+      "integrity": "sha512-Fw28YZpRnA3cAHHDlkt7xQHiJ0fcL+NRcIqsocZQUSmbzeIKRpwttJjik5ZGanXP+vlA4SbTg+AbA3bP363l+w=="
+    },
     "accepts@1.3.8": {
       "integrity": "sha512-PYAthTa2m2VKxuvSD3DPC/Gy+U+sOA1LAuT8mkmRuvw+NACSaeXEQ+NHcVF7rONl6qcaxV3Uuemwawk+7+SJLw==",
       "dependencies": [
@@ -1563,22 +1563,6 @@
     "agent-base@7.1.4": {
       "integrity": "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="
     },
-    "ai@4.3.16_zod@4.3.5_react@18.3.1": {
-      "integrity": "sha512-KUDwlThJ5tr2Vw0A1ZkbDKNME3wzWhuVfAOwIvFUzl1TPVDFAXDFTXio3p+jaKneB+dKNCvFFlolYmmgHttG1g==",
-      "dependencies": [
-        "@ai-sdk/provider@1.1.3",
-        "@ai-sdk/provider-utils@2.2.8_zod@4.3.5",
-        "@ai-sdk/react",
-        "@ai-sdk/ui-utils",
-        "@opentelemetry/api",
-        "jsondiffpatch",
-        "react",
-        "zod@4.3.5"
-      ],
-      "optionalPeers": [
-        "react"
-      ]
-    },
     "ai@4.3.19_zod@4.3.5_react@18.3.1": {
       "integrity": "sha512-dIE2bfNpqHN3r6IINp9znguYdhIOheKW2LDigAMrgt/upT3B8eBGPSCblENvaZGoq+hxaN9fSMzjWpbqloP+7Q==",
       "dependencies": [
@@ -1595,10 +1579,20 @@
         "react"
       ]
     },
+    "ai@5.0.121_zod@4.3.5": {
+      "integrity": "sha512-3iYPdARKGLryC/7OA9RgBUaym1gynvWS7UPy8NwoRNCKP52lshldtHB5xcEfVviw7liWH2zJlW9yEzsDglcIEQ==",
+      "dependencies": [
+        "@ai-sdk/gateway@2.0.27_zod@4.3.5",
+        "@ai-sdk/provider@2.0.1",
+        "@ai-sdk/provider-utils@3.0.20_zod@4.3.5",
+        "@opentelemetry/api",
+        "zod@4.3.5"
+      ]
+    },
     "ai@5.0.97_zod@4.3.5": {
       "integrity": "sha512-8zBx0b/owis4eJI2tAlV8a1Rv0BANmLxontcAelkLNwEHhgfgXeKpDkhNB6OgV+BJSwboIUDkgd9312DdJnCOQ==",
       "dependencies": [
-        "@ai-sdk/gateway",
+        "@ai-sdk/gateway@2.0.12_zod@4.3.5",
         "@ai-sdk/provider@2.0.0",
         "@ai-sdk/provider-utils@3.0.17_zod@4.3.5",
         "@opentelemetry/api",
@@ -1790,7 +1784,7 @@
       "dependencies": [
         "domelementtype",
         "domhandler",
-        "entities"
+        "entities@4.5.0"
       ]
     },
     "domelementtype@2.3.0": {
@@ -1841,6 +1835,9 @@
     },
     "entities@4.5.0": {
       "integrity": "sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw=="
+    },
+    "entities@6.0.1": {
+      "integrity": "sha512-aN97NXWF6AWBTahfVOIrB/NShkzi5H7F9r1s9mD3cDj4Ko5f2qhhVoYMibXF7GlLveb/D2ioWay8lxI97Ven3g=="
     },
     "es-define-property@1.0.1": {
       "integrity": "sha512-e3nRfgfUZ4rNGL232gUgX06QNyyez04KdjFrF+LTRoOXmrOgFKDg4BCdsjW8EnT69eqdYGmRpJwiPVYNrCaW3g=="
@@ -2074,13 +2071,13 @@
     "html-escaper@3.0.3": {
       "integrity": "sha512-RuMffC89BOWQoY0WKGpIhn5gX3iI54O6nRA0yC124NYVtzjmFWBIiFd8M0x+ZdX0P9R4lADg1mgP8C7PxGOWuQ=="
     },
-    "htmlparser2@9.1.0": {
-      "integrity": "sha512-5zfg6mHUoaer/97TxnGpxmbR7zJtPwIYFMZ/H5ucTlPZhKvtum05yiPK3Mgai3a0DyVxv7qYqoweaEd2nrYQzQ==",
+    "htmlparser2@10.0.0": {
+      "integrity": "sha512-TwAZM+zE5Tq3lrEHvOlvwgj1XLWQCtaaibSN11Q+gGBAS7Y1uZSWwXXRe4iF6OXnaq1riyQAPFOBtYc77Mxq0g==",
       "dependencies": [
         "domelementtype",
         "domhandler",
         "domutils",
-        "entities"
+        "entities@6.0.1"
       ]
     },
     "http-errors@2.0.1": {
@@ -2202,8 +2199,8 @@
     "keyword-extractor@0.0.28": {
       "integrity": "sha512-oi7dSPpYtW/3fE0vZiqQgZ8mW3F1V9K4+rBJ0FcVrdXBEQuhZ0zKj7sX74eqGASuepLHf9aYdeonyKHWhYpHQA=="
     },
-    "linkedom@0.18.5": {
-      "integrity": "sha512-JGLaGGtqtu+eOhYrC1wkWYTBcpVWL4AsnwAtMtgO1Q0gI0PuPJKI0zBBE+a/1BrhOE3Uw8JI/ycByAv5cLrAuQ==",
+    "linkedom@0.18.12": {
+      "integrity": "sha512-jalJsOwIKuQJSeTvsgzPe9iJzyfVaEJiEXl+25EkKevsULHvMJzpNqwvj1jOESWdmgKDiXObyjOYwlUqG7wo1Q==",
       "dependencies": [
         "css-select",
         "cssom",
@@ -3421,19 +3418,19 @@
   "workspace": {
     "dependencies": [
       "jsr:@fresh/core@2.2.0",
-      "jsr:@std/assert@1",
+      "jsr:@std/assert@^1.0.16",
       "jsr:@std/dotenv@0.225.6",
-      "jsr:@std/expect@1",
-      "jsr:@std/http@1",
-      "jsr:@std/path@1",
-      "jsr:@std/testing@1",
-      "npm:@ai-sdk/openai@1.3.22",
+      "jsr:@std/expect@^1.0.17",
+      "jsr:@std/http@^1.0.23",
+      "jsr:@std/path@^1.1.4",
+      "jsr:@std/testing@^1.0.16",
+      "npm:@ai-sdk/openai@^2.0.89",
       "npm:@mastra/core@0.24.9",
       "npm:@mastra/evals@0.14.4",
       "npm:@preact/signals-core@1.12.1",
       "npm:@preact/signals@2.5.1",
-      "npm:ai@4.3.16",
-      "npm:linkedom@0.18.5",
+      "npm:ai@^5.0.121",
+      "npm:linkedom@0.18.12",
       "npm:p-limit@7.2.0",
       "npm:preact@10.28.2",
       "npm:zod@4.3.5"
