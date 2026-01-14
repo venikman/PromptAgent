@@ -48,7 +48,6 @@ const apiConfig: ApiConfig = {
 const apiHandler = createApiHandler(apiConfig);
 const uiRootUrl = new URL("../src/ui/", import.meta.url);
 const uiRootPath = fromFileUrl(uiRootUrl);
-const uiSnapshotImport = "../src/ui/_fresh/snapshot.js";
 const uiMode = "production";
 app.config.mode = uiMode;
 
@@ -58,7 +57,7 @@ try {
   const { setBuildCache, ProdBuildCache } = await import(
     "@fresh/core/internal"
   );
-  const snapshot = await import(uiSnapshotImport);
+  const snapshot = await import("../src/ui/_fresh/snapshot.js");
   setBuildCache(app, new ProdBuildCache(uiRootPath, snapshot), uiMode);
   freshHandler = app.handler();
 } catch (err) {
