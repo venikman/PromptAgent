@@ -121,6 +121,36 @@ const tournamentTasks = new Map<string, TournamentTask>();
 // ─────────────────────────────────────────────────
 
 const optimizationTasks = new Map<string, OptimizationTask>();
+const TASK_TTL_MS = 60 * 60 * 1000;
+const TASK_CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
+let taskCleanupScheduled = false;
+
+const cleanupOldTasks = <T extends { completedAt?: string }>(
+  store: Map<string, T>,
+  ttlMs: number,
+) => {
+  const now = Date.now();
+  for (const [id, task] of store) {
+    if (!task.completedAt) continue;
+    const completedTime = Date.parse(task.completedAt);
+    if (!Number.isFinite(completedTime)) continue;
+    if (now - completedTime > ttlMs) {
+      store.delete(id);
+    }
+  }
+};
+
+const scheduleTaskCleanup = () => {
+  if (taskCleanupScheduled) return;
+  taskCleanupScheduled = true;
+  setInterval(() => {
+    cleanupOldTasks(evalTasks, TASK_TTL_MS);
+    cleanupOldTasks(tournamentTasks, TASK_TTL_MS);
+    cleanupOldTasks(optimizationTasks, TASK_TTL_MS);
+  }, TASK_CLEANUP_INTERVAL_MS);
+};
+
+scheduleTaskCleanup();
 
 // Scorer result type (mastra/core doesn't export intermediate step types)
 type ScorerResultWithSteps = {
@@ -397,9 +427,6 @@ export function createApiHandler(config: ApiConfig) {
             model: LLM_MODEL,
             hasKey: !!LLM_API_KEY,
             keyLength: LLM_API_KEY.length,
-            keyPrefix: LLM_API_KEY
-              ? LLM_API_KEY.slice(0, 12) + "..."
-              : "(none)",
           },
         });
       }
@@ -600,12 +627,14 @@ export function createApiHandler(config: ApiConfig) {
             headers["authorization"] = `Bearer ${LLM_API_KEY}`;
           }
 
+          const timeoutMs = env.LLM_TIMEOUT_MS;
           const upstream = await fetch(
             `${LLM_BASE_URL.replace(/\/$/, "")}/chat/completions`,
             {
               method: "POST",
               headers,
               body: JSON.stringify(requestBody),
+              signal: AbortSignal.timeout(timeoutMs),
             },
           );
 
@@ -824,12 +853,14 @@ export function createApiHandler(config: ApiConfig) {
           headers["authorization"] = `Bearer ${LLM_API_KEY}`;
         }
 
+        const timeoutMs = env.LLM_TIMEOUT_MS;
         const upstream = await fetch(
           `${LLM_BASE_URL.replace(/\/$/, "")}/chat/completions`,
           {
             method: "POST",
             headers,
             body: JSON.stringify(requestBody),
+            signal: AbortSignal.timeout(timeoutMs),
           },
         );
 

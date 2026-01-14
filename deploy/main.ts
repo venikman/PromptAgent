@@ -8,14 +8,27 @@ import {
   startTelemetryReporter,
 } from "../src/telemetry.ts";
 
+const isDeployed = Boolean(Deno.env.get("DENO_DEPLOYMENT_ID"));
+
+if (isDeployed) {
+  if (
+    !env.LMSTUDIO_BASE_URL ||
+    /localhost|127\.0\.0\.1/.test(env.LMSTUDIO_BASE_URL)
+  ) {
+    throw new Error(
+      "LMSTUDIO_BASE_URL must be set to a non-localhost value in production.",
+    );
+  }
+  if (!env.LMSTUDIO_API_KEY || env.LMSTUDIO_API_KEY === "lm-studio") {
+    throw new Error("LMSTUDIO_API_KEY must be set in production.");
+  }
+}
+
 // Debug: Log config on startup (key is redacted)
 console.log("[LLM Config]", {
   baseUrl: env.LMSTUDIO_BASE_URL,
   model: env.LMSTUDIO_MODEL,
   hasKey: !!env.LMSTUDIO_API_KEY,
-  keyPrefix: env.LMSTUDIO_API_KEY
-    ? env.LMSTUDIO_API_KEY.slice(0, 10) + "..."
-    : "(none)",
 });
 
 // ─────────────────────────────────────────────────
@@ -33,8 +46,6 @@ const apiConfig: ApiConfig = {
 };
 
 const apiHandler = createApiHandler(apiConfig);
-
-const isDeployed = Boolean(Deno.env.get("DENO_DEPLOYMENT_ID"));
 const uiRootUrl = new URL("../src/ui/", import.meta.url);
 const uiRootPath = fromFileUrl(uiRootUrl);
 const uiSnapshotUrl = new URL("../src/ui/_fresh/snapshot.js", import.meta.url);

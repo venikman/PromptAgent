@@ -12,8 +12,6 @@ type TwindMiddleware = (
   ctx: { next: () => Promise<Response> },
 ) => Promise<Response>;
 
-const sheet = virtualSheet();
-
 const injectIntoHtml = (html: string, injection: string) => {
   if (html.includes("</head>")) {
     return html.replace("</head>", `${injection}</head>`);
@@ -25,6 +23,7 @@ const injectIntoHtml = (html: string, injection: string) => {
 };
 
 export const twindMiddleware = (options: Options): TwindMiddleware => {
+  const sheet = virtualSheet();
   setup(options, sheet);
 
   return async (ctx) => {

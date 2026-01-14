@@ -22,6 +22,10 @@ deno task optimize                   # Run optimizer (main evolution loop)
 deno task generate -- <EPIC_ID>      # Generate stories for a single epic
 deno task lint                       # Lint
 deno task fmt                        # Format
+deno task test                       # Run all tests
+deno task test:unit                  # Run unit tests (excludes API)
+deno task test:api                   # Run API tests
+deno task test:coverage              # Generate test coverage report
 deno task test:e2e:install           # Install Playwright browsers
 deno task test:e2e                   # Playwright e2e tests
 deno task ui:dev                     # Run Fresh UI dev server
@@ -38,7 +42,7 @@ deno task ui:start                   # Run Fresh UI server
 
 ## Architecture
 
-```
+```text
 src/
   cli/
     optimize.ts       # Evolution loop: mutate → evaluate → promote

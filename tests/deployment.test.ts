@@ -176,7 +176,7 @@ Deno.test("Deno - should have @std imports", async () => {
 });
 
 // ─────────────────────────────────────────────────
-// API Endpoint Consistency Tests
+// UI Entry Point Tests
 // ─────────────────────────────────────────────────
 
 Deno.test("UI - Fresh app entry should exist", async () => {

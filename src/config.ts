@@ -12,6 +12,13 @@ const llmBaseUrlFallback = Deno.env.get("LLM_BASE_URL") ??
 const llmApiKeyFallback = Deno.env.get("LLM_API_KEY");
 const llmModelFallback = Deno.env.get("LLM_MODEL");
 
+const envBoolean = (defaultValue: boolean) =>
+  z.string().optional().transform((value) => {
+    if (value === undefined) return defaultValue;
+    const normalized = value.trim().toLowerCase();
+    return normalized === "true" || normalized === "1";
+  });
+
 const EnvSchema = z.object({
   // ─────────────────────────────────────────────────
   // LM Studio / Model Configuration
@@ -32,8 +39,8 @@ const EnvSchema = z.object({
   TELEMETRY_REPORT_INTERVAL_MS: z.coerce.number().int().min(5_000).max(
     600_000,
   ).default(60_000),
-  TELEMETRY_LOG_REQUESTS: z.coerce.boolean().default(true),
-  TELEMETRY_INCLUDE_LLM_OUTPUT: z.coerce.boolean().default(false),
+  TELEMETRY_LOG_REQUESTS: envBoolean(true),
+  TELEMETRY_INCLUDE_LLM_OUTPUT: envBoolean(false),
   TELEMETRY_LLM_PREVIEW_CHARS: z.coerce.number().int().min(0).max(5000).default(
     800,
   ),
@@ -108,7 +115,7 @@ const EnvSchema = z.object({
   // Based on arXiv 2404.18796 + FPF B.3 Trust Calculus
   // ─────────────────────────────────────────────────
   /** Enable PoLL (3-judge panel) instead of single judge */
-  POLL_ENABLED: z.coerce.boolean().default(true),
+  POLL_ENABLED: envBoolean(true),
 
   /** Number of judges in the panel (default: 3 per PoLL paper) */
   POLL_NUM_JUDGES: z.coerce.number().int().min(2).max(7).default(3),
@@ -151,7 +158,7 @@ const EnvSchema = z.object({
   // Multi-objective Pareto selection for tournament
   // ─────────────────────────────────────────────────
   /** Enable NQD selection in optimizer tournament */
-  NQD_ENABLED: z.coerce.boolean().default(true),
+  NQD_ENABLED: envBoolean(true),
 
   /** Constraint-fit threshold for eligibility (1.0 = perfect schema compliance) */
   NQD_CONSTRAINT_FIT_THRESHOLD: z.coerce.number().min(0).max(1).default(1.0),

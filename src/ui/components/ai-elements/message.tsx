@@ -4,7 +4,6 @@ import { cn } from "../../lib/utils.ts";
 type StreamdownProps = {
   className?: string;
   children?: ComponentChildren;
-  mode?: "static" | "streaming";
 };
 
 export type MessageProps = ComponentProps<"div"> & {

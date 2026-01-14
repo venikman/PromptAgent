@@ -658,10 +658,7 @@ export default function Studio() {
               <div class="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-sm">
                 <Message from="assistant" class="max-w-full">
                   <MessageContent class="text-emerald-900">
-                    <MessageResponse
-                      className="text-sm text-emerald-900"
-                      mode="static"
-                    >
+                    <MessageResponse className="text-sm text-emerald-900">
                       <PlaygroundResultView result={playgroundResult} />
                     </MessageResponse>
                   </MessageContent>
@@ -677,11 +674,12 @@ export default function Studio() {
               <button
                 type="button"
                 onClick={() => {
+                  const previous = champion;
                   setChampion(null);
                   fetch("/champion")
                     .then((res) => readJson<ChampionPrompt>(res))
                     .then((data) => setChampion(data))
-                    .catch(() => undefined);
+                    .catch(() => setChampion(previous));
                 }}
                 class="rounded-full border border-border/70 px-4 py-2 text-xs font-semibold text-foreground transition hover:border-primary/60"
               >
@@ -696,10 +694,7 @@ export default function Studio() {
             <div class="rounded-2xl border border-border/60 bg-white/70 p-4">
               <Message from="assistant" class="max-w-full">
                 <MessageContent class="text-foreground/80">
-                  <MessageResponse
-                    className="text-xs text-foreground/80"
-                    mode="static"
-                  >
+                  <MessageResponse className="text-xs text-foreground/80">
                     {championMarkdown}
                   </MessageResponse>
                 </MessageContent>
@@ -862,10 +857,7 @@ export default function Studio() {
                   </p>
                   <Message from="assistant" class="mt-2 max-w-full">
                     <MessageContent class="text-slate-700">
-                      <MessageResponse
-                        className="text-xs text-slate-700"
-                        mode="static"
-                      >
+                      <MessageResponse className="text-xs text-slate-700">
                         {wrapCodeBlock(optimizationTask.result.championPatch)}
                       </MessageResponse>
                     </MessageContent>

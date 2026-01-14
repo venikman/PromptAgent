@@ -1,4 +1,3 @@
-import process from "node:process";
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
@@ -16,7 +15,7 @@ export default defineConfig({
   webServer: {
     command: "deno run -A src/server/main.ts",
     url: "http://127.0.0.1:8000",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !Deno.env.get("CI"),
     timeout: 120_000,
     env: {
       LMSTUDIO_BASE_URL: "http://127.0.0.1:1234/v1",

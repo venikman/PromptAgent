@@ -373,7 +373,11 @@ Be conservative when evidence is missing: do not over-score.
       },
       () =>
         this.agent.generate(prompt, {
-          structuredOutput: { schema: LLMSubscoresSchema },
+          structuredOutput: {
+            schema: LLMSubscoresSchema,
+            jsonPromptInjection: true,
+            errorStrategy: "strict",
+          },
           abortSignal,
         }),
     );
