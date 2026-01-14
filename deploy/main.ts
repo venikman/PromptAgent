@@ -1,5 +1,4 @@
 import { fromFileUrl } from "@std/path";
-import { Builder } from "@fresh/core/dev";
 import { app } from "../src/ui/app.ts";
 import { env } from "../src/config.ts";
 import { createApiHandler, type ApiConfig } from "../src/server/handler.ts";
@@ -82,14 +81,32 @@ const apiConfig: ApiConfig = {
 
 const apiHandler = createApiHandler(apiConfig);
 
-const uiRoot = new URL("../src/ui/", import.meta.url).toString();
-const builder = new Builder({ root: uiRoot });
-const mode = isDeployed
-  ? "production"
-  : (Deno.env.get("FRESH_MODE") === "development" ? "development" : "production");
-app.config.mode = mode;
-const applySnapshot = await builder.build({ snapshot: "memory", mode });
-applySnapshot(app);
+const uiRootUrl = new URL("../src/ui/", import.meta.url);
+const uiRootPath = fromFileUrl(uiRootUrl);
+const uiSnapshotUrl = new URL("../src/ui/_fresh/snapshot.js", import.meta.url);
+
+if (isDeployed) {
+  try {
+    const { setBuildCache, ProdBuildCache } = await import("@fresh/core/internal");
+    const snapshot = await import(uiSnapshotUrl.toString());
+    setBuildCache(app, new ProdBuildCache(uiRootPath, snapshot), "production");
+  } catch (err) {
+    console.error(err);
+    throw new Error(
+      "Fresh build output is missing for production. " +
+        "Run `deno task ui:build` before deploying so `src/ui/_fresh` is packaged.",
+    );
+  }
+} else {
+  const { Builder } = await import("@fresh/core/dev");
+  const builder = new Builder({ root: uiRootUrl.toString() });
+  const mode = Deno.env.get("FRESH_MODE") === "development"
+    ? "development"
+    : "production";
+  app.config.mode = mode;
+  const applySnapshot = await builder.build({ snapshot: "memory", mode });
+  applySnapshot(app);
+}
 
 const freshHandler = app.handler();
 startTelemetryReporter(env.TELEMETRY_REPORT_INTERVAL_MS);
