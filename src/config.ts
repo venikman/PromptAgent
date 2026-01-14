@@ -39,6 +39,11 @@ const EnvSchema = z.object({
   ),
 
   // ─────────────────────────────────────────────────
+  // CORS
+  // ─────────────────────────────────────────────────
+  CORS_ALLOWED_ORIGINS: z.string().default(""),
+
+  // ─────────────────────────────────────────────────
   // Generation Settings
   // ─────────────────────────────────────────────────
   GEN_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.7),
