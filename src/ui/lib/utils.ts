@@ -1,5 +1,10 @@
 type SignalLike<T> = { value: T };
-type ClassValue = string | false | null | undefined | SignalLike<string | undefined>;
+type ClassValue =
+  | string
+  | false
+  | null
+  | undefined
+  | SignalLike<string | undefined>;
 
 const resolveClassValue = (value: ClassValue) => {
   if (value && typeof value === "object" && "value" in value) {
