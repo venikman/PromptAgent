@@ -35,7 +35,6 @@ import {
   ArtifactTitle,
 } from "./components/ai-elements/artifact.tsx";
 import { SiteHeader } from "./components/site-header.tsx";
-import { Button } from "./components/ui/button.tsx";
 
 type HealthState = {
   status: "loading" | "ok" | "error";
