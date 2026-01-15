@@ -1041,9 +1041,12 @@ export const PromptInputSubmit = ({
   size = "icon-sm",
   status,
   children,
+  "aria-label": ariaLabel,
   ...props
 }: PromptInputSubmitProps) => {
   let Icon = <CornerDownLeftIcon className="size-4" />;
+  const hasTextLabel = typeof children === "string";
+  const resolvedAriaLabel = ariaLabel ?? (hasTextLabel ? undefined : "Submit");
 
   if (status === "submitted") {
     Icon = <Loader2Icon className="size-4 animate-spin" />;
@@ -1055,7 +1058,7 @@ export const PromptInputSubmit = ({
 
   return (
     <InputGroupButton
-      aria-label="Submit"
+      aria-label={resolvedAriaLabel}
       className={cn(className)}
       size={size}
       type="submit"

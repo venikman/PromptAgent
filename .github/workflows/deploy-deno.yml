@@ -22,9 +22,9 @@ jobs:
           deno-version: v2.x
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6.2.0
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: src/ui/package-lock.json
 

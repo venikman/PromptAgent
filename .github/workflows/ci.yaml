@@ -18,7 +18,7 @@ concurrency:
 env:
   DOTNET_VERSION: "8.0.x"
   BUN_VERSION: "1.1"
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
 
 jobs:
   # ============================================================================
@@ -175,6 +175,19 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
+      - name: Setup Node
+        uses: actions/setup-node@v6.2.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: src/ui/package-lock.json
+
+      - name: Install UI dependencies
+        run: cd src/ui && npm ci
+
+      - name: Build UI
+        run: deno task ui:build
 
       - name: Install Playwright browsers
         run: deno task test:e2e:install

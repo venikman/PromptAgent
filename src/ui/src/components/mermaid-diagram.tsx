@@ -1,5 +1,6 @@
 import mermaid from "mermaid";
-import { useEffect, useMemo, useRef } from "react";
+import { nanoid } from "nanoid";
+import { useEffect, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -26,18 +27,17 @@ export function MermaidDiagram({
   theme = "light",
 }: MermaidDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const renderId = useMemo(
-    () => `mermaid-${Math.random().toString(36).slice(2, 10)}`,
-    [],
-  );
 
   useEffect(() => {
-    let cancelled = false;
     mermaid.initialize({
       ...mermaidConfig,
       theme: theme === "dark" ? "dark" : "neutral",
     });
+  }, [theme]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const renderId = `mermaid-${nanoid(8)}`;
     const render = async () => {
       if (!containerRef.current) return;
       containerRef.current.innerHTML = "";
@@ -46,9 +46,17 @@ export function MermaidDiagram({
         if (cancelled || !containerRef.current) return;
         containerRef.current.innerHTML = svg;
         bindFunctions?.(containerRef.current);
-      } catch (_error) {
+      } catch (error) {
+        console.error("Failed to render Mermaid diagram", {
+          renderId,
+          code,
+          error,
+        });
         if (!cancelled && containerRef.current) {
-          containerRef.current.textContent = "Diagram failed to render.";
+          const message = error instanceof Error && error.message
+            ? `Diagram failed to render: ${error.message}`
+            : "Diagram failed to render. Please check the diagram syntax.";
+          containerRef.current.textContent = message;
         }
       }
     };
@@ -58,7 +66,7 @@ export function MermaidDiagram({
     return () => {
       cancelled = true;
     };
-  }, [code, renderId, theme]);
+  }, [code, theme]);
 
   return (
     <div

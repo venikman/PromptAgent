@@ -256,7 +256,7 @@ const ProtocolScenarioPreview = ({ id }: { id: string }) => {
             <Message from="assistant" className="max-w-full">
               <MessageContent className="text-foreground">
                 <MessageResponse className="text-sm leading-relaxed text-foreground">
-                  {"**Patch summary**\n\n- Applied guardrails\n- Normalized fences\n- Emitted sanitized DOM"}
+                  {"**Story pack delivered**\n\n- 3 stories generated\n- Gate: pass\n- Score: 0.912"}
                 </MessageResponse>
               </MessageContent>
             </Message>
