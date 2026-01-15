@@ -180,11 +180,14 @@ jobs:
         uses: actions/setup-node@v6.2.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: src/ui/package-lock.json
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: Install UI dependencies
-        run: cd src/ui && npm ci
+        run: cd src/ui && bun install --frozen-lockfile
 
       - name: Build UI
         run: deno task ui:build
