@@ -34,7 +34,12 @@ import {
   ArtifactHeader,
   ArtifactTitle,
 } from "./components/ai-elements/artifact.tsx";
+import { MermaidDiagram } from "./components/mermaid-diagram.tsx";
 import { SiteHeader } from "./components/site-header.tsx";
+import {
+  protocolDiagrams,
+  protocolMatrix,
+} from "./content/protocol-bakeoff.ts";
 
 type HealthState = {
   status: "loading" | "ok" | "error";
@@ -606,6 +611,78 @@ export default function App() {
               {health.status === "error" && health.message && (
                 <p className="text-sm text-destructive">{health.message}</p>
               )}
+            </div>
+          </section>
+
+          <section id="protocol-bakeoff" className="scroll-mt-24">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
+                  Protocol Bakeoff
+                </p>
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+                  Diagrams next to the UI components
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Visual flow reference for Streamdown, A2UI, MCP, and
+                  json-render.
+                </p>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                {protocolDiagrams.map((diagram) => (
+                  <MermaidDiagram
+                    key={diagram.id}
+                    code={diagram.code}
+                    title={diagram.title}
+                    subtitle={diagram.subtitle}
+                    theme={theme}
+                  />
+                ))}
+              </div>
+
+              <div className="rounded-none border border-border bg-card p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                  Protocol comparison matrix
+                </p>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                        <th className="pb-2 pr-4">Dimension</th>
+                        <th className="pb-2 pr-4">Streamdown (A)</th>
+                        <th className="pb-2 pr-4">A2UI (B)</th>
+                        <th className="pb-2 pr-4">MCP (C)</th>
+                        <th className="pb-2">json-render (D)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {protocolMatrix.map((row) => (
+                        <tr
+                          key={row.dimension}
+                          className="border-b border-border/60"
+                        >
+                          <td className="py-2 pr-4 font-semibold text-foreground">
+                            {row.dimension}
+                          </td>
+                          <td className="py-2 pr-4 text-muted-foreground">
+                            {row.streamdown}
+                          </td>
+                          <td className="py-2 pr-4 text-muted-foreground">
+                            {row.a2ui}
+                          </td>
+                          <td className="py-2 pr-4 text-muted-foreground">
+                            {row.mcp}
+                          </td>
+                          <td className="py-2 text-muted-foreground">
+                            {row.jsonRender}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </section>
 
