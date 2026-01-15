@@ -21,6 +21,16 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: src/ui/package-lock.json
+
+      - name: Install UI dependencies
+        run: cd src/ui && npm ci
+
       - name: Install deployctl
         run: deno install -A --global jsr:@deno/deployctl
 
