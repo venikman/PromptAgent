@@ -14,6 +14,13 @@
 | 1st      | Deno    | Scripts, tooling, TypeScript |
 | 2nd      | Bun     | Performance-critical paths   |
 
+### Dependency Version Policy
+
+- For any change that adds or updates dependencies, tooling actions, or package
+  versions (npm, Deno, GitHub Actions), check the latest stable release from the
+  official source (registry or release page) before finalizing.
+- If not using the latest version, note the reason in the PR summary.
+
 ---
 
 ## 2. Deployment Policy
