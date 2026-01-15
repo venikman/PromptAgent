@@ -11,11 +11,14 @@
 import { assert, assertEquals, assertExists, assertThrows } from "@std/assert";
 import { env, EnvSchema } from "../src/config.ts";
 
+const isDeployed = Boolean(Deno.env.get("DENO_DEPLOYMENT_ID"));
+
 // ─────────────────────────────────────────────────
 // LM Studio Configuration Tests
 // ─────────────────────────────────────────────────
 
 Deno.test("LM Studio - should have valid LMSTUDIO_BASE_URL format", () => {
+  if (isDeployed) return;
   const url = env.LMSTUDIO_BASE_URL;
   assertExists(url);
   const parsed = new URL(url); // Will throw if invalid

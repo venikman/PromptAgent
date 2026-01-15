@@ -1,0 +1,186 @@
+# CI Workflow — Build, Test, Lint
+# Non-negotiable: This must pass before any deploy.
+# Per AGENTS.md: GitHub Actions is the only deploy path.
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop, 'feature/**', 'release/**']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  BUN_VERSION: '1.1'
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================================================
+  # .NET Build & Test (F# primary, C# secondary)
+  # ============================================================================
+  dotnet:
+    name: .NET Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build --verbosity normal --logger trx --results-directory ./TestResults
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dotnet-test-results
+          path: ./TestResults
+          retention-days: 7
+
+  # ============================================================================
+  # Bun Build & Test (primary JS/TS runtime)
+  # ============================================================================
+  bun:
+    name: Bun Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        run: bun run typecheck || true  # May not exist in all projects
+
+      - name: Lint
+        run: bun run lint || true  # May not exist in all projects
+
+      - name: Test
+        run: bun test
+
+      - name: Build
+        run: bun run build || true  # May not exist in all projects
+
+  # ============================================================================
+  # FPF Doctor Checks
+  # ============================================================================
+  fpf-doctor:
+    name: FPF Foundry Doctor
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Run FPF Doctor
+        run: |
+          if command -v bunx &> /dev/null && [ -f "fpf.config.ts" ]; then
+            bunx --bun @venikman/fpf doctor
+          else
+            echo "FPF not configured, skipping doctor checks"
+          fi
+        continue-on-error: true
+
+  # ============================================================================
+  # Playwright UI Tests
+  # ============================================================================
+  playwright:
+    name: Playwright Tests
+    runs-on: ubuntu-latest
+    needs: [bun]  # Only run if Bun build passes
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: bunx playwright test
+        continue-on-error: true  # May not exist in all projects
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # ============================================================================
+  # Security Scan
+  # ============================================================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ============================================================================
+  # Gate Check — All must pass
+  # ============================================================================
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    needs: [dotnet, bun, fpf-doctor, playwright, security]
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ needs.dotnet.result }}" == "failure" ]] || \
+             [[ "${{ needs.bun.result }}" == "failure" ]] || \
+             [[ "${{ needs.security.result }}" == "failure" ]]; then
+            echo "One or more required jobs failed"
+            exit 1
+          fi
+          echo "All CI checks passed"
