@@ -1,6 +1,7 @@
 # CI Workflow — Build, Test, Lint
 # Non-negotiable: This must pass before any deploy.
 # Per AGENTS.md: GitHub Actions is the only deploy path.
+# Runtime: Deno only (per AGENTS.md policy)
 
 name: CI
 
@@ -16,123 +17,67 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DOTNET_VERSION: "8.0.x"
-  BUN_VERSION: "1.3"
+  DENO_VERSION: "2.x"
 
 jobs:
   # ============================================================================
-  # .NET Build & Test (F# primary, C# secondary)
+  # Deno Build & Test (primary runtime per AGENTS.md)
   # ============================================================================
-  dotnet:
-    name: .NET Build & Test
+  deno:
+    name: Deno Build & Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Skip if no .NET projects
-        if: ${{ hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') == '' }}
-        run: echo "No .NET project files found, skipping."
-
-      - name: Setup .NET
-        if: ${{ hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') != '' }}
-        uses: actions/setup-dotnet@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          deno-version: ${{ env.DENO_VERSION }}
 
-      - name: Restore dependencies
-        if: ${{ hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') != '' }}
-        run: dotnet restore
-
-      - name: Build
-        if: ${{ hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') != '' }}
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Test
-        if: ${{ hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') != '' }}
-        run: dotnet test --configuration Release --no-build --verbosity normal --logger trx --results-directory ./TestResults
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: ${{ always() && hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') != '' }}
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
         with:
-          name: dotnet-test-results
-          path: ./TestResults
-          retention-days: 7
+          path: |
+            ~/.cache/deno
+            ~/.deno
+          key: deno-${{ runner.os }}-${{ hashFiles('deno.lock', 'deno.json') }}
+          restore-keys: deno-${{ runner.os }}-
 
-  # ============================================================================
-  # Bun Build & Test (primary JS/TS runtime)
-  # ============================================================================
-  bun:
-    name: Bun Build & Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Detect UI package
-        id: ui
+      - name: Install UI dependencies
         run: |
           if [ -f "src/ui/package.json" ]; then
-            echo "dir=src/ui" >> $GITHUB_OUTPUT
-          elif [ -f "package.json" ]; then
-            echo "dir=." >> $GITHUB_OUTPUT
-          else
-            echo "dir=" >> $GITHUB_OUTPUT
+            cd src/ui && deno install --node-modules-dir --allow-scripts
           fi
 
-      - name: Skip if no package.json
-        if: ${{ steps.ui.outputs.dir == '' }}
-        run: echo "No package.json found, skipping."
-
-      - name: Install dependencies
-        if: ${{ steps.ui.outputs.dir != '' }}
-        working-directory: ${{ steps.ui.outputs.dir }}
-        run: bun install --frozen-lockfile
-
       - name: Type check
-        if: ${{ steps.ui.outputs.dir != '' }}
-        working-directory: ${{ steps.ui.outputs.dir }}
         run: |
-          if grep -q '"typecheck"' package.json; then
-            bun run typecheck
+          if grep -q '"typecheck"' deno.json 2>/dev/null; then
+            deno task typecheck
           else
-            echo "No typecheck script configured"
+            echo "No typecheck task configured"
           fi
 
       - name: Lint
-        if: ${{ steps.ui.outputs.dir != '' }}
-        working-directory: ${{ steps.ui.outputs.dir }}
-        run: |
-          if grep -q '"lint"' package.json; then
-            bun run lint
-          else
-            echo "No lint script configured"
-          fi
+        run: deno lint
+
+      - name: Format check
+        run: deno fmt --check
 
       - name: Test
-        if: ${{ steps.ui.outputs.dir != '' }}
-        working-directory: ${{ steps.ui.outputs.dir }}
         run: |
-          if grep -q '"test"' package.json; then
-            bun run test
+          if grep -q '"test"' deno.json 2>/dev/null; then
+            deno task test
           else
-            echo "No test script configured"
+            deno test --allow-all
           fi
 
-      - name: Build
-        if: ${{ steps.ui.outputs.dir != '' }}
-        working-directory: ${{ steps.ui.outputs.dir }}
+      - name: Build UI
         run: |
-          if grep -q '"build"' package.json; then
-            bun run build
+          if grep -q '"ui:build"' deno.json 2>/dev/null; then
+            deno task ui:build
           else
-            echo "No build script configured"
+            echo "No ui:build task configured"
           fi
 
   # ============================================================================
@@ -145,15 +90,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          deno-version: ${{ env.DENO_VERSION }}
 
       - name: Run FPF Doctor
         run: |
-          if command -v bunx &> /dev/null && [ -f "fpf.config.ts" ]; then
-            bunx --bun @venikman/fpf doctor
+          if [ -f "fpf.config.ts" ]; then
+            deno run -A npm:@venikman/fpf doctor
           else
             echo "FPF not configured, skipping doctor checks"
           fi
@@ -165,7 +110,7 @@ jobs:
   playwright:
     name: Playwright Tests
     runs-on: ubuntu-latest
-    needs: [bun] # Only run if Bun build passes
+    needs: [deno]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -173,15 +118,13 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
+          deno-version: ${{ env.DENO_VERSION }}
 
       - name: Install UI dependencies
-        run: cd src/ui && bun install --frozen-lockfile
+        run: |
+          if [ -f "src/ui/package.json" ]; then
+            cd src/ui && deno install --node-modules-dir --allow-scripts
+          fi
 
       - name: Build UI
         run: deno task ui:build
@@ -191,7 +134,7 @@ jobs:
 
       - name: Run Playwright tests
         run: deno task test:e2e
-        continue-on-error: true # May not exist in all projects
+        continue-on-error: true
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -275,13 +218,12 @@ jobs:
   ci-gate:
     name: CI Gate
     runs-on: ubuntu-latest
-    needs: [dotnet, bun, fpf-doctor, playwright, security, release-prep]
+    needs: [deno, fpf-doctor, playwright, security, release-prep]
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
-          if [[ "${{ needs.dotnet.result }}" == "failure" ]] || \
-             [[ "${{ needs.bun.result }}" == "failure" ]] || \
+          if [[ "${{ needs.deno.result }}" == "failure" ]] || \
              [[ "${{ needs.security.result }}" == "failure" ]] || \
              ([[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ needs.release-prep.result }}" == "failure" ]]); then
             echo "One or more required jobs failed"

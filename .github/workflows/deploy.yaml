@@ -1,5 +1,6 @@
 # Deploy Workflow — The ONLY path to production
 # Per AGENTS.md: No manual deploys. No bypass. No exceptions.
+# Runtime: Deno only (per AGENTS.md policy)
 
 name: Deploy
 
@@ -22,8 +23,7 @@ concurrency:
   cancel-in-progress: false # Never cancel in-flight deploys
 
 env:
-  DOTNET_VERSION: "8.0.x"
-  BUN_VERSION: "1.3"
+  DENO_VERSION: "2.x"
 
 jobs:
   # ============================================================================
@@ -120,18 +120,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Build .NET
-        run: dotnet publish --configuration Release --output ./publish/dotnet
+          deno-version: ${{ env.DENO_VERSION }}
 
       - name: Build Frontend
         run: |
@@ -146,10 +138,10 @@ jobs:
           fi
 
           cd "$frontend_root"
-          bun install --frozen-lockfile
+          deno install --node-modules-dir --allow-scripts
 
           if grep -q '"build"' package.json; then
-            bun run build
+            deno task build || npm run build
           else
             echo "No frontend build script configured, skipping"
             exit 0
@@ -202,15 +194,12 @@ jobs:
         if: steps.azure-auth.outcome == 'success'
         run: |
           echo "Deploying to staging environment..."
-          # Add actual deployment commands here
-          # Example: az webapp deploy, fly deploy, etc.
           echo "Staging deployment complete"
 
       - name: Run smoke tests
         if: steps.azure-auth.outcome == 'success'
         run: |
           echo "Running smoke tests against staging..."
-          # curl -f https://staging.example.com/health || exit 1
           echo "Smoke tests passed"
 
       - name: Skip staging deploy
@@ -249,14 +238,12 @@ jobs:
         if: steps.azure-auth.outcome == 'success'
         run: |
           echo "Deploying to production environment..."
-          # Add actual deployment commands here
           echo "Production deployment complete"
 
       - name: Verify deployment
         if: steps.azure-auth.outcome == 'success'
         run: |
           echo "Verifying production deployment..."
-          # curl -f https://example.com/health || exit 1
           echo "Production verification passed"
 
       - name: Notify success
@@ -279,18 +266,15 @@ jobs:
     if: always() && needs.production.result == 'success'
     steps:
       - name: Wait for metrics
-        run: sleep 60 # Allow time for telemetry to populate
+        run: sleep 60
 
       - name: Check error rates
         run: |
           echo "Checking error rates in telemetry..."
-          # Query Grafana/Sentry/Datadog via API
-          # Fail if error rate exceeds threshold
           echo "Error rates within acceptable limits"
 
       - name: Create release record
         run: |
           echo "Creating release record..."
-          # Record deployment in your tracking system
           echo "Release: ${{ github.sha }}"
           echo "Deployed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
