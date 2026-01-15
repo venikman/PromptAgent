@@ -7,48 +7,6 @@ export type ProtocolDiagram = {
 
 export const protocolDiagrams: ProtocolDiagram[] = [
   {
-    id: "overview",
-    title: "Overview",
-    subtitle: "All scenarios, side by side",
-    code: `flowchart TB
-    subgraph A["Scenario A: Streamdown"]
-        A1[Web UI] -->|"prompt + Accept: text/event-stream"| A2[A2A Agent]
-        A2 -->|"POST /chat/completions"| A3[OpenRouter LLM]
-        A3 -->|"SSE chunks: data: {delta}"| A2
-        A2 -->|"SSE: markdown fragments"| A4[Streamdown Renderer]
-        A4 -->|"sanitized DOM nodes"| A1
-    end
-
-    subgraph B["Scenario B: A2UI Structured"]
-        B1[Web UI] -->|"X-A2UI-Extension header"| B2[A2A Agent]
-        B2 -->|"beginRendering + JSON schema"| B3[A2UI Renderer]
-        B3 -->|"rendered form + data model"| B1
-        B1 -->|"submit_form payload"| B2
-        B2 -->|"POST /v1/message:send"| B4[Confirmation]
-    end
-
-    subgraph C["Scenario C: MCP Orchestration"]
-        C1[Web UI] -->|"task request"| C2[A2A Agent]
-        C2 -->|"tool_plan proposal"| C3[Approval Gate]
-        C3 -->|"approved: true"| C4[MCP Server]
-        C4 -->|"tools/call + params"| C5[Tool Execution]
-        C5 -->|"tool_result JSON"| C4
-        C4 -->|"SSE results"| C1
-    end
-
-    subgraph D["Scenario D: json-render"]
-        D1[Prompt + Catalog] -->|"component allowlist"| D2[LLM]
-        D2 -->|"JSON UI tree"| D3[json-render]
-        D3 -->|"React elements"| D4[Live UI]
-        D4 -.->|"data binding updates"| D4
-    end
-
-    style A fill:#fef3c7,stroke:#f59e0b
-    style B fill:#dbeafe,stroke:#3b82f6
-    style C fill:#dcfce7,stroke:#22c55e
-    style D fill:#f3e8ff,stroke:#a855f7`,
-  },
-  {
     id: "streamdown",
     title: "Scenario A: Streamdown",
     subtitle: "Streaming markdown to DOM",

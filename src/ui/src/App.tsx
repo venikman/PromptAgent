@@ -36,6 +36,7 @@ import {
 } from "./components/ai-elements/artifact.tsx";
 import { MermaidDiagram } from "./components/mermaid-diagram.tsx";
 import { SiteHeader } from "./components/site-header.tsx";
+import { Button } from "./components/ui/button.tsx";
 import {
   protocolDiagrams,
   protocolMatrix,
@@ -235,6 +236,156 @@ const readJson = async <T,>(res: Response): Promise<T> => {
     return JSON.parse(text) as T;
   } catch {
     throw new Error(`Invalid JSON from ${endpointLabel(res)}`);
+  }
+};
+
+const ProtocolScenarioPreview = ({ id }: { id: string }) => {
+  switch (id) {
+    case "streamdown":
+      return (
+        <Artifact className="rounded-none border border-border bg-card">
+          <ArtifactHeader className="border-b border-border bg-muted/40">
+            <ArtifactTitle className="text-base font-semibold text-foreground">
+              Streamdown output
+            </ArtifactTitle>
+            <ArtifactDescription className="text-sm text-muted-foreground">
+              Markdown streamed into the message surface.
+            </ArtifactDescription>
+          </ArtifactHeader>
+          <ArtifactContent>
+            <Message from="assistant" className="max-w-full">
+              <MessageContent className="text-foreground">
+                <MessageResponse className="text-sm leading-relaxed text-foreground">
+                  {"**Patch summary**\n\n- Applied guardrails\n- Normalized fences\n- Emitted sanitized DOM"}
+                </MessageResponse>
+              </MessageContent>
+            </Message>
+          </ArtifactContent>
+        </Artifact>
+      );
+    case "a2ui":
+      return (
+        <Artifact className="rounded-none border border-border bg-card">
+          <ArtifactHeader className="border-b border-border bg-muted/40">
+            <ArtifactTitle className="text-base font-semibold text-foreground">
+              A2UI rendered form
+            </ArtifactTitle>
+            <ArtifactDescription className="text-sm text-muted-foreground">
+              Schema-bound inputs for typed submissions.
+            </ArtifactDescription>
+          </ArtifactHeader>
+          <ArtifactContent>
+            <div className="grid gap-3 text-sm text-foreground">
+              <label className="grid gap-2">
+                Name
+                <input
+                  className="rounded-none border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  defaultValue="Jordan Lee"
+                />
+              </label>
+              <label className="grid gap-2">
+                Email
+                <input
+                  className="rounded-none border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  defaultValue="jordan@promptagent.dev"
+                />
+              </label>
+              <label className="grid gap-2">
+                Priority
+                <select className="rounded-none border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/30">
+                  <option>High</option>
+                  <option>Medium</option>
+                  <option>Low</option>
+                </select>
+              </label>
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button size="sm">submit_form</Button>
+                <Button size="sm" variant="outline">
+                  reset
+                </Button>
+              </div>
+            </div>
+          </ArtifactContent>
+        </Artifact>
+      );
+    case "mcp":
+      return (
+        <Plan
+          className="rounded-none border border-border bg-card shadow-sm"
+          defaultOpen
+        >
+          <PlanHeader className="border-b border-border">
+            <div>
+              <PlanDescription className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                Approval gate
+              </PlanDescription>
+              <PlanTitle className="mt-2 text-xl font-semibold tracking-tight text-foreground">
+                Tool plan review
+              </PlanTitle>
+            </div>
+            <PlanAction className="flex gap-2">
+              <Button size="sm">Approve</Button>
+              <Button size="sm" variant="outline">
+                Deny
+              </Button>
+            </PlanAction>
+          </PlanHeader>
+          <PlanContent className="space-y-3 pt-4 text-sm text-muted-foreground">
+            <div className="rounded-none border border-border bg-muted/40 px-3 py-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Proposed tools
+            </div>
+            <ul className="space-y-2 text-sm text-foreground">
+              <li className="flex items-center justify-between border-b border-border/60 pb-2">
+                <span>sql_query</span>
+                <span className="text-xs text-muted-foreground">
+                  params: {"{...}"}
+                </span>
+              </li>
+              <li className="flex items-center justify-between border-b border-border/60 pb-2">
+                <span>summarize_results</span>
+                <span className="text-xs text-muted-foreground">
+                  params: {"{...}"}
+                </span>
+              </li>
+            </ul>
+          </PlanContent>
+        </Plan>
+      );
+    case "json-render":
+      return (
+        <Artifact className="rounded-none border border-border bg-card">
+          <ArtifactHeader className="border-b border-border bg-muted/40">
+            <ArtifactTitle className="text-base font-semibold text-foreground">
+              JSON-rendered card
+            </ArtifactTitle>
+            <ArtifactDescription className="text-sm text-muted-foreground">
+              Components sourced from a catalog allowlist.
+            </ArtifactDescription>
+          </ArtifactHeader>
+          <ArtifactContent>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-none border border-border bg-background px-3 py-2">
+                <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                  Revenue
+                </p>
+                <p className="text-lg font-semibold text-foreground">
+                  $132,900
+                </p>
+              </div>
+              <div className="rounded-none border border-border bg-background px-3 py-2">
+                <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                  Conversion
+                </p>
+                <p className="text-lg font-semibold text-foreground">
+                  16.3%
+                </p>
+              </div>
+            </div>
+          </ArtifactContent>
+        </Artifact>
+      );
+    default:
+      return null;
   }
 };
 
@@ -629,15 +780,20 @@ export default function App() {
                 </p>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-6">
                 {protocolDiagrams.map((diagram) => (
-                  <MermaidDiagram
+                  <div
                     key={diagram.id}
-                    code={diagram.code}
-                    title={diagram.title}
-                    subtitle={diagram.subtitle}
-                    theme={theme}
-                  />
+                    className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]"
+                  >
+                    <MermaidDiagram
+                      code={diagram.code}
+                      title={diagram.title}
+                      subtitle={diagram.subtitle}
+                      theme={theme}
+                    />
+                    <ProtocolScenarioPreview id={diagram.id} />
+                  </div>
                 ))}
               </div>
 
