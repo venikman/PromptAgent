@@ -223,34 +223,46 @@ async function checkTests() {
 }
 
 // ============================================================================
-// Check 5: Fresh UI structure
+// Check 5: React UI structure
 // ============================================================================
-function checkFreshUi() {
-  log(`\n${BOLD}Checking Fresh UI...${RESET}`);
+function checkUi() {
+  log(`\n${BOLD}Checking UI...${RESET}`);
 
-  const routesPath = join(ROOT_DIR, "src", "ui", "routes", "index.tsx");
+  const indexPath = join(ROOT_DIR, "src", "ui", "index.html");
   check(
-    "Fresh routes",
-    existsSync(routesPath),
-    existsSync(routesPath)
-      ? "Fresh routes/index.tsx present"
-      : "src/ui/routes/index.tsx not found",
+    "UI entry HTML",
+    existsSync(indexPath),
+    existsSync(indexPath)
+      ? "src/ui/index.html present"
+      : "src/ui/index.html not found",
     "warning",
   );
 
-  const appPath = join(ROOT_DIR, "src", "ui", "app.ts");
+  const mainPath = join(ROOT_DIR, "src", "ui", "src", "main.tsx");
   check(
-    "Fresh app entry",
-    existsSync(appPath),
-    existsSync(appPath) ? "app.ts present" : "src/ui/app.ts not found",
+    "UI entry module",
+    existsSync(mainPath),
+    existsSync(mainPath)
+      ? "src/ui/src/main.tsx present"
+      : "src/ui/src/main.tsx not found",
+    "warning",
+  );
+
+  const configPath = join(ROOT_DIR, "src", "ui", "vite.config.mts");
+  check(
+    "Vite config",
+    existsSync(configPath),
+    existsSync(configPath)
+      ? "src/ui/vite.config.mts present"
+      : "src/ui/vite.config.mts not found",
     "warning",
   );
 }
 
 // ============================================================================
-// Check 6: Server entrypoints
+// Check 6: Server entrypoint
 // ============================================================================
-function checkDeployConfig() {
+function checkServerEntrypoint() {
   log(`\n${BOLD}Checking server entrypoints...${RESET}`);
 
   const localMainPath = join(ROOT_DIR, "src", "server", "main.ts");
@@ -260,16 +272,6 @@ function checkDeployConfig() {
     existsSync(localMainPath)
       ? "src/server/main.ts present"
       : "src/server/main.ts not found",
-  );
-
-  const deployMainPath = join(ROOT_DIR, "deploy", "main.ts");
-  check(
-    "Production server entry",
-    existsSync(deployMainPath),
-    existsSync(deployMainPath)
-      ? "deploy/main.ts present"
-      : "deploy/main.ts not found",
-    "warning",
   );
 }
 
@@ -345,8 +347,8 @@ async function main() {
   checkEnvironmentConfig();
   await checkTypeScript();
   await checkTests();
-  checkFreshUi();
-  checkDeployConfig();
+  checkUi();
+  checkServerEntrypoint();
   checkNoDebugLogs();
 
   // Summary

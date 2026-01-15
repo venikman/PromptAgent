@@ -55,3 +55,9 @@ runs/
 
 # Auto Claude data directory
 .auto-claude/
+
+# Local Codex/Claude agent data
+.codex/
+.claude/
+.agents/
+.agent-discovery.md

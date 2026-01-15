@@ -1,6 +1,5 @@
-import { fromFileUrl } from "@std/path";
-import { Builder } from "@fresh/core/dev";
-import { app } from "../ui/app.ts";
+import { fromFileUrl, isAbsolute, join, relative, resolve } from "@std/path";
+import { serveFile } from "@std/http/file-server";
 import { env } from "../config.ts";
 import { type ApiConfig, createApiHandler } from "./handler.ts";
 import {
@@ -22,16 +21,45 @@ const apiConfig: ApiConfig = {
 
 const apiHandler = createApiHandler(apiConfig);
 
-const uiRootUrl = new URL("../ui/", import.meta.url);
-const builder = new Builder({ root: uiRootUrl.toString() });
-const mode = Deno.env.get("FRESH_MODE") === "development"
-  ? "development"
-  : "production";
-app.config.mode = mode;
-const applySnapshot = await builder.build({ snapshot: "memory", mode });
-applySnapshot(app);
+const uiRootPath = fromFileUrl(new URL("../ui/dist", import.meta.url));
+const uiIndexPath = join(uiRootPath, "index.html");
+let uiAvailable = true;
 
-const freshHandler = app.handler();
+try {
+  const indexInfo = await Deno.stat(uiIndexPath);
+  uiAvailable = indexInfo.isFile;
+} catch {
+  uiAvailable = false;
+  console.warn("UI build output is missing. Run `deno task ui:build`.");
+}
+
+const serveUi = async (req: Request) => {
+  if (!uiAvailable) {
+    return new Response("UI build output is missing.", { status: 503 });
+  }
+
+  const url = new URL(req.url);
+  const filePath = resolve(uiRootPath, `.${url.pathname}`);
+  const relativePath = relative(uiRootPath, filePath);
+  if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  try {
+    const info = await Deno.stat(filePath);
+    if (info.isFile) {
+      return await serveFile(req, filePath);
+    }
+  } catch {
+    // fall through to index.html
+  }
+
+  try {
+    return await serveFile(req, uiIndexPath);
+  } catch {
+    return new Response("UI build output is missing.", { status: 503 });
+  }
+};
 startTelemetryReporter(env.TELEMETRY_REPORT_INTERVAL_MS);
 
 const API_PREFIXES = [
@@ -62,7 +90,7 @@ Deno.serve(async (req) => {
   const isApi = isApiRoute(url.pathname);
   const routeKey = isApi ? normalizePath(url.pathname) : "ui";
   try {
-    const res = isApi ? await apiHandler(req) : await freshHandler(req);
+    const res = isApi ? await apiHandler(req) : await serveUi(req);
     const durationMs = performance.now() - started;
     recordHttpRequest({
       key: `${req.method} ${routeKey}`,

@@ -4,6 +4,7 @@ import { makeGeneratorModel } from "./models.ts";
 import { env } from "./config.ts";
 import { recordAiResponse, withAiTelemetry } from "./telemetry.ts";
 import type { ExecutionTrace } from "./judge/promptagent-fpf-judge.ts";
+import { parseAcceptanceCriteria } from "./utils/acceptanceCriteria.ts";
 
 export const baseStoryAgent = new Agent({
   id: "story-generator",
@@ -141,10 +142,32 @@ const extractTextFromMessage = (message: unknown): string => {
   const record = asRecord(message);
   if (!record) return "";
   if (record.content !== undefined) {
-    return extractTextFromContent(record.content);
+    const text = extractTextFromContent(record.content);
+    if (text.trim()) return text;
+    if (record.reasoning_content !== undefined) {
+      const reasoning = extractTextFromContent(record.reasoning_content);
+      if (reasoning.trim()) return reasoning;
+    }
+    if (record.reasoningContent !== undefined) {
+      const reasoning = extractTextFromContent(record.reasoningContent);
+      if (reasoning.trim()) return reasoning;
+    }
+    if (record.parts !== undefined) {
+      return extractTextFromContent(record.parts);
+    }
+    return text;
   }
   if (record.parts !== undefined) {
-    return extractTextFromContent(record.parts);
+    const text = extractTextFromContent(record.parts);
+    if (text.trim()) return text;
+  }
+  if (record.reasoning_content !== undefined) {
+    const reasoning = extractTextFromContent(record.reasoning_content);
+    if (reasoning.trim()) return reasoning;
+  }
+  if (record.reasoningContent !== undefined) {
+    const reasoning = extractTextFromContent(record.reasoningContent);
+    if (reasoning.trim()) return reasoning;
   }
   return "";
 };
@@ -234,10 +257,35 @@ const safeStringify = (value: unknown): string => {
   return String(value);
 };
 
+const normalizeStoryPackCandidate = (value: unknown): unknown => {
+  const record = asRecord(value);
+  if (!record) return value;
+  const userStories = Array.isArray(record.userStories)
+    ? record.userStories
+    : null;
+  if (!userStories) return value;
+
+  let mutated = false;
+  const normalizedStories = userStories.map((story) => {
+    const storyRecord = asRecord(story);
+    if (!storyRecord) return story;
+    const acceptanceCriteria = storyRecord.acceptanceCriteria;
+    if (typeof acceptanceCriteria !== "string") return story;
+
+    const parsedCriteria = parseAcceptanceCriteria(acceptanceCriteria);
+    mutated = true;
+    return { ...storyRecord, acceptanceCriteria: parsedCriteria };
+  });
+
+  if (!mutated) return value;
+  return { ...record, userStories: normalizedStories };
+};
+
 const parseStoryPack = (
   value: unknown,
 ): { storyPack: StoryPack | null; error?: ValidationFailure } => {
-  const parsed = storyPackSchema.safeParse(value);
+  const normalized = normalizeStoryPackCandidate(value);
+  const parsed = storyPackSchema.safeParse(normalized);
   if (parsed.success) {
     return { storyPack: parsed.data };
   }

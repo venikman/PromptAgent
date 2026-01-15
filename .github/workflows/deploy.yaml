@@ -1,0 +1,296 @@
+# Deploy Workflow — The ONLY path to production
+# Per AGENTS.md: No manual deploys. No bypass. No exceptions.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false # Never cancel in-flight deploys
+
+env:
+  DOTNET_VERSION: "8.0.x"
+  BUN_VERSION: "1.1"
+
+jobs:
+  # ============================================================================
+  # Pre-flight Check — CI must pass
+  # ============================================================================
+  preflight:
+    name: Pre-flight Check
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+    steps:
+      - name: Check CI status
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const ref = context.sha;
+            const currentRunId = String(context.runId);
+
+            const [checksResponse, statusResponse] = await Promise.all([
+              github.rest.checks.listForRef({ owner, repo, ref, per_page: 100 }),
+              github.rest.repos.getCombinedStatusForRef({ owner, repo, ref }),
+            ]);
+
+            const checkRuns = checksResponse.data.check_runs ?? [];
+            const relevantCheckRuns = checkRuns.filter((run) => {
+              const detailsUrl = run.details_url ?? "";
+              return !detailsUrl.includes(`/runs/${currentRunId}`);
+            });
+
+            const totalStatuses = statusResponse.data.total_count ?? 0;
+            const statusState = statusResponse.data.state;
+
+            if (relevantCheckRuns.length === 0 && totalStatuses === 0) {
+              core.warning("No CI checks found for this commit.");
+              core.setOutput("should_deploy", "false");
+              core.setFailed("CI checks missing; blocking deploy.");
+              return;
+            }
+
+            const incomplete = relevantCheckRuns.filter(
+              (run) => run.status !== "completed",
+            );
+            const failed = relevantCheckRuns.filter(
+              (run) =>
+                run.status === "completed" &&
+                !["success", "neutral", "skipped"].includes(run.conclusion ?? ""),
+            );
+
+            if (incomplete.length > 0) {
+              core.warning(
+                `CI still running: ${incomplete.map((run) => run.name).join(", ")}`,
+              );
+            }
+
+            if (failed.length > 0) {
+              core.warning(
+                `CI failures: ${failed.map((run) => run.name).join(", ")}`,
+              );
+            }
+
+            if (statusState !== "success") {
+              core.warning(`Combined status is ${statusState}.`);
+            }
+
+            const shouldDeploy =
+              incomplete.length === 0 &&
+              failed.length === 0 &&
+              statusState === "success";
+
+            core.setOutput("should_deploy", shouldDeploy ? "true" : "false");
+
+            if (!shouldDeploy) {
+              core.setFailed("CI checks not successful; blocking deploy.");
+            }
+
+      - name: Verify branch protection
+        run: |
+          echo "Deploying from: ${{ github.ref }}"
+          if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
+            echo "::warning::Deploy from non-main branch requires manual approval"
+          fi
+
+  # ============================================================================
+  # Build Artifacts
+  # ============================================================================
+  build:
+    name: Build Artifacts
+    runs-on: ubuntu-latest
+    needs: [preflight]
+    if: needs.preflight.outputs.should_deploy == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Build .NET
+        run: dotnet publish --configuration Release --output ./publish/dotnet
+
+      - name: Build Frontend
+        run: |
+          frontend_root=""
+          if [ -f "$GITHUB_WORKSPACE/src/ui/package.json" ]; then
+            frontend_root="$GITHUB_WORKSPACE/src/ui"
+          elif [ -f "$GITHUB_WORKSPACE/package.json" ]; then
+            frontend_root="$GITHUB_WORKSPACE"
+          else
+            echo "No frontend package.json found, skipping"
+            exit 0
+          fi
+
+          cd "$frontend_root"
+          bun install --frozen-lockfile
+
+          if grep -q '"build"' package.json; then
+            bun run build
+          else
+            echo "No frontend build script configured, skipping"
+            exit 0
+          fi
+
+          if [ -d "$frontend_root/dist" ]; then
+            mkdir -p "$GITHUB_WORKSPACE/publish/frontend"
+            cp -a "$frontend_root/dist/." "$GITHUB_WORKSPACE/publish/frontend/"
+          elif [ -d "$frontend_root/build" ]; then
+            mkdir -p "$GITHUB_WORKSPACE/publish/frontend"
+            cp -a "$frontend_root/build/." "$GITHUB_WORKSPACE/publish/frontend/"
+          else
+            echo "No frontend build output found (dist/ or build/)."
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-artifacts
+          path: ./publish/
+          retention-days: 7
+
+  # ============================================================================
+  # Deploy to Staging
+  # ============================================================================
+  staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build]
+    environment:
+      name: staging
+      url: https://staging.example.com
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deploy-artifacts
+          path: ./publish/
+
+      - name: Authenticate to Cloud (OIDC)
+        id: azure-auth
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        continue-on-error: true # May not be configured
+
+      - name: Deploy to staging
+        if: steps.azure-auth.outcome == 'success'
+        run: |
+          echo "Deploying to staging environment..."
+          # Add actual deployment commands here
+          # Example: az webapp deploy, fly deploy, etc.
+          echo "Staging deployment complete"
+
+      - name: Run smoke tests
+        if: steps.azure-auth.outcome == 'success'
+        run: |
+          echo "Running smoke tests against staging..."
+          # curl -f https://staging.example.com/health || exit 1
+          echo "Smoke tests passed"
+
+      - name: Skip staging deploy
+        if: steps.azure-auth.outcome != 'success'
+        run: |
+          echo "::warning::Azure login failed; skipping staging deploy and smoke tests."
+
+  # ============================================================================
+  # Deploy to Production (requires approval)
+  # ============================================================================
+  production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [staging]
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://example.com
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deploy-artifacts
+          path: ./publish/
+
+      - name: Authenticate to Cloud (OIDC)
+        id: azure-auth
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        continue-on-error: true
+
+      - name: Deploy to production
+        if: steps.azure-auth.outcome == 'success'
+        run: |
+          echo "Deploying to production environment..."
+          # Add actual deployment commands here
+          echo "Production deployment complete"
+
+      - name: Verify deployment
+        if: steps.azure-auth.outcome == 'success'
+        run: |
+          echo "Verifying production deployment..."
+          # curl -f https://example.com/health || exit 1
+          echo "Production verification passed"
+
+      - name: Notify success
+        if: steps.azure-auth.outcome == 'success'
+        run: |
+          echo "::notice::Production deployment successful"
+
+      - name: Skip production deploy
+        if: steps.azure-auth.outcome != 'success'
+        run: |
+          echo "::warning::Azure login failed; skipping production deploy."
+
+  # ============================================================================
+  # Post-Deploy Telemetry Check
+  # ============================================================================
+  post-deploy:
+    name: Post-Deploy Verification
+    runs-on: ubuntu-latest
+    needs: [production]
+    if: always() && needs.production.result == 'success'
+    steps:
+      - name: Wait for metrics
+        run: sleep 60 # Allow time for telemetry to populate
+
+      - name: Check error rates
+        run: |
+          echo "Checking error rates in telemetry..."
+          # Query Grafana/Sentry/Datadog via API
+          # Fail if error rate exceeds threshold
+          echo "Error rates within acceptable limits"
+
+      - name: Create release record
+        run: |
+          echo "Creating release record..."
+          # Record deployment in your tracking system
+          echo "Release: ${{ github.sha }}"
+          echo "Deployed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"

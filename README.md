@@ -129,7 +129,7 @@ src/
   server/               # HTTP handlers
   similarity.ts         # Cosine similarity utilities
   telemetry.ts          # Telemetry stream + metrics
-  ui/                   # Fresh SSR UI
+  ui/                   # React 19 + Vite UI
 prompts/
   champion.md           # Current best prompt (versioned artifact)
   champion.base.md      # Base prompt (unchanged during optimization)
@@ -154,16 +154,28 @@ deno task optimize
 deno task generate -- <EPIC_ID>
 ```
 
-## UI + API (Single App)
+## UI + API (Local Dev)
 
-The backend API and Fresh SSR UI run as a single app locally.
+The API runs on :8000 and the Vite UI runs on :5173 with API proxying.
 
 ```bash
-# Starts backend + Fresh UI on :8000
+# Starts backend + Vite UI
 deno task dev
 ```
 
-- App (UI + API): `http://localhost:8000`
+- UI: `http://localhost:5173`
+- API: `http://localhost:8000`
+
+## UI Preset (Lyra/Amber)
+
+Reuse the UI styling (Radix Lyra + gray + amber + Noto Sans) in other Tailwind
+v4 projects:
+
+```bash
+deno run -A scripts/apply-ui-preset.ts --target /path/to/your/project
+```
+
+Preset assets live in `presets/lyra-amber`.
 
 ## Environment Setup
 
@@ -176,13 +188,21 @@ LMSTUDIO_MODEL=openai/gpt-oss-120b
 LMSTUDIO_JUDGE_MODEL=openai/gpt-oss-120b  # Can differ from generator
 ```
 
+On Deno Deploy, `DENO_DEPLOYMENT_ID` is set automatically and the app uses the
+`LLM_*` variables instead of `LMSTUDIO_*` (OpenRouter in production).
+
 ## Deployment
 
-Build the Fresh UI and start the production server:
+Build the Vite UI and start the production server:
 
 ```bash
+# Install UI dependencies (first time only)
+cd src/ui
+npm install
+cd -
+
 deno task ui:build
-deno run -A deploy/main.ts
+deno run -A --unstable-kv src/server/main.ts
 ```
 
 ## Dependencies

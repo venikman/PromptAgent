@@ -11,11 +11,14 @@
 import { assert, assertEquals, assertExists, assertThrows } from "@std/assert";
 import { env, EnvSchema } from "../src/config.ts";
 
+const isDeployed = Boolean(Deno.env.get("DENO_DEPLOYMENT_ID"));
+
 // ─────────────────────────────────────────────────
 // LM Studio Configuration Tests
 // ─────────────────────────────────────────────────
 
 Deno.test("LM Studio - should have valid LMSTUDIO_BASE_URL format", () => {
+  if (isDeployed) return;
   const url = env.LMSTUDIO_BASE_URL;
   assertExists(url);
   const parsed = new URL(url); // Will throw if invalid
@@ -201,16 +204,45 @@ Deno.test("Schema - should reject out-of-range values", () => {
 Deno.test(
   "Defaults - should have sensible defaults when env vars are missing",
   () => {
-    // Parse with minimal env
-    const minimalEnv = {};
-    const parsed = EnvSchema.parse(minimalEnv);
+    const envKeys = [
+      "DENO_DEPLOYMENT_ID",
+      "LMSTUDIO_BASE_URL",
+      "LMSTUDIO_API_KEY",
+      "LMSTUDIO_MODEL",
+      "LMSTUDIO_JUDGE_MODEL",
+      "LLM_BASE_URL",
+      "LLM_API_BASE_URL",
+      "LLM_API_KEY",
+      "LLM_MODEL",
+      "LLM_JUDGE_MODEL",
+    ];
+    const previous = new Map<string, string | undefined>();
+    envKeys.forEach((key) => {
+      previous.set(key, Deno.env.get(key));
+      Deno.env.delete(key);
+    });
 
-    // Check critical defaults exist
-    assertEquals(parsed.LMSTUDIO_BASE_URL, "http://127.0.0.1:1234/v1");
-    assertEquals(parsed.LMSTUDIO_API_KEY, "lm-studio");
-    assertEquals(parsed.GEN_TEMPERATURE, 0.7);
-    assertEquals(parsed.GEN_MAX_TOKENS, 4096);
-    assertEquals(parsed.EVAL_REPLICATES, 5);
-    assertEquals(parsed.OPT_ITERATIONS, 10);
+    try {
+      // Parse with minimal env
+      const minimalEnv = {};
+      const parsed = EnvSchema.parse(minimalEnv);
+
+      // Check critical defaults exist
+      assertEquals(parsed.LMSTUDIO_BASE_URL, "http://127.0.0.1:1234/v1");
+      assertEquals(parsed.LMSTUDIO_API_KEY, "lm-studio");
+      assertEquals(parsed.GEN_TEMPERATURE, 0.7);
+      assertEquals(parsed.GEN_MAX_TOKENS, 4096);
+      assertEquals(parsed.EVAL_REPLICATES, 5);
+      assertEquals(parsed.OPT_ITERATIONS, 10);
+    } finally {
+      envKeys.forEach((key) => {
+        const value = previous.get(key);
+        if (value === undefined) {
+          Deno.env.delete(key);
+        } else {
+          Deno.env.set(key, value);
+        }
+      });
+    }
   },
 );

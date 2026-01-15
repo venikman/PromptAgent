@@ -7,10 +7,53 @@ import { z } from "zod";
  * Fail-fast on startup if any env var is invalid/out-of-range.
  */
 
-const llmBaseUrlFallback = Deno.env.get("LLM_BASE_URL") ??
-  Deno.env.get("LLM_API_BASE_URL");
-const llmApiKeyFallback = Deno.env.get("LLM_API_KEY");
-const llmModelFallback = Deno.env.get("LLM_MODEL");
+const DEFAULT_LMSTUDIO_BASE_URL = "http://127.0.0.1:1234/v1";
+const DEFAULT_LMSTUDIO_MODEL = "openai/gpt-oss-120b";
+const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini";
+
+const getLlmBaseUrlFallback = () =>
+  Deno.env.get("LLM_BASE_URL") ?? Deno.env.get("LLM_API_BASE_URL");
+const getLlmApiKeyFallback = () => Deno.env.get("LLM_API_KEY");
+const getLlmModelFallback = () => Deno.env.get("LLM_MODEL");
+const getLlmJudgeModelFallback = () => Deno.env.get("LLM_JUDGE_MODEL");
+const isDeployed = () => Boolean(Deno.env.get("DENO_DEPLOYMENT_ID"));
+
+const asEnvString = (value: unknown) => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
+};
+
+const resolveLmStudioBaseUrl = (value: unknown) => {
+  if (isDeployed()) {
+    return getLlmBaseUrlFallback() ?? DEFAULT_OPENROUTER_BASE_URL;
+  }
+  const explicit = asEnvString(value);
+  if (explicit) return explicit;
+  if (Deno.env.get("LMSTUDIO_MODEL")) {
+    return DEFAULT_LMSTUDIO_BASE_URL;
+  }
+  return getLlmBaseUrlFallback() ?? DEFAULT_LMSTUDIO_BASE_URL;
+};
+
+const resolveLmStudioApiKey = (value: unknown) => {
+  if (isDeployed()) {
+    return getLlmApiKeyFallback() ?? asEnvString(value) ?? "lm-studio";
+  }
+  return asEnvString(value) ?? getLlmApiKeyFallback() ?? "lm-studio";
+};
+
+const resolveLmStudioModel = (value: unknown) => {
+  if (isDeployed()) {
+    return getLlmModelFallback() ?? DEFAULT_OPENROUTER_MODEL;
+  }
+  return asEnvString(value) ?? getLlmModelFallback() ??
+    DEFAULT_LMSTUDIO_MODEL;
+};
+
+const resolveLmStudioJudgeModel = (value: unknown) =>
+  asEnvString(value) ?? getLlmJudgeModelFallback();
 
 const envBoolean = (defaultValue: boolean) =>
   z.preprocess((value) => {
@@ -28,12 +71,16 @@ const EnvSchema = z.object({
   // ─────────────────────────────────────────────────
   // LM Studio / Model Configuration
   // ─────────────────────────────────────────────────
-  LMSTUDIO_BASE_URL: z.string().url().default(
-    llmBaseUrlFallback ?? "http://127.0.0.1:1234/v1",
+  LMSTUDIO_BASE_URL: z.preprocess(
+    resolveLmStudioBaseUrl,
+    z.string().url(),
   ),
-  LMSTUDIO_API_KEY: z.string().default(llmApiKeyFallback ?? "lm-studio"),
-  LMSTUDIO_MODEL: z.string().default(llmModelFallback ?? "openai/gpt-oss-120b"),
-  LMSTUDIO_JUDGE_MODEL: z.string().optional(),
+  LMSTUDIO_API_KEY: z.preprocess(resolveLmStudioApiKey, z.string()),
+  LMSTUDIO_MODEL: z.preprocess(resolveLmStudioModel, z.string()),
+  LMSTUDIO_JUDGE_MODEL: z.preprocess(
+    resolveLmStudioJudgeModel,
+    z.string().optional(),
+  ),
   LLM_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(600_000).default(
     120_000,
   ),

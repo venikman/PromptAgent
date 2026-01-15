@@ -12,6 +12,7 @@ import { join } from "@std/path";
 import { env } from "../src/config.ts";
 
 const ROOT_DIR = join(import.meta.dirname ?? ".", "..");
+const isDeployed = Boolean(Deno.env.get("DENO_DEPLOYMENT_ID"));
 
 // Helper to read file if exists
 async function readFileIfExists(path: string): Promise<string | null> {
@@ -66,6 +67,7 @@ Deno.test(
 // ─────────────────────────────────────────────────
 
 Deno.test("Ports - LM Studio should use port 1234", () => {
+  if (isDeployed) return;
   const url = new URL(env.LMSTUDIO_BASE_URL);
   assertEquals(url.port, "1234", "LM Studio should use port 1234");
 });
@@ -79,10 +81,13 @@ Deno.test("Ports - Backend server should use Deno.serve", async () => {
   assert(content.includes("Deno.serve"), "Backend should use Deno.serve");
 });
 
-Deno.test("UI - Fresh routes should exist", async () => {
-  const indexPath = join(ROOT_DIR, "src", "ui", "routes", "index.tsx");
-  const content = await readFileIfExists(indexPath);
-  assertExists(content, "Fresh routes/index.tsx should exist");
+Deno.test("UI - Vite entry should exist", async () => {
+  const indexPath = join(ROOT_DIR, "src", "ui", "index.html");
+  const entryPath = join(ROOT_DIR, "src", "ui", "src", "main.tsx");
+  const indexContent = await readFileIfExists(indexPath);
+  const entryContent = await readFileIfExists(entryPath);
+  assertExists(indexContent, "Vite index.html should exist");
+  assertExists(entryContent, "Vite main.tsx should exist");
 });
 
 // ─────────────────────────────────────────────────
