@@ -26,29 +26,36 @@ jobs:
   # ============================================================================
   dotnet:
     name: .NET Build & Test
-    if: ${{ hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Skip if no .NET projects
+        if: ${{ hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') == '' }}
+        run: echo "No .NET project files found, skipping."
+
       - name: Setup .NET
+        if: ${{ hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') != '' }}
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore dependencies
+        if: ${{ hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') != '' }}
         run: dotnet restore
 
       - name: Build
+        if: ${{ hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') != '' }}
         run: dotnet build --configuration Release --no-restore
 
       - name: Test
+        if: ${{ hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') != '' }}
         run: dotnet test --configuration Release --no-build --verbosity normal --logger trx --results-directory ./TestResults
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ always() && hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') != '' }}
         with:
           name: dotnet-test-results
           path: ./TestResults
@@ -59,7 +66,6 @@ jobs:
   # ============================================================================
   bun:
     name: Bun Build & Test
-    if: ${{ hashFiles('package.json') != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -70,20 +76,65 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
+      - name: Detect UI package
+        id: ui
+        run: |
+          if [ -f "src/ui/package.json" ]; then
+            echo "dir=src/ui" >> $GITHUB_OUTPUT
+          elif [ -f "package.json" ]; then
+            echo "dir=." >> $GITHUB_OUTPUT
+          else
+            echo "dir=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip if no package.json
+        if: ${{ steps.ui.outputs.dir == '' }}
+        run: echo "No package.json found, skipping."
+
       - name: Install dependencies
+        if: ${{ steps.ui.outputs.dir != '' }}
+        working-directory: ${{ steps.ui.outputs.dir }}
         run: bun install --frozen-lockfile
 
       - name: Type check
-        run: bun run typecheck || true # May not exist in all projects
+        if: ${{ steps.ui.outputs.dir != '' }}
+        working-directory: ${{ steps.ui.outputs.dir }}
+        run: |
+          if grep -q '"typecheck"' package.json; then
+            bun run typecheck
+          else
+            echo "No typecheck script configured"
+          fi
 
       - name: Lint
-        run: bun run lint || true # May not exist in all projects
+        if: ${{ steps.ui.outputs.dir != '' }}
+        working-directory: ${{ steps.ui.outputs.dir }}
+        run: |
+          if grep -q '"lint"' package.json; then
+            bun run lint
+          else
+            echo "No lint script configured"
+          fi
 
       - name: Test
-        run: bun test
+        if: ${{ steps.ui.outputs.dir != '' }}
+        working-directory: ${{ steps.ui.outputs.dir }}
+        run: |
+          if grep -q '"test"' package.json; then
+            bun run test
+          else
+            echo "No test script configured"
+          fi
 
       - name: Build
-        run: bun run build || true # May not exist in all projects
+        if: ${{ steps.ui.outputs.dir != '' }}
+        working-directory: ${{ steps.ui.outputs.dir }}
+        run: |
+          if grep -q '"build"' package.json; then
+            bun run build
+          else
+            echo "No build script configured"
+          fi
 
   # ============================================================================
   # FPF Doctor Checks
@@ -120,27 +171,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+          deno-version: v2.x
 
       - name: Install Playwright browsers
-        run: bunx playwright install --with-deps chromium
+        run: deno task test:e2e:install
 
       - name: Run Playwright tests
-        run: bunx playwright test
+        run: deno task test:e2e
         continue-on-error: true # May not exist in all projects
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report
-          path: playwright-report/
+          name: test-results
+          path: test-results/
           retention-days: 7
 
   # ============================================================================
@@ -154,7 +202,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: "fs"
           ignore-unfixed: true

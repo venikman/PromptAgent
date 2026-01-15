@@ -738,7 +738,12 @@ export default function App() {
                         const previous = champion;
                         setChampion(null);
                         fetch("/champion")
-                          .then((res) => readJson<ChampionPrompt>(res))
+                          .then((res) => {
+                            if (!res.ok) {
+                              throw new Error(`HTTP ${res.status}`);
+                            }
+                            return readJson<ChampionPrompt>(res);
+                          })
                           .then((data) => setChampion(data))
                           .catch(() => setChampion(previous));
                       }}

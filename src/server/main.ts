@@ -1,4 +1,4 @@
-import { fromFileUrl, join, resolve } from "@std/path";
+import { fromFileUrl, isAbsolute, join, relative, resolve } from "@std/path";
 import { serveFile } from "@std/http/file-server";
 import { env } from "../config.ts";
 import { type ApiConfig, createApiHandler } from "./handler.ts";
@@ -40,7 +40,8 @@ const serveUi = async (req: Request) => {
 
   const url = new URL(req.url);
   const filePath = resolve(uiRootPath, `.${url.pathname}`);
-  if (!filePath.startsWith(uiRootPath)) {
+  const relativePath = relative(uiRootPath, filePath);
+  if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
     return new Response("Not found", { status: 404 });
   }
 

@@ -103,8 +103,15 @@ export const ArtifactAction = ({
   className,
   size = "sm",
   variant = "ghost",
+  "aria-label": ariaLabel,
   ...props
 }: ArtifactActionProps) => {
+  const hasVisibleLabel = typeof children === "string";
+  const fallbackLabel = label || tooltip ||
+    (hasVisibleLabel ? children : undefined);
+  const resolvedAriaLabel = ariaLabel ??
+    (hasVisibleLabel ? undefined : fallbackLabel);
+  const srLabel = hasVisibleLabel ? undefined : fallbackLabel;
   const button = (
     <Button
       className={cn(
@@ -114,10 +121,11 @@ export const ArtifactAction = ({
       size={size}
       type="button"
       variant={variant}
+      aria-label={resolvedAriaLabel}
       {...props}
     >
       {Icon ? <Icon className="size-4" /> : children}
-      <span className="sr-only">{label || tooltip}</span>
+      {srLabel ? <span className="sr-only">{srLabel}</span> : null}
     </Button>
   );
 

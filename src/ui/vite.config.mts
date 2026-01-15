@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -24,23 +24,33 @@ const apiPrefixes = [
   "/v3",
 ];
 
-const proxy = Object.fromEntries(
-  apiPrefixes.map((prefix) => [prefix, { target: "http://localhost:8000" }]),
-);
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, rootDir, "");
+  const apiPort = Number.parseInt(
+    env.PROMPTAGENT_API_PORT ?? env.VITE_API_PORT ?? "8000",
+    10,
+  );
+  const apiOrigin = env.PROMPTAGENT_API_ORIGIN ??
+    env.VITE_API_ORIGIN ??
+    `http://localhost:${Number.isFinite(apiPort) ? apiPort : 8000}`;
+  const proxy = Object.fromEntries(
+    apiPrefixes.map((prefix) => [prefix, { target: apiOrigin }]),
+  );
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  resolve: {
-    alias: {
-      "@": srcDir,
+  return {
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        "@": srcDir,
+      },
     },
-  },
-  server: {
-    port: 5173,
-    proxy,
-  },
-  build: {
-    outDir: "dist",
-    emptyOutDir: true,
-  },
+    server: {
+      port: 5173,
+      proxy,
+    },
+    build: {
+      outDir: "dist",
+      emptyOutDir: true,
+    },
+  };
 });

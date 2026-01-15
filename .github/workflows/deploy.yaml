@@ -76,8 +76,22 @@ jobs:
 
       - name: Build Frontend
         run: |
+          if [ -f "src/ui/package.json" ]; then
+            cd src/ui
+          elif [ -f "package.json" ]; then
+            :
+          else
+            echo "No frontend package.json found, skipping"
+            exit 0
+          fi
+
           bun install --frozen-lockfile
-          bun run build || echo "No frontend build configured"
+
+          if grep -q '"build"' package.json; then
+            bun run build
+          else
+            echo "No frontend build script configured, skipping"
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
