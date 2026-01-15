@@ -21,6 +21,12 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Install UI dependencies
+        run: |
+          if [ -f "src/ui/package.json" ]; then
+            cd src/ui && deno install --node-modules-dir --allow-scripts
+          fi
+
       - name: Install deployctl
         run: deno install -A --global jsr:@deno/deployctl
 
