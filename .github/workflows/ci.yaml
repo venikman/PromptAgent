@@ -6,7 +6,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, 'feature/**', 'release/**']
+    branches: [main, develop, "feature/**", "release/**"]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
@@ -16,9 +16,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DOTNET_VERSION: '8.0.x'
-  BUN_VERSION: '1.1'
-  NODE_VERSION: '20'
+  DOTNET_VERSION: "8.0.x"
+  BUN_VERSION: "1.1"
+  NODE_VERSION: "20"
 
 jobs:
   # ============================================================================
@@ -26,6 +26,7 @@ jobs:
   # ============================================================================
   dotnet:
     name: .NET Build & Test
+    if: ${{ hashFiles('**/*.sln', '**/*.csproj', '**/*.fsproj') != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -58,6 +59,7 @@ jobs:
   # ============================================================================
   bun:
     name: Bun Build & Test
+    if: ${{ hashFiles('package.json') != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -72,16 +74,16 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Type check
-        run: bun run typecheck || true  # May not exist in all projects
+        run: bun run typecheck || true # May not exist in all projects
 
       - name: Lint
-        run: bun run lint || true  # May not exist in all projects
+        run: bun run lint || true # May not exist in all projects
 
       - name: Test
         run: bun test
 
       - name: Build
-        run: bun run build || true  # May not exist in all projects
+        run: bun run build || true # May not exist in all projects
 
   # ============================================================================
   # FPF Doctor Checks
@@ -113,7 +115,7 @@ jobs:
   playwright:
     name: Playwright Tests
     runs-on: ubuntu-latest
-    needs: [bun]  # Only run if Bun build passes
+    needs: [bun] # Only run if Bun build passes
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -131,7 +133,7 @@ jobs:
 
       - name: Run Playwright tests
         run: bunx playwright test
-        continue-on-error: true  # May not exist in all projects
+        continue-on-error: true # May not exist in all projects
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -154,17 +156,17 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
+          scan-type: "fs"
           ignore-unfixed: true
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results.sarif"
 
   # ============================================================================
   # PR Release Prep Checklist
@@ -178,7 +180,6 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const core = require("@actions/core");
             const body = context.payload.pull_request?.body ?? "";
             const lines = body.split(/\r?\n/);
             const labels = [

@@ -168,8 +168,8 @@ deno task dev
 
 ## UI Preset (Lyra/Amber)
 
-Reuse the UI styling (Radix Lyra + gray + amber + Noto Sans) in other
-Tailwind v4 projects:
+Reuse the UI styling (Radix Lyra + gray + amber + Noto Sans) in other Tailwind
+v4 projects:
 
 ```bash
 deno run -A scripts/apply-ui-preset.ts --target /path/to/your/project

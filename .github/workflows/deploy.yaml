@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target environment'
+        description: "Target environment"
         required: true
-        default: 'staging'
+        default: "staging"
         type: choice
         options:
           - staging
@@ -19,11 +19,11 @@ on:
 
 concurrency:
   group: deploy-${{ github.ref }}
-  cancel-in-progress: false  # Never cancel in-flight deploys
+  cancel-in-progress: false # Never cancel in-flight deploys
 
 env:
-  DOTNET_VERSION: '8.0.x'
-  BUN_VERSION: '1.1'
+  DOTNET_VERSION: "8.0.x"
+  BUN_VERSION: "1.1"
 
 jobs:
   # ============================================================================
@@ -109,7 +109,7 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        continue-on-error: true  # May not be configured
+        continue-on-error: true # May not be configured
 
       - name: Deploy to staging
         run: |
@@ -176,7 +176,7 @@ jobs:
     if: always() && needs.production.result == 'success'
     steps:
       - name: Wait for metrics
-        run: sleep 60  # Allow time for telemetry to populate
+        run: sleep 60 # Allow time for telemetry to populate
 
       - name: Check error rates
         run: |

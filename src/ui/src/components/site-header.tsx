@@ -1,15 +1,15 @@
-import { Moon, Sun } from "lucide-react"
+import { Moon, Sun } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 
 type SiteHeaderProps = {
-  healthLabel: string
-  healthTone: string
-  inFlightLabel: string
-  inFlightTone: string
-  theme: "light" | "dark"
-  onToggleTheme: () => void
-}
+  healthLabel: string;
+  healthTone: string;
+  inFlightLabel: string;
+  inFlightTone: string;
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
+};
 
 export function SiteHeader({
   healthLabel,
@@ -19,8 +19,8 @@ export function SiteHeader({
   theme,
   onToggleTheme,
 }: SiteHeaderProps) {
-  const nextThemeLabel = theme === "dark" ? "light" : "dark"
-  const ThemeIcon = theme === "dark" ? Moon : Sun
+  const nextThemeLabel = theme === "dark" ? "light" : "dark";
+  const ThemeIcon = theme === "dark" ? Moon : Sun;
 
   return (
     <header className="flex min-h-16 items-center gap-4 border-b bg-background px-4 lg:px-8">
@@ -61,5 +61,5 @@ export function SiteHeader({
         </Button>
       </div>
     </header>
-  )
+  );
 }

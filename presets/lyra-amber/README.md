@@ -12,6 +12,7 @@ deno run -A scripts/apply-ui-preset.ts --target /path/to/your/project
 ```
 
 Defaults:
+
 - CSS target: `src/styles.css`
 - Components config: `components.json`
 

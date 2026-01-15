@@ -223,17 +223,17 @@ Deno.test(
     });
 
     try {
-    // Parse with minimal env
-    const minimalEnv = {};
-    const parsed = EnvSchema.parse(minimalEnv);
+      // Parse with minimal env
+      const minimalEnv = {};
+      const parsed = EnvSchema.parse(minimalEnv);
 
-    // Check critical defaults exist
-    assertEquals(parsed.LMSTUDIO_BASE_URL, "http://127.0.0.1:1234/v1");
-    assertEquals(parsed.LMSTUDIO_API_KEY, "lm-studio");
-    assertEquals(parsed.GEN_TEMPERATURE, 0.7);
-    assertEquals(parsed.GEN_MAX_TOKENS, 4096);
-    assertEquals(parsed.EVAL_REPLICATES, 5);
-    assertEquals(parsed.OPT_ITERATIONS, 10);
+      // Check critical defaults exist
+      assertEquals(parsed.LMSTUDIO_BASE_URL, "http://127.0.0.1:1234/v1");
+      assertEquals(parsed.LMSTUDIO_API_KEY, "lm-studio");
+      assertEquals(parsed.GEN_TEMPERATURE, 0.7);
+      assertEquals(parsed.GEN_MAX_TOKENS, 4096);
+      assertEquals(parsed.EVAL_REPLICATES, 5);
+      assertEquals(parsed.OPT_ITERATIONS, 10);
     } finally {
       envKeys.forEach((key) => {
         const value = previous.get(key);
