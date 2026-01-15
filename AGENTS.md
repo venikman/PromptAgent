@@ -35,6 +35,12 @@ Every change MUST include verification:
 - [ ] Playwright tests for UI changes
 - [ ] Manual repro steps if automated tests not feasible
 
+Release prep is required on PRs:
+
+- [ ] Release notes summary
+- [ ] Rollout + rollback steps
+- [ ] Flags/migrations (if any)
+
 ---
 
 ## 4. FPF Patterns (Required)
@@ -104,6 +110,7 @@ See `.agents/roles.yaml` for full definitions.
 | Architect | Boundaries, interfaces, ADRs |
 | Observability Debugger | Telemetry queries, Playwright repros |
 | Release Engineer | GitHub Actions, deploy gates |
+| Release Steward | Ensure PR includes release prep checklist |
 | Meta-Strategist | Self-evolution, feedback aggregation |
 
 ---
