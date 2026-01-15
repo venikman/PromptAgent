@@ -12,12 +12,12 @@ const DEFAULT_LMSTUDIO_MODEL = "openai/gpt-oss-120b";
 const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini";
 
-const llmBaseUrlFallback = Deno.env.get("LLM_BASE_URL") ??
-  Deno.env.get("LLM_API_BASE_URL");
-const llmApiKeyFallback = Deno.env.get("LLM_API_KEY");
-const llmModelFallback = Deno.env.get("LLM_MODEL");
-const llmJudgeModelFallback = Deno.env.get("LLM_JUDGE_MODEL");
-const isDeployed = Boolean(Deno.env.get("DENO_DEPLOYMENT_ID"));
+const getLlmBaseUrlFallback = () =>
+  Deno.env.get("LLM_BASE_URL") ?? Deno.env.get("LLM_API_BASE_URL");
+const getLlmApiKeyFallback = () => Deno.env.get("LLM_API_KEY");
+const getLlmModelFallback = () => Deno.env.get("LLM_MODEL");
+const getLlmJudgeModelFallback = () => Deno.env.get("LLM_JUDGE_MODEL");
+const isDeployed = () => Boolean(Deno.env.get("DENO_DEPLOYMENT_ID"));
 
 const asEnvString = (value: unknown) => {
   if (typeof value !== "string") return undefined;
@@ -26,33 +26,34 @@ const asEnvString = (value: unknown) => {
 };
 
 const resolveLmStudioBaseUrl = (value: unknown) => {
-  if (isDeployed) {
-    return llmBaseUrlFallback ?? DEFAULT_OPENROUTER_BASE_URL;
+  if (isDeployed()) {
+    return getLlmBaseUrlFallback() ?? DEFAULT_OPENROUTER_BASE_URL;
   }
   const explicit = asEnvString(value);
   if (explicit) return explicit;
   if (Deno.env.get("LMSTUDIO_MODEL")) {
     return DEFAULT_LMSTUDIO_BASE_URL;
   }
-  return llmBaseUrlFallback ?? DEFAULT_LMSTUDIO_BASE_URL;
+  return getLlmBaseUrlFallback() ?? DEFAULT_LMSTUDIO_BASE_URL;
 };
 
 const resolveLmStudioApiKey = (value: unknown) => {
-  if (isDeployed) {
-    return llmApiKeyFallback ?? asEnvString(value) ?? "lm-studio";
+  if (isDeployed()) {
+    return getLlmApiKeyFallback() ?? asEnvString(value) ?? "lm-studio";
   }
-  return asEnvString(value) ?? llmApiKeyFallback ?? "lm-studio";
+  return asEnvString(value) ?? getLlmApiKeyFallback() ?? "lm-studio";
 };
 
 const resolveLmStudioModel = (value: unknown) => {
-  if (isDeployed) {
-    return llmModelFallback ?? DEFAULT_OPENROUTER_MODEL;
+  if (isDeployed()) {
+    return getLlmModelFallback() ?? DEFAULT_OPENROUTER_MODEL;
   }
-  return asEnvString(value) ?? llmModelFallback ?? DEFAULT_LMSTUDIO_MODEL;
+  return asEnvString(value) ?? getLlmModelFallback() ??
+    DEFAULT_LMSTUDIO_MODEL;
 };
 
 const resolveLmStudioJudgeModel = (value: unknown) =>
-  asEnvString(value) ?? llmJudgeModelFallback;
+  asEnvString(value) ?? getLlmJudgeModelFallback();
 
 const envBoolean = (defaultValue: boolean) =>
   z.preprocess((value) => {

@@ -204,6 +204,25 @@ Deno.test("Schema - should reject out-of-range values", () => {
 Deno.test(
   "Defaults - should have sensible defaults when env vars are missing",
   () => {
+    const envKeys = [
+      "DENO_DEPLOYMENT_ID",
+      "LMSTUDIO_BASE_URL",
+      "LMSTUDIO_API_KEY",
+      "LMSTUDIO_MODEL",
+      "LMSTUDIO_JUDGE_MODEL",
+      "LLM_BASE_URL",
+      "LLM_API_BASE_URL",
+      "LLM_API_KEY",
+      "LLM_MODEL",
+      "LLM_JUDGE_MODEL",
+    ];
+    const previous = new Map<string, string | undefined>();
+    envKeys.forEach((key) => {
+      previous.set(key, Deno.env.get(key));
+      Deno.env.delete(key);
+    });
+
+    try {
     // Parse with minimal env
     const minimalEnv = {};
     const parsed = EnvSchema.parse(minimalEnv);
@@ -215,5 +234,15 @@ Deno.test(
     assertEquals(parsed.GEN_MAX_TOKENS, 4096);
     assertEquals(parsed.EVAL_REPLICATES, 5);
     assertEquals(parsed.OPT_ITERATIONS, 10);
+    } finally {
+      envKeys.forEach((key) => {
+        const value = previous.get(key);
+        if (value === undefined) {
+          Deno.env.delete(key);
+        } else {
+          Deno.env.set(key, value);
+        }
+      });
+    }
   },
 );

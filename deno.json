@@ -31,7 +31,7 @@
     "test:e2e": "deno run -A --node-modules-dir npm:@playwright/test@1.57.0 test",
     "test:e2e:install": "deno run -A --node-modules-dir npm:@playwright/test@1.57.0 install",
     "test-server": "deno run -A scripts/test-server.ts",
-    "typecheck": "deno check src/**/*.ts",
+    "typecheck": "deno check src/cli/optimize.ts src/cli/generate.ts src/cli/eval-dist.ts src/server/main.ts",
     "optimize": "deno run -A src/cli/optimize.ts",
     "generate": "deno run -A src/cli/generate.ts",
     "eval:dist": "deno run -A src/cli/eval-dist.ts",
