@@ -383,15 +383,6 @@ const gateTone = (decision: string) => {
   }
 };
 
-const cycleStepStyle = (index: number, total: number, radius: number) => {
-  const angle = (Math.PI * 2 * index) / total - Math.PI / 2;
-  const x = Math.cos(angle) * radius;
-  const y = Math.sin(angle) * radius;
-  return {
-    transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`,
-  };
-};
-
 const StoryCard = (
   { story, index }: { story: StoryPack["userStories"][number]; index: number },
 ) => {
@@ -437,40 +428,6 @@ const StoryCard = (
     </Artifact>
   );
 };
-
-const FlowExplanationPanel = (
-  { explanation }: { explanation: FlowExplanation },
-) => (
-  <div className="rounded-none border border-border bg-muted/30 p-4 text-sm">
-    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-      {explanation.title}
-    </p>
-    <p className="mt-2 text-sm text-foreground">{explanation.summary}</p>
-    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-      {explanation.items.map((item) => {
-        const ItemIcon = item.icon;
-        return (
-          <div
-            key={`${explanation.title}-${item.label}`}
-            className="flex items-center gap-2 rounded-none border border-border/60 bg-background/70 px-2.5 py-2"
-          >
-            <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/10 text-primary">
-              <ItemIcon className="h-4 w-4" />
-            </span>
-            <span className="text-xs font-semibold text-foreground">
-              {item.label}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-    {explanation.note && (
-      <p className="mt-3 text-xs text-muted-foreground">
-        {explanation.note}
-      </p>
-    )}
-  </div>
-);
 
 const FlowStepCard = (
   {

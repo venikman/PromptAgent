@@ -1,27 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
+import { parse } from "@std/dotenv";
 
-const readEnvFile = () => {
+const readEnvFile = (): Record<string, string> => {
   try {
     const raw = Deno.readTextFileSync(".env");
-    const entries: Record<string, string> = {};
-    for (const line of raw.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const eq = trimmed.indexOf("=");
-      if (eq === -1) continue;
-      const key = trimmed.slice(0, eq).trim();
-      let value = trimmed.slice(eq + 1).trim();
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      entries[key] = value;
+    return parse(raw);
+  } catch (e) {
+    if (e instanceof Deno.errors.NotFound) {
+      return {};
     }
-    return entries;
-  } catch {
-    return {};
+    throw e;
   }
 };
 
@@ -33,6 +21,14 @@ const llmBaseUrl = getEnv("LLM_BASE_URL", "https://openrouter.ai/api/v1");
 const llmApiKey = getEnv("LLM_API_KEY");
 const llmModel = getEnv("LLM_MODEL", "openai/gpt-4o-mini");
 
+// Warn when targeting a remote LLM provider without an API key
+const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(llmBaseUrl);
+if (!llmApiKey && !isLocalhost) {
+  console.warn(
+    `[playwright] LLM_API_KEY is empty while LLM_BASE_URL points to a remote provider (${llmBaseUrl}). ` +
+    "LLM calls will likely fail with 401. Set LLM_API_KEY in .env or environment.",
+  );
+}
 export default defineConfig({
   testDir: "./tests/e2e",
   timeout: 60_000,

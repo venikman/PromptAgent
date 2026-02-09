@@ -2,7 +2,7 @@
  * PoLL - Panel of LLM Evaluators
  *
  * Implements FPF B.3 Trust & Assurance Calculus with:
- * - 3 diverse judges (different temperatures for diversity)
+ * - N diverse judges (env-configured count and temperatures)
  * - Per-criterion evaluation (decomposed INVEST + GWT)
  * - WLNK aggregation: R_eff = max(0, min(R_i) - Φ(CL_min))
  * - Full SCR audit trail

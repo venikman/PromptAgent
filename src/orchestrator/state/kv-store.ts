@@ -1,3 +1,4 @@
+// deno-lint-ignore-file require-await
 /**
  * In-memory State Store
  *
@@ -6,6 +7,7 @@
  */
 
 import type { OptimizationState } from "../types.ts";
+
 import type { OptimizationTask } from "../optimization-progress.ts";
 
 // ─────────────────────────────────────────────────
@@ -81,12 +83,17 @@ const deindexTask = (task: TaskRecord) => {
 // ─────────────────────────────────────────────────
 
 export async function saveTask(task: TaskRecord): Promise<void> {
+  const existing = tasks.get(task.id);
+  if (existing) {
+    deindexTask(existing);
+  }
   tasks.set(task.id, task);
   indexTask(task);
 }
 
 export async function getTask(taskId: string): Promise<TaskRecord | null> {
-  return tasks.get(taskId) ?? null;
+  const task = tasks.get(taskId);
+  return task ? { ...task } : null;
 }
 
 export async function updateTaskProgress(
@@ -172,7 +179,8 @@ export async function saveOptimizationTask(
 export async function getOptimizationTask(
   taskId: string,
 ): Promise<OptimizationTask | null> {
-  return optimizationTasks.get(taskId) ?? null;
+  const task = optimizationTasks.get(taskId);
+  return task ? { ...task } : null;
 }
 
 // ─────────────────────────────────────────────────
@@ -200,7 +208,8 @@ export async function saveCheckpoint(
 export async function getCheckpoint(
   checkpointId: string,
 ): Promise<SessionCheckpoint | null> {
-  return checkpoints.get(checkpointId) ?? null;
+  const cp = checkpoints.get(checkpointId);
+  return cp ? { ...cp } : null;
 }
 
 export async function getLatestCheckpoint(
@@ -221,7 +230,8 @@ export async function getLatestCheckpoint(
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
-  return list[0] ?? null;
+  const latest = list[0];
+  return latest ? { ...latest } : null;
 }
 
 export async function listCheckpoints(

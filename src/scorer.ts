@@ -184,10 +184,9 @@ export function createStoryDecompositionScorer() {
       if (!p.isValid) return 0;
 
       const a = results.analyzeStepResult;
-      const analyzeAvailable = !!a;
-      const investScore = analyzeAvailable ? a.invest : 0;
-      const criteriaScore = analyzeAvailable ? a.acceptanceCriteria : 0;
-      const duplicationScore = analyzeAvailable ? a.duplication : 0;
+      const investScore = a?.invest ?? 0;
+      const criteriaScore = a?.acceptanceCriteria ?? 0;
+      const duplicationScore = a?.duplication ?? 0;
 
       // Determine gate decision from either PoLL or single-judge FPF
       const pollInfo = isPoLLMetricInfo(p.pollResult?.info)
@@ -238,14 +237,9 @@ export function createStoryDecompositionScorer() {
       if (!p.isValid) return `Score=${score}. Schema validation failed.`;
 
       const a = results.analyzeStepResult;
-      const analyzeAvailable = !!a;
-      const investLabel = analyzeAvailable ? a.invest.toFixed(3) : "n/a";
-      const criteriaLabel = analyzeAvailable
-        ? a.acceptanceCriteria.toFixed(3)
-        : "n/a";
-      const duplicationLabel = analyzeAvailable
-        ? a.duplication.toFixed(3)
-        : "n/a";
+      const investLabel = a?.invest?.toFixed(3) ?? "n/a";
+      const criteriaLabel = a?.acceptanceCriteria?.toFixed(3) ?? "n/a";
+      const duplicationLabel = a?.duplication?.toFixed(3) ?? "n/a";
 
       // Extract PoLL info if available
       const pollInfo = isPoLLMetricInfo(p.pollResult?.info)
@@ -273,7 +267,7 @@ export function createStoryDecompositionScorer() {
         `gate=${gateDecision}`,
       ];
 
-      if (!analyzeAvailable) {
+      if (!a) {
         reasonParts.push("analysis=unavailable");
       }
 
@@ -315,7 +309,7 @@ export function createStoryDecompositionScorer() {
       if (p.pollError) reasonParts.push(`pollError=${p.pollError}`);
       if (p.fpfJudgeError) reasonParts.push(`fpfError=${p.fpfJudgeError}`);
 
-      const notesLabel = analyzeAvailable ? (a.notes ?? "n/a") : "n/a";
+      const notesLabel = a?.notes ?? "n/a";
       reasonParts.push(`notes=${notesLabel}`);
 
       return reasonParts.filter(Boolean).join(" | ");
