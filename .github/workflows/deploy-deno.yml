@@ -40,6 +40,7 @@ jobs:
           deployctl deploy \
             --project="${{ vars.DENO_DEPLOY_PROJECT }}" \
             --prod \
+            --include=src/ui/dist \
             --exclude=node_modules \
             --exclude=.git \
             --exclude=.github \

@@ -129,13 +129,13 @@ Deno.test("userStorySchema - validates complete user story", () => {
   assert(result.success, "Valid user story should pass");
 });
 
-Deno.test("userStorySchema - rejects story with < 2 acceptance criteria", () => {
+Deno.test("userStorySchema - rejects story with empty acceptance criteria", () => {
   const story = {
     title: "Add login functionality",
     asA: "user",
     iWant: "to login",
     soThat: "I can access stuff",
-    acceptanceCriteria: ["Only one criterion"], // Invalid: min 2
+    acceptanceCriteria: [], // Invalid: min 1
     ado: {
       fields: {
         "System.Title": "Add login functionality",
@@ -148,7 +148,7 @@ Deno.test("userStorySchema - rejects story with < 2 acceptance criteria", () => 
   const result = userStorySchema.safeParse(story);
   assert(
     !result.success,
-    "Story with < 2 acceptance criteria should be invalid",
+    "Story with empty acceptance criteria should be invalid",
   );
 });
 
@@ -228,4 +228,69 @@ Deno.test("storyPackSchema - provides defaults for optional arrays", () => {
   assertEquals(result.data.assumptions, []);
   assertEquals(result.data.risks, []);
   assertEquals(result.data.followUps, []);
+});
+
+// ─────────────────────────────────────────────────
+// Schema Relaxation Boundary Tests
+// ─────────────────────────────────────────────────
+
+Deno.test("userStorySchema - accepts story with exactly 1 acceptance criterion", () => {
+  const story = {
+    title: "Single AC story",
+    asA: "user",
+    iWant: "to do something",
+    soThat: "I get value",
+    acceptanceCriteria: ["Given X, When Y, Then Z"],
+  };
+
+  const result = userStorySchema.safeParse(story);
+  assert(result.success, "Story with 1 acceptance criterion should be valid");
+});
+
+Deno.test("userStorySchema - accepts story without ado field", () => {
+  const story = {
+    title: "No ADO story",
+    asA: "user",
+    iWant: "to do something",
+    soThat: "I get value",
+    acceptanceCriteria: ["Given X, When Y, Then Z"],
+  };
+
+  const result = userStorySchema.safeParse(story);
+  assert(result.success, "Story without ado should be valid");
+  assertEquals(result.data?.ado, undefined);
+});
+
+Deno.test("userStorySchema - accepts story with partial ado fields", () => {
+  const story = {
+    title: "Partial ADO story",
+    asA: "user",
+    iWant: "to do something",
+    soThat: "I get value",
+    acceptanceCriteria: ["Given X, When Y, Then Z"],
+    ado: {
+      fields: {
+        "System.Title": "Partial ADO story",
+      },
+    },
+  };
+
+  const result = userStorySchema.safeParse(story);
+  assert(result.success, "Story with partial ado fields should be valid");
+});
+
+Deno.test("userStorySchema - accepts story with empty ado fields", () => {
+  const story = {
+    title: "Empty ADO fields story",
+    asA: "user",
+    iWant: "to do something",
+    soThat: "I get value",
+    acceptanceCriteria: ["Given X, When Y, Then Z"],
+    ado: {
+      fields: {},
+    },
+  };
+
+  const result = userStorySchema.safeParse(story);
+  assert(result.success, "Story with empty ado fields should be valid");
 });

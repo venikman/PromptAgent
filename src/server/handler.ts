@@ -223,7 +223,9 @@ async function loadEpics(): Promise<unknown[]> {
   if (cachedEpics) return cachedEpics;
   try {
     const text = await Deno.readTextFile(`${DATA_ROOT}/epics.eval.json`);
-    cachedEpics = JSON.parse(text);
+    const parsed = JSON.parse(text);
+    const limit = env.EPICS_LIMIT;
+    cachedEpics = limit ? parsed.slice(0, limit) : parsed;
     return cachedEpics!;
   } catch {
     return [];

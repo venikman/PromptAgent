@@ -12,9 +12,9 @@ export type Epic = {
 };
 
 export type AdoFields = {
-  "System.Title": string;
-  "System.Description": string;
-  "Microsoft.VSTS.Common.AcceptanceCriteria": string;
+  "System.Title"?: string;
+  "System.Description"?: string;
+  "Microsoft.VSTS.Common.AcceptanceCriteria"?: string;
   "Microsoft.VSTS.Scheduling.StoryPoints"?: number;
   "System.Tags"?: string;
 };
@@ -25,7 +25,7 @@ export type UserStory = {
   iWant: string;
   soThat: string;
   acceptanceCriteria: string[];
-  ado: {
+  ado?: {
     fields: AdoFields;
   };
 };

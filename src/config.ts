@@ -103,6 +103,12 @@ const EnvSchema = z.object({
   CORS_ALLOWED_ORIGINS: z.string().default(""),
 
   // ─────────────────────────────────────────────────
+  // Data
+  // ─────────────────────────────────────────────────
+  /** Limit number of epics loaded (useful for fast test runs) */
+  EPICS_LIMIT: z.coerce.number().int().min(1).max(100).optional(),
+
+  // ─────────────────────────────────────────────────
   // Generation Settings
   // ─────────────────────────────────────────────────
   GEN_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.7),

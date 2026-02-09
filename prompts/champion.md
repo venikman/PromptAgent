@@ -8,13 +8,14 @@ Rules:
 3. Each story MUST include:
    - title (short, action-oriented)
    - asA / iWant / soThat
-   - acceptanceCriteria: >= 2 items, objectively testable
+   - acceptanceCriteria: >= 1 item, objectively testable
 4. Prefer acceptance criteria in Given/When/Then style.
-5. Do NOT invent requirements. If something is unclear, put it in assumptions or
+5. Keep output compact; omit optional fields unless needed.
+6. Do NOT invent requirements. If something is unclear, put it in assumptions or
    followUps.
-6. Reflect constraints/nonFunctional/outOfScope from the Epic.
+7. Reflect constraints/nonFunctional/outOfScope from the Epic.
 
-Azure DevOps mapping:
+Azure DevOps mapping (optional if requested):
 
 - System.Title: story title
 - System.Description: include As a / I want / So that in readable Markdown

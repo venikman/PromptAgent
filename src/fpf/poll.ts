@@ -2,7 +2,7 @@
  * PoLL - Panel of LLM Evaluators
  *
  * Implements FPF B.3 Trust & Assurance Calculus with:
- * - 3 diverse judges (different temperatures for diversity)
+ * - N diverse judges (env-configured count and temperatures)
  * - Per-criterion evaluation (decomposed INVEST + GWT)
  * - WLNK aggregation: R_eff = max(0, min(R_i) - Φ(CL_min))
  * - Full SCR audit trail
@@ -38,26 +38,23 @@ import {
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════
 
-const DEFAULT_JUDGES: JudgeConfig[] = [
-  {
-    id: "judge-1",
-    model: "gpt-4o-mini",
-    temperature: 0.3,
+const clampTemp = (value: number) => Math.max(0, Math.min(2, value));
+
+const buildDefaultJudges = (): JudgeConfig[] => {
+  const model = env.LMSTUDIO_JUDGE_MODEL ?? env.LMSTUDIO_MODEL;
+  const baseTemp = env.POLL_TEMP_BASE;
+  const spread = env.POLL_TEMP_SPREAD;
+  const count = env.POLL_NUM_JUDGES;
+
+  return Array.from({ length: count }, (_, index) => ({
+    id: `judge-${index + 1}`,
+    model,
+    temperature: clampTemp(baseTemp + index * spread),
     provider: "lmstudio",
-  },
-  {
-    id: "judge-2",
-    model: "gpt-4o-mini",
-    temperature: 0.5,
-    provider: "lmstudio",
-  },
-  {
-    id: "judge-3",
-    model: "gpt-4o-mini",
-    temperature: 0.7,
-    provider: "lmstudio",
-  },
-];
+  }));
+};
+
+const DEFAULT_JUDGES = buildDefaultJudges();
 
 const CRITERIA_WEIGHTS: Record<EvaluationCriterion, number> = {
   [EvaluationCriterion.CORRECTNESS]: 0.2,

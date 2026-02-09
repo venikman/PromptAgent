@@ -184,6 +184,9 @@ export function createStoryDecompositionScorer() {
       if (!p.isValid) return 0;
 
       const a = results.analyzeStepResult;
+      const investScore = a?.invest ?? 0;
+      const criteriaScore = a?.acceptanceCriteria ?? 0;
+      const duplicationScore = a?.duplication ?? 0;
 
       // Determine gate decision from either PoLL or single-judge FPF
       const pollInfo = isPoLLMetricInfo(p.pollResult?.info)
@@ -206,9 +209,9 @@ export function createStoryDecompositionScorer() {
 
       // Weighted composite score
       const heuristicScore = HEURISTIC_WEIGHTS.coverage * p.coverageScore +
-        HEURISTIC_WEIGHTS.invest * a.invest +
-        HEURISTIC_WEIGHTS.acceptanceCriteria * a.acceptanceCriteria +
-        HEURISTIC_WEIGHTS.duplication * a.duplication +
+        HEURISTIC_WEIGHTS.invest * investScore +
+        HEURISTIC_WEIGHTS.acceptanceCriteria * criteriaScore +
+        HEURISTIC_WEIGHTS.duplication * duplicationScore +
         HEURISTIC_WEIGHTS.count * countScore;
 
       // Use PoLL R_eff (WLNK-aggregated) when available, else single-judge FPF
@@ -234,6 +237,9 @@ export function createStoryDecompositionScorer() {
       if (!p.isValid) return `Score=${score}. Schema validation failed.`;
 
       const a = results.analyzeStepResult;
+      const investLabel = a?.invest?.toFixed(3) ?? "n/a";
+      const criteriaLabel = a?.acceptanceCriteria?.toFixed(3) ?? "n/a";
+      const duplicationLabel = a?.duplication?.toFixed(3) ?? "n/a";
 
       // Extract PoLL info if available
       const pollInfo = isPoLLMetricInfo(p.pollResult?.info)
@@ -254,12 +260,16 @@ export function createStoryDecompositionScorer() {
       const reasonParts = [
         `Score=${score.toFixed(3)}`,
         `coverage=${p.coverageScore.toFixed(3)}`,
-        `invest=${a.invest.toFixed(3)}`,
-        `criteria=${a.acceptanceCriteria.toFixed(3)}`,
-        `dup=${a.duplication.toFixed(3)}`,
+        `invest=${investLabel}`,
+        `criteria=${criteriaLabel}`,
+        `dup=${duplicationLabel}`,
         `stories=${p.storyCount}`,
         `gate=${gateDecision}`,
       ];
+
+      if (!a) {
+        reasonParts.push("analysis=unavailable");
+      }
 
       // Add PoLL-specific info when available (takes precedence)
       if (pollInfo) {
@@ -299,7 +309,8 @@ export function createStoryDecompositionScorer() {
       if (p.pollError) reasonParts.push(`pollError=${p.pollError}`);
       if (p.fpfJudgeError) reasonParts.push(`fpfError=${p.fpfJudgeError}`);
 
-      reasonParts.push(`notes=${a.notes}`);
+      const notesLabel = a?.notes ?? "n/a";
+      reasonParts.push(`notes=${notesLabel}`);
 
       return reasonParts.filter(Boolean).join(" | ");
     });
