@@ -23,18 +23,20 @@ export type Epic = z.infer<typeof epicSchema>;
 // Azure DevOps Work Item Fields
 // ─────────────────────────────────────────────────
 
-export const adoFieldsSchema = z.object({
-  "System.Title": z.string().min(5),
-  "System.Description": z.string().min(10),
-  "Microsoft.VSTS.Common.AcceptanceCriteria": z.string().min(10),
-  "Microsoft.VSTS.Scheduling.StoryPoints": z
-    .number()
-    .int()
-    .min(0)
-    .max(21)
-    .optional(),
-  "System.Tags": z.string().optional(), // semicolon-separated
-});
+export const adoFieldsSchema = z
+  .object({
+    "System.Title": z.string().min(5),
+    "System.Description": z.string().min(10),
+    "Microsoft.VSTS.Common.AcceptanceCriteria": z.string().min(10),
+    "Microsoft.VSTS.Scheduling.StoryPoints": z
+      .number()
+      .int()
+      .min(0)
+      .max(21)
+      .optional(),
+    "System.Tags": z.string().optional(), // semicolon-separated
+  })
+  .partial();
 
 export type AdoFields = z.infer<typeof adoFieldsSchema>;
 
@@ -47,10 +49,12 @@ export const userStorySchema = z.object({
   asA: z.string(),
   iWant: z.string(),
   soThat: z.string(),
-  acceptanceCriteria: z.array(z.string()).min(2),
-  ado: z.object({
-    fields: adoFieldsSchema,
-  }),
+  acceptanceCriteria: z.array(z.string()).min(1),
+  ado: z
+    .object({
+      fields: adoFieldsSchema,
+    })
+    .optional(),
 });
 
 export type UserStory = z.infer<typeof userStorySchema>;

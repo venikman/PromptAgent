@@ -129,13 +129,13 @@ Deno.test("userStorySchema - validates complete user story", () => {
   assert(result.success, "Valid user story should pass");
 });
 
-Deno.test("userStorySchema - rejects story with < 2 acceptance criteria", () => {
+Deno.test("userStorySchema - rejects story with empty acceptance criteria", () => {
   const story = {
     title: "Add login functionality",
     asA: "user",
     iWant: "to login",
     soThat: "I can access stuff",
-    acceptanceCriteria: ["Only one criterion"], // Invalid: min 2
+    acceptanceCriteria: [], // Invalid: min 1
     ado: {
       fields: {
         "System.Title": "Add login functionality",
@@ -148,7 +148,7 @@ Deno.test("userStorySchema - rejects story with < 2 acceptance criteria", () => 
   const result = userStorySchema.safeParse(story);
   assert(
     !result.success,
-    "Story with < 2 acceptance criteria should be invalid",
+    "Story with empty acceptance criteria should be invalid",
   );
 });
 

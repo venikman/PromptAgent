@@ -9,7 +9,8 @@ import { parseAcceptanceCriteria } from "./utils/acceptanceCriteria.ts";
 export const baseStoryAgent = new Agent({
   id: "story-generator",
   name: "Story Generator",
-  instructions: "You generate Azure DevOps user stories from epics.",
+  instructions:
+    "You generate Azure DevOps user stories from epics. Always return JSON that matches the provided schema and keep the response compact.",
   model: makeGeneratorModel(),
 });
 
@@ -36,6 +37,14 @@ type ValidationFailure = {
   message: string;
   issues: string[];
 };
+
+const SCHEMA_GUARDRAILS = [
+  "Output MUST match the provided JSON schema.",
+  "Keep the response compact; omit optional fields unless needed.",
+  "Include `acceptanceCriteria` with at least 1 item per story.",
+  "If you include `ado.fields`, keep each value brief.",
+  "Do not omit or rename required schema fields.",
+].join("\n");
 
 /**
  * Helper to build provider-specific options including seed.
@@ -324,6 +333,8 @@ export async function generateStoryPack(
     },
   ];
 
+  const guardedInstructions = `${candidatePrompt}\n\nSchema guardrails:\n${SCHEMA_GUARDRAILS}`;
+
   let storyPack: StoryPack | null = null;
   let rawText = "";
   let error: string | undefined;
@@ -339,7 +350,7 @@ export async function generateStoryPack(
       { name: "story-generator", model: env.LMSTUDIO_MODEL },
       () =>
         baseStoryAgent.generate(messages, {
-          instructions: candidatePrompt,
+          instructions: guardedInstructions,
           structuredOutput: {
             schema: storyPackSchema,
             jsonPromptInjection: true,
@@ -441,7 +452,7 @@ export async function generateStoryPack(
   return {
     storyPack,
     rawText,
-    instructions: candidatePrompt,
+    instructions: guardedInstructions,
     trace,
     gammaTime: startedAt,
     seed,
